@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { supabase } from './supabase';
 
 // --- OWNERS -------------------------------------------------------------------
 const OWNERS = {
@@ -695,6 +696,59 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
   );
 }
 
+function dbToListing(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    price: Number(row.price),
+    priceUnit: row.price_unit || 'day',
+    category: row.category,
+    emoji: row.emoji || '📦',
+    color: row.color,
+    description: row.description || '',
+    amenities: row.amenities || [],
+    capacity: row.capacity,
+    available: row.available,
+    booked: row.booked || [],
+    views: row.views || 0,
+    requests: row.requests || 0,
+    earnings: row.earnings || 0,
+    rating: row.rating,
+    reviews: row.reviews || 0,
+    listingType: row.listing_type || 'rent',
+    offersDelivery: row.offers_delivery || false,
+    deliveryFee: row.delivery_fee,
+    uploadedImages: row.uploaded_images || [],
+    photos: row.photos || [],
+  };
+}
+
+function listingToDb(listing) {
+  return {
+    title: listing.title,
+    price: Number(listing.price),
+    price_unit: listing.priceUnit || 'day',
+    category: listing.category,
+    emoji: listing.emoji || '📦',
+    color: listing.color,
+    description: listing.description || '',
+    amenities: listing.amenities || [],
+    capacity: listing.capacity || null,
+    available: listing.available !== undefined ? listing.available : true,
+    booked: listing.booked || [],
+    views: listing.views || 0,
+    requests: listing.requests || 0,
+    earnings: listing.earnings || 0,
+    rating: listing.rating || null,
+    reviews: listing.reviews || 0,
+    listing_type: listing.listingType || 'rent',
+    offers_delivery: listing.offersDelivery || false,
+    delivery_fee: listing.deliveryFee ? Number(listing.deliveryFee) : null,
+    uploaded_images: listing.uploadedImages || [],
+    photos: listing.photos || [],
+  };
+}
+
 export default function Lendie() {
   const [tab, setTab] = useState("browse");
   const [category, setCategory] = useState("all");
@@ -716,7 +770,8 @@ export default function Lendie() {
   const [payMethod, setPayMethod] = useState("card");
   const [ownerProfileId, setOwnerProfileId] = useState(null);
   const [photoBrowser, setPhotoBrowser] = useState(null);
-  const [myListings, setMyListings] = useState(SEED_MY_LISTINGS);
+  const [myListings, setMyListings] = useState([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
   const [addImages, setAddImages] = useState([]);
   const [showAddListing, setShowAddListing] = useState(false);
   const [newListing, setNewListing] = useState({ title:"", price:"", priceUnit:"day", category:"tools", emoji:"🔧", description:"", amenities:"", capacity:"", listingType:"rent", offersDelivery:false, deliveryFee:"" });
@@ -737,6 +792,14 @@ export default function Lendie() {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const msgEndRef = useRef(null);
+
+  useEffect(() => {
+    supabase.from('listings').select('*').order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setMyListings(data.map(dbToListing));
+        setListingsLoading(false);
+      });
+  }, []);
 
   const showToast = (msg, type="success") => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -779,25 +842,30 @@ export default function Lendie() {
   };
   const CAT_EMOJI_MAP = { tools:"🔧", trailers:"🚛", construction:"🏗️", kitchen:"🍳", garden:"🌱", outdoors:"🏕️", venues:"🏛️", party:"🎉", vehicles:"🚗", tech:"💻", housing:"🏠", other:"📦" };
 
-  const handleAddListing = () => {
+  const handleAddListing = async () => {
     if (!newListing.title || !newListing.price) { showToast("Fill in name and price","error"); return; }
     const colors = ["#F59E0B","#EC4899","#10B981","#3B82F6","#8B5CF6","#EF4444"];
     const amenArr = newListing.amenities ? newListing.amenities.split(",").map(a=>a.trim()).filter(Boolean) : [];
     if (newListing.offersDelivery && newListing.deliveryFee) amenArr.push("Delivery available (+$"+newListing.deliveryFee+")");
-    setMyListings(prev=>[...prev,{
-      id:Date.now(), ...newListing, price:Number(newListing.price),
-      color:colors[Math.floor(Math.random()*colors.length)],
-      available:true, booked:[], views:0, requests:0, earnings:0, rating:null, reviews:0,
-      amenities:amenArr, capacity:newListing.capacity?Number(newListing.capacity):null,
-      photos:[newListing.emoji||"📦","📸"], uploadedImages:[...addImages]
-    }]);
+    const dbRow = listingToDb({
+      ...newListing, price: Number(newListing.price),
+      color: colors[Math.floor(Math.random()*colors.length)],
+      available: true, booked: [], views: 0, requests: 0, earnings: 0, rating: null, reviews: 0,
+      amenities: amenArr, capacity: newListing.capacity ? Number(newListing.capacity) : null,
+      photos: [newListing.emoji||"📦","📸"], uploadedImages: [...addImages],
+    });
+    const { data, error } = await supabase.from('listings').insert(dbRow).select().single();
+    if (error) { showToast("Failed to save listing","error"); console.error(error); return; }
+    setMyListings(prev=>[dbToListing(data), ...prev]);
     setNewListing({ title:"", price:"", priceUnit:"day", category:"tools", emoji:"🔧", description:"", amenities:"", capacity:"", listingType:"rent", offersDelivery:false, deliveryFee:"" });
     setAddImages([]);
     setShowAddListing(false);
     showToast("Listing published!");
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
+    const { error } = await supabase.from('listings').update(listingToDb({...editingListing,uploadedImages:editImages})).eq('id', editingListing.id);
+    if (error) { showToast("Failed to update","error"); return; }
     setMyListings(prev=>prev.map(l=>l.id===editingListing.id?{...l,...editingListing,uploadedImages:editImages}:l));
     setEditingListing(null);
     showToast("Listing updated!");
@@ -1085,7 +1153,7 @@ export default function Lendie() {
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:6 }}>
-                  <button onClick={()=>setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:!x.available}:x))} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#65676B" }}>{l.available?"Pause":"Resume"}</button>
+                  <button onClick={async()=>{ const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#65676B" }}>{l.available?"Pause":"Resume"}</button>
                   <button onClick={()=>setDeletingId(l.id)} style={{ background:"#FFF0F0", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#FA3E3E" }}>Delete</button>
                 </div>
               </div>
@@ -1198,7 +1266,7 @@ export default function Lendie() {
           <div style={{ ...S.sheet, maxHeight:"auto" }} onClick={e=>e.stopPropagation()}>
             <div style={{ fontSize:16, fontWeight:700, color:"#1C1E21", marginBottom:8 }}>Delete listing?</div>
             <div style={{ fontSize:13, color:"#65676B", marginBottom:20 }}>This cannot be undone.</div>
-            <button style={{ ...S.pBtn, background:"#FA3E3E" }} onClick={()=>{ setMyListings(prev=>prev.filter(l=>l.id!==deletingId)); setDeletingId(null); showToast("Listing deleted"); }}>Delete</button>
+            <button style={{ ...S.pBtn, background:"#FA3E3E" }} onClick={async()=>{ const{error}=await supabase.from('listings').delete().eq('id',deletingId); if(!error){setMyListings(prev=>prev.filter(l=>l.id!==deletingId));setDeletingId(null);showToast("Listing deleted");}else{showToast("Failed to delete","error");} }}>Delete</button>
             <button style={S.gBtn} onClick={()=>setDeletingId(null)}>Cancel</button>
           </div>
         </div>
