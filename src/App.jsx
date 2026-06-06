@@ -1296,33 +1296,54 @@ function AuthModal({ show, initialMode = "login", onClose }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    if (show) { setMode(initialMode); setName(""); setEmail(""); setPassword(""); setError(""); setLoading(false); }
+    if (show) { setMode(initialMode); setName(""); setEmail(""); setPassword(""); setError(""); setSuccessMsg(""); setLoading(false); }
   }, [show, initialMode]);
 
   if (!show) return null;
 
+  const goMode = (m) => { setMode(m); setError(""); setSuccessMsg(""); };
+
   const submit = async () => {
-    setError("");
-    if (!email || !password) { setError("Email and password are required"); return; }
-    if (mode === "signup" && !name.trim()) { setError("Name is required"); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setError(""); setSuccessMsg("");
     setLoading(true);
+
+    if (mode === "forgot") {
+      if (!email) { setError("Enter your email address"); setLoading(false); return; }
+      const { error: e } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      setLoading(false);
+      if (e) setError(e.message);
+      else setSuccessMsg("Reset link sent! Check your email and click the link to set a new password.");
+      return;
+    }
+
+    if (!email || !password) { setError("Email and password are required"); setLoading(false); return; }
+    if (mode === "signup" && !name.trim()) { setError("Name is required"); setLoading(false); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); setLoading(false); return; }
+
     if (mode === "login") {
       const { error: e } = await supabase.auth.signInWithPassword({ email, password });
       if (e) { setError(e.message); setLoading(false); }
       else onClose();
     } else {
-      const { error: e } = await supabase.auth.signUp({ email, password, options: { data: { name: name.trim() } } });
-      if (e) { setError(e.message); }
-      else setError("Check your email to confirm your account, then sign in.");
+      const { error: e } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { name: name.trim() }, emailRedirectTo: window.location.origin },
+      });
       setLoading(false);
+      if (e) setError(e.message);
+      else setSuccessMsg("Account created! Check your email for a confirmation link before signing in.");
     }
   };
 
   const inp = { width:"100%", background:"#F7F8FA", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
   const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
+
+  const headerSub = mode === "login" ? "Welcome back!" : mode === "signup" ? "Join thousands of neighbors sharing nearby" : "Reset your password";
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:800, display:"flex", alignItems:"flex-end" }} onClick={onClose}>
@@ -1330,18 +1351,18 @@ function AuthModal({ show, initialMode = "login", onClose }) {
         <div style={{ background:"#00B894", padding:"18px 24px 22px", textAlign:"center", borderRadius:"16px 16px 0 0" }}>
           <div style={{ width:40, height:5, borderRadius:3, background:"rgba(255,255,255,0.35)", margin:"0 auto 14px" }}/>
           <div style={{ fontSize:26, fontWeight:900, color:"#fff", letterSpacing:-0.5, fontFamily:"'Helvetica Neue',Arial,sans-serif" }}>lendie</div>
-          <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", marginTop:4 }}>
-            {mode==="login" ? "Welcome back!" : "Join thousands of neighbors sharing nearby"}
-          </div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", marginTop:4 }}>{headerSub}</div>
         </div>
         <div style={{ padding:"20px 24px 48px" }}>
-          <div style={{ display:"flex", background:"#F0F2F5", borderRadius:12, padding:4, marginBottom:20 }}>
-            {[["login","Sign In"],["signup","Sign Up"]].map(([m,l])=>(
-              <button key={m} onClick={()=>{ setMode(m); setError(""); }} style={{ flex:1, padding:"10px", borderRadius:9, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:mode===m?"#00B894":"transparent", color:mode===m?"#fff":"#65676B", transition:"all 0.18s" }}>{l}</button>
-            ))}
-          </div>
+          {mode !== "forgot" && (
+            <div style={{ display:"flex", background:"#F0F2F5", borderRadius:12, padding:4, marginBottom:20 }}>
+              {[["login","Sign In"],["signup","Sign Up"]].map(([m,l])=>(
+                <button key={m} onClick={()=>goMode(m)} style={{ flex:1, padding:"10px", borderRadius:9, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:mode===m?"#00B894":"transparent", color:mode===m?"#fff":"#65676B", transition:"all 0.18s" }}>{l}</button>
+              ))}
+            </div>
+          )}
 
-          {mode==="signup" && (
+          {mode === "signup" && (
             <div style={{ marginBottom:14 }}>
               <label style={lbl}>Your Name</label>
               <input style={inp} placeholder="e.g. Alex Johnson" value={name} onChange={e=>setName(e.target.value)} autoComplete="name"/>
@@ -1350,31 +1371,108 @@ function AuthModal({ show, initialMode = "login", onClose }) {
 
           <div style={{ marginBottom:14 }}>
             <label style={lbl}>Email</label>
-            <input style={inp} type="email" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/>
+            <input style={inp} type="email" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" onKeyDown={e=>e.key==="Enter"&&submit()}/>
           </div>
 
-          <div style={{ marginBottom:20 }}>
-            <label style={lbl}>Password</label>
-            <input style={inp} type="password" placeholder={mode==="signup"?"At least 6 characters":"Your password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="signup"?"new-password":"current-password"} onKeyDown={e=>e.key==="Enter"&&submit()}/>
-          </div>
+          {mode !== "forgot" && (
+            <div style={{ marginBottom: mode === "login" ? 8 : 20 }}>
+              <label style={lbl}>Password</label>
+              <input style={inp} type="password" placeholder={mode==="signup"?"At least 6 characters":"Your password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="signup"?"new-password":"current-password"} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+            </div>
+          )}
+
+          {mode === "login" && (
+            <div style={{ textAlign:"right", marginBottom:20 }}>
+              <span onClick={()=>goMode("forgot")} style={{ fontSize:12, color:"#00B894", fontWeight:600, cursor:"pointer" }}>Forgot your password?</span>
+            </div>
+          )}
 
           {error && (
-            <div style={{ borderRadius:10, padding:"11px 14px", marginBottom:16, fontSize:13, border:"1px solid", ...(error.startsWith("Check")?{ background:"#E8FBF6", color:"#00A67E", borderColor:"#B2EFE3" }:{ background:"#FFF0F0", color:"#FA3E3E", borderColor:"#FFCDD2" }) }}>
+            <div style={{ borderRadius:10, padding:"11px 14px", marginBottom:16, fontSize:13, border:"1px solid", background:"#FFF0F0", color:"#FA3E3E", borderColor:"#FFCDD2" }}>
               {error}
+            </div>
+          )}
+          {successMsg && (
+            <div style={{ borderRadius:10, padding:"11px 14px", marginBottom:16, fontSize:13, border:"1px solid", background:"#E8FBF6", color:"#00A67E", borderColor:"#B2EFE3" }}>
+              {successMsg}
             </div>
           )}
 
           <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"15px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:16, cursor:loading?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:loading?0.7:1, marginBottom:12 }}>
-            {loading ? "…" : mode==="login" ? "Sign In" : "Create Account"}
+            {loading ? "…" : mode==="login" ? "Sign In" : mode==="signup" ? "Create Account" : "Send Reset Link"}
           </button>
 
-          <div style={{ textAlign:"center", fontSize:13, color:"#65676B" }}>
-            {mode==="login" ? "New to Lendie? " : "Already have an account? "}
-            <span onClick={()=>{ setMode(mode==="login"?"signup":"login"); setError(""); }} style={{ color:"#00B894", fontWeight:700, cursor:"pointer" }}>
-              {mode==="login" ? "Sign Up" : "Sign In"}
-            </span>
-          </div>
+          {mode === "forgot" ? (
+            <div style={{ textAlign:"center", fontSize:13, color:"#65676B" }}>
+              <span onClick={()=>goMode("login")} style={{ color:"#00B894", fontWeight:700, cursor:"pointer" }}>← Back to Sign In</span>
+            </div>
+          ) : (
+            <div style={{ textAlign:"center", fontSize:13, color:"#65676B" }}>
+              {mode==="login" ? "New to Lendie? " : "Already have an account? "}
+              <span onClick={()=>goMode(mode==="login"?"signup":"login")} style={{ color:"#00B894", fontWeight:700, cursor:"pointer" }}>
+                {mode==="login" ? "Sign Up" : "Sign In"}
+              </span>
+            </div>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordResetModal({ show, onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  if (!show) return null;
+
+  const submit = async () => {
+    setError("");
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (password !== confirm) { setError("Passwords do not match"); return; }
+    setLoading(true);
+    const { error: e } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (e) { setError(e.message); return; }
+    setDone(true);
+    setTimeout(onDone, 2000);
+  };
+
+  const inp = { width:"100%", background:"#F7F8FA", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
+  const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:900, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#fff", borderRadius:18, padding:28, maxWidth:380, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.18)" }}>
+        <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🔑</div>
+        <div style={{ fontSize:19, fontWeight:800, color:"#1C1E21", textAlign:"center", marginBottom:6 }}>Set a new password</div>
+        <div style={{ fontSize:13, color:"#65676B", textAlign:"center", marginBottom:22 }}>Choose a strong password for your Lendie account.</div>
+
+        {done ? (
+          <div style={{ borderRadius:10, padding:"14px", background:"#E8FBF6", color:"#00A67E", border:"1px solid #B2EFE3", fontSize:14, fontWeight:600, textAlign:"center" }}>
+            ✓ Password updated! Signing you in…
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>New Password</label>
+              <input style={inp} type="password" placeholder="At least 6 characters" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/>
+            </div>
+            <div style={{ marginBottom:20 }}>
+              <label style={lbl}>Confirm Password</label>
+              <input style={inp} type="password" placeholder="Same password again" value={confirm} onChange={e=>setConfirm(e.target.value)} autoComplete="new-password" onKeyDown={e=>e.key==="Enter"&&submit()}/>
+            </div>
+            {error && (
+              <div style={{ borderRadius:10, padding:"11px 14px", marginBottom:16, fontSize:13, background:"#FFF0F0", color:"#FA3E3E", border:"1px solid #FFCDD2" }}>{error}</div>
+            )}
+            <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:15, cursor:loading?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:loading?0.7:1 }}>
+              {loading ? "Updating…" : "Update Password"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1446,6 +1544,7 @@ export default function Lendie() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -1475,9 +1574,18 @@ export default function Lendie() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
+      // Detect email confirmation landing (token_hash in URL)
+      const params = new URLSearchParams(window.location.search);
+      if (session && params.get('token_hash') && params.get('type') === 'email') {
+        showToast('Email confirmed! Welcome to Lendie 🎉');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowPasswordReset(true);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -2973,6 +3081,7 @@ export default function Lendie() {
         />
       )}
       <AuthModal show={showAuthModal} initialMode={authModalMode} onClose={()=>setShowAuthModal(false)}/>
+      <PasswordResetModal show={showPasswordReset} onDone={()=>{ setShowPasswordReset(false); showToast('Password updated! You\'re now signed in.'); }}/>
       <Toast toast={toast}/>
 
       {/* Desktop footer */}
