@@ -1255,6 +1255,8 @@ function dbToListing(row) {
     lng: row.lng ? Number(row.lng) : undefined,
     uploadedImages: row.uploaded_images || [],
     photos: row.photos || [],
+    ownerName: row.owner_name || null,
+    ownerId: row.user_id || null,
   };
 }
 
@@ -1509,6 +1511,7 @@ export default function Lendie() {
   const [photoBrowser, setPhotoBrowser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
+  const [publicListings, setPublicListings] = useState([]);
   const [addImages, setAddImages] = useState([]);
   const [showAddListing, setShowAddListing] = useState(false);
   const [newListing, setNewListing] = useState({ title:"", price:"", priceUnit:"day", salePrice:"", category:"tools", emoji:"🔧", description:"", amenities:"", capacity:"", listingType:"rent", offersDelivery:false, deliveryFee:"", deliveryRadius:"", deliveryLocationAddress:"", lat:null, lng:null });
@@ -1786,6 +1789,22 @@ export default function Lendie() {
       });
   }, [user?.id]);
 
+  // Fetch all other users' listings (works for guests too — RLS allows public read)
+  useEffect(() => {
+    let query = supabase.from('listings').select('*').order('created_at', { ascending: false });
+    if (user?.id) query = query.neq('user_id', user.id);
+    query.then(({ data }) => {
+      if (!data) return;
+      setPublicListings(data.map(row => ({
+        ...dbToListing(row),
+        owner: row.owner_name || 'Neighbor',
+        ownerAvatar: '🧑',
+        ownerId: row.user_id || 'unknown',
+        distance: 0,
+      })));
+    });
+  }, [user?.id]);
+
   const requireAuth = (mode = "login") => {
     if (user) return true;
     setAuthModalMode(mode);
@@ -1886,7 +1905,8 @@ export default function Lendie() {
     return { ...item, rating: lr.avg, reviews: lr.count };
   };
   const allItems = [
-    ...myListings.map(l => enrichRating(mergeBooked({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] })))
+    ...myListings.map(l => enrichRating(mergeBooked({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
+    ...publicListings.map(l => enrichRating(mergeBooked({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
   ];
 
   const centerCoords = locationText === "Current Location" ? gpsCoords : searchCoords;
@@ -1943,6 +1963,7 @@ export default function Lendie() {
         photos: [newListing.emoji||"📦"], uploadedImages: addImages.filter(img => img.url),
       }),
       user_id: user?.id,
+      owner_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Lender',
     };
     console.log("[AddListing] dbRow lat:", dbRow.lat, "lng:", dbRow.lng);
     const { data, error } = await supabase.from('listings').insert(dbRow).select().single();
