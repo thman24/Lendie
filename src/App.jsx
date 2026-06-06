@@ -18,7 +18,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const MAPS_API_KEY = 'AIzaSyB7lXQCgUs0NWHWX-8SScOfqY0MIq1y3EM';
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1114,23 +1114,14 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
     }
   }, [mapReady, centerCoords, radius]);
 
-  if (mapError) {
-    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    const keyStatus = !key || key === 'undefined'
-      ? 'MISSING (not baked into build)'
-      : `Present — starts with: ${String(key).slice(0, 8)}…`;
-    return (
-      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#65676B', gap:8, padding:24 }}>
-        <div style={{ fontSize:32 }}>🗺️</div>
-        <div style={{ fontSize:14, fontWeight:700, color:'#1C1E21' }}>Map unavailable</div>
-        <div style={{ fontSize:13, color:'#E87722' }}>{mapError}</div>
-        <div style={{ marginTop:12, background:'#F7F8FA', border:'1px solid #E4E6EB', borderRadius:10, padding:'12px 16px', fontSize:12, fontFamily:'monospace', color:'#1C1E21', lineHeight:1.7, maxWidth:340, width:'100%' }}>
-          <div><strong>VITE_GOOGLE_MAPS_API_KEY</strong></div>
-          <div style={{ color: (!key || key==='undefined') ? '#FA3E3E' : '#00B894' }}>{keyStatus}</div>
-        </div>
-      </div>
-    );
-  }
+  if (mapError) return (
+    <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#65676B', gap:8, padding:24 }}>
+      <div style={{ fontSize:32 }}>🗺️</div>
+      <div style={{ fontSize:14, fontWeight:700, color:'#1C1E21' }}>Map unavailable</div>
+      <div style={{ fontSize:13, color:'#E87722', textAlign:'center' }}>{mapError}</div>
+      <div style={{ marginTop:8, fontSize:12, color:'#8A8D91', fontFamily:'monospace' }}>key: {MAPS_API_KEY.slice(0,8)}…</div>
+    </div>
+  );
 
   return (
     <div style={{ position:'absolute', inset:0 }}>
@@ -1610,21 +1601,24 @@ export default function Lendie() {
       });
   }, [user]);
 
-  // Resolve actual city name from browser geolocation
+  // Resolve actual city/neighborhood from browser geolocation
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
         const { latitude: lat, longitude: lng } = pos.coords;
         setGpsCoords({ lat, lng });
-        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`);
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${MAPS_API_KEY}`);
         const data = await res.json();
         if (data.results?.[0]) {
-          const comps = data.results[0].address_components;
-          const city = comps.find(c => c.types.includes('locality'))?.long_name || '';
-          const state = comps.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
-          if (city) setResolvedLocation(city + (state ? ', ' + state : ''));
+          const comps = data.results[0].address_components || [];
+          const neighborhood = comps.find(c => c.types.includes('neighborhood'))?.long_name;
+          const sublocality  = comps.find(c => c.types.includes('sublocality_level_1') || c.types.includes('sublocality'))?.long_name;
+          const locality     = comps.find(c => c.types.includes('locality'))?.long_name;
+          const county       = comps.find(c => c.types.includes('administrative_area_level_2'))?.long_name;
+          const state        = comps.find(c => c.types.includes('administrative_area_level_1'))?.short_name;
+          const place = neighborhood || sublocality || locality || county || '';
+          if (place) setResolvedLocation(place + (state ? ', ' + state : ''));
         }
       } catch {}
     }, () => {});
