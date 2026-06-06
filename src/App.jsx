@@ -1114,13 +1114,23 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
     }
   }, [mapReady, centerCoords, radius]);
 
-  if (mapError) return (
-    <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#65676B', gap:8 }}>
-      <div style={{ fontSize:32 }}>🗺️</div>
-      <div style={{ fontSize:14, fontWeight:600 }}>Map unavailable</div>
-      <div style={{ fontSize:12 }}>{mapError}</div>
-    </div>
-  );
+  if (mapError) {
+    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    const keyStatus = !key || key === 'undefined'
+      ? 'MISSING (not baked into build)'
+      : `Present — starts with: ${String(key).slice(0, 8)}…`;
+    return (
+      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#65676B', gap:8, padding:24 }}>
+        <div style={{ fontSize:32 }}>🗺️</div>
+        <div style={{ fontSize:14, fontWeight:700, color:'#1C1E21' }}>Map unavailable</div>
+        <div style={{ fontSize:13, color:'#E87722' }}>{mapError}</div>
+        <div style={{ marginTop:12, background:'#F7F8FA', border:'1px solid #E4E6EB', borderRadius:10, padding:'12px 16px', fontSize:12, fontFamily:'monospace', color:'#1C1E21', lineHeight:1.7, maxWidth:340, width:'100%' }}>
+          <div><strong>VITE_GOOGLE_MAPS_API_KEY</strong></div>
+          <div style={{ color: (!key || key==='undefined') ? '#FA3E3E' : '#00B894' }}>{keyStatus}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position:'absolute', inset:0 }}>
