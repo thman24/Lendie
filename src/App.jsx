@@ -1553,6 +1553,10 @@ export default function Lendie() {
   const [dismissedBanner, setDismissedBanner] = useState(() => !!localStorage.getItem('lendie_banner_dismissed'));
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [profileSubTab, setProfileSubTab] = useState("profile");
+  const [notifPermission, setNotifPermission] = useState(() => typeof Notification !== 'undefined' ? Notification.permission : 'default');
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [togglingPush, setTogglingPush] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -1658,30 +1662,73 @@ export default function Lendie() {
       });
   }, [user]);
 
-  // Push notification subscription
+  // Push notification subscription — check existing sub on login
   useEffect(() => {
-    if (!user || !VAPID_PUBLIC_KEY || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!user || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
     navigator.serviceWorker.ready.then(async sw => {
       try {
-        let sub = await sw.pushManager.getSubscription();
-        if (!sub) {
-          const perm = await Notification.requestPermission();
-          if (perm !== 'granted') return;
-          sub = await sw.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-          });
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) {
+          setPushEnabled(true);
+          const json = sub.toJSON();
+          await supabase.from('push_subscriptions').upsert(
+            { user_id: user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+            { onConflict: 'user_id,endpoint' }
+          );
         }
-        const json = sub.toJSON();
-        await supabase.from('push_subscriptions').upsert(
-          { user_id: user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
-          { onConflict: 'user_id,endpoint' }
-        );
       } catch (e) {
-        console.warn('[Push] subscribe error:', e.message);
+        console.warn('[Push] check error:', e.message);
       }
     });
   }, [user]);
+
+  async function togglePushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showToast("Push notifications are not supported on this browser.", "error");
+      return;
+    }
+    setTogglingPush(true);
+    try {
+      const sw = await navigator.serviceWorker.ready;
+      if (pushEnabled) {
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          if (user) await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
+        }
+        setPushEnabled(false);
+        showToast("Push notifications disabled.");
+      } else {
+        const perm = await Notification.requestPermission();
+        setNotifPermission(perm);
+        if (perm !== 'granted') {
+          showToast("Please allow notifications in your browser settings.", "error");
+          setTogglingPush(false);
+          return;
+        }
+        if (!VAPID_PUBLIC_KEY) {
+          showToast("Push notifications are not configured yet.", "error");
+          setTogglingPush(false);
+          return;
+        }
+        const sub = await sw.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+        const json = sub.toJSON();
+        if (user) await supabase.from('push_subscriptions').upsert(
+          { user_id: user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+          { onConflict: 'user_id,endpoint' }
+        );
+        setPushEnabled(true);
+        showToast("Push notifications enabled!");
+      }
+    } catch (e) {
+      console.warn('[Push] toggle error:', e.message);
+      showToast("Something went wrong. Try again.", "error");
+    }
+    setTogglingPush(false);
+  }
 
   // Load booking requests from DB (as renter or as owner)
   useEffect(() => {
@@ -2834,8 +2881,17 @@ export default function Lendie() {
 
       {tab==="profile" && (
         <div style={{ maxWidth: isDesktop ? 900 : "none", margin: isDesktop ? "0 auto" : 0, padding: isDesktop ? "0 0 40px" : 0 }}>
-          <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB" }}>
-            <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>Profile</div>
+          <div style={{ background:"#fff", padding:"14px 16px 0", borderBottom:"1px solid #E4E6EB" }}>
+            <div style={{ fontSize:22, fontWeight:900, color:"#00B894", paddingBottom:12 }}>Profile</div>
+            {user && (
+              <div style={{ display:"flex", gap:0 }}>
+                {[["profile","Profile"],["settings","Settings"]].map(([key,label])=>(
+                  <button key={key} onClick={()=>setProfileSubTab(key)} style={{ flex:1, padding:"8px 0", background:"none", border:"none", fontFamily:"inherit", fontWeight:700, fontSize:13, cursor:"pointer", color:profileSubTab===key?"#00B894":"#65676B", borderBottom:profileSubTab===key?"2.5px solid #00B894":"2.5px solid transparent", transition:"all 0.15s" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {!user && (
             <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
@@ -2846,7 +2902,53 @@ export default function Lendie() {
               <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"13px", borderRadius:12, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" }}>Sign in</button>
             </div>
           )}
-          {user && (
+          {user && profileSubTab === "settings" && (
+            <div style={{ padding:16, display:"flex", flexDirection:"column", gap:16 }}>
+              <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                <div style={{ padding:"14px 16px", borderBottom:"1px solid #F0F2F5" }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#65676B", textTransform:"uppercase", letterSpacing:"0.5px" }}>Notifications</div>
+                </div>
+                <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:700, color:"#1C1E21" }}>Push Notifications</div>
+                    <div style={{ fontSize:12, color:"#65676B", marginTop:2, lineHeight:1.4 }}>
+                      {notifPermission === 'denied'
+                        ? "Blocked in browser settings — allow them in Site Settings to enable."
+                        : pushEnabled
+                          ? "You'll get notified about bookings and messages."
+                          : "Get notified about bookings and messages."}
+                    </div>
+                  </div>
+                  <button
+                    disabled={togglingPush || notifPermission === 'denied'}
+                    onClick={togglePushNotifications}
+                    style={{
+                      flexShrink:0, width:50, height:28, borderRadius:14, border:"none", cursor: notifPermission==='denied'||togglingPush ? "not-allowed" : "pointer",
+                      background: pushEnabled ? "#00B894" : "#CDD0D4",
+                      position:"relative", transition:"background 0.2s", opacity: notifPermission==='denied' ? 0.5 : 1,
+                    }}
+                  >
+                    <span style={{ position:"absolute", top:3, left: pushEnabled ? 25 : 3, width:22, height:22, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", transition:"left 0.2s" }}/>
+                  </button>
+                </div>
+              </div>
+              <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                <div style={{ padding:"14px 16px", borderBottom:"1px solid #F0F2F5" }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#65676B", textTransform:"uppercase", letterSpacing:"0.5px" }}>Account</div>
+                </div>
+                <div style={{ padding:"4px 0" }}>
+                  <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"14px 16px", textAlign:"left", background:"none", border:"none", fontFamily:"inherit", fontWeight:600, fontSize:15, cursor:"pointer", color:"#FA3E3E" }}>
+                    Sign Out
+                  </button>
+                  <div style={{ height:1, background:"#F0F2F5", margin:"0 16px" }}/>
+                  <button onClick={()=>setShowDeleteAccountModal(true)} style={{ width:"100%", padding:"14px 16px", textAlign:"left", background:"none", border:"none", fontFamily:"inherit", fontWeight:600, fontSize:15, cursor:"pointer", color:"#8A8D91" }}>
+                    Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {user && profileSubTab === "profile" && (
             <>
               <div style={{ background:"#fff", padding:"32px 16px 24px", textAlign:"center", borderBottom:"1px solid #E4E6EB" }}>
                 <div style={{ position:"relative", width:80, height:80, margin:"0 auto 14px" }}>
