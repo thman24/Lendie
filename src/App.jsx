@@ -935,9 +935,8 @@ function loadGoogleMaps() {
     window[cb] = () => { delete window[cb]; resolve(); };
 
     const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&loading=async&callback=${cb}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&callback=${cb}`;
     s.async = true;
-    s.defer = true;
     s.onerror = () => { _mapsPromise = null; reject(new Error('Maps script failed to load')); };
     document.head.appendChild(s);
   });
