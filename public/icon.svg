@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Green rounded square background -->
+  <rect width="512" height="512" rx="110" fill="#00B894"/>
+  <!-- Bold white L (two rectangles) -->
+  <rect x="112" y="82" width="92" height="268" rx="22" fill="white"/>
+  <rect x="112" y="308" width="244" height="92" rx="22" fill="white"/>
+  <!-- Three white dots below -->
+  <circle cx="178" cy="448" r="27" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="256" cy="448" r="27" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="334" cy="448" r="27" fill="rgba(255,255,255,0.88)"/>
+</svg>
