@@ -19,7 +19,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 const MAPS_API_KEY = 'AIzaSyB7lXQCgUs0NWHWX-8SScOfqY0MIq1y3EM';
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = 'BJlsUiWJmTTuliqPp62DEJpwwmCCpvb0s4LZRqn66VgYLtmobRYTMD-r4fcCbob8zIjyru7XfUQom03qaZyUs84';
 const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
