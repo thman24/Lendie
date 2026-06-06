@@ -536,8 +536,32 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
   );
 }
 
-function AddListingModal({ show, onClose, newListing, setNewListing, addImages, setAddImages, onSubmit, S, C, ALL_CATS }) {
+function AddListingModal({ show, onClose, newListing, setNewListing, addImages, setAddImages, onSubmit, S, C, ALL_CATS, userId }) {
+  const [uploading, setUploading] = useState(0);
+
   if (!show) return null;
+
+  const handleFiles = async (files) => {
+    const imageFiles = Array.from(files || []).filter(f => f.type.startsWith("image/"));
+    if (!imageFiles.length) return;
+    for (const file of imageFiles) {
+      const tempId = Date.now() + Math.random();
+      setAddImages(p => [...p, { id: tempId, url: null }]);
+      setUploading(n => n + 1);
+      try {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, 'jpg');
+        const path = `${userId || 'public'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('listing-images').upload(path, file, { cacheControl: '3600', upsert: false });
+        if (upErr) throw upErr;
+        const { data } = supabase.storage.from('listing-images').getPublicUrl(path);
+        setAddImages(p => p.map(img => img.id === tempId ? { id: tempId, url: data.publicUrl } : img));
+      } catch {
+        setAddImages(p => p.filter(img => img.id !== tempId));
+      }
+      setUploading(n => n - 1);
+    }
+  };
+
   return (
     <div style={S.overlay} onClick={onClose}>
       <div style={S.sheet} onClick={e=>e.stopPropagation()}>
@@ -563,15 +587,20 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
             <div style={{ fontSize:13, fontWeight:700, color:"#00B894", marginBottom:2 }}>Tap to add photos</div>
             <div style={{ fontSize:11, color:C.muted }}>Camera, Gallery or Files</div>
             <input id="nr-photo-input" type="file" accept="image/*" multiple style={{ display:"none" }}
-              onChange={e=>{ Array.from(e.target.files||[]).forEach(f=>{ if(!f.type.startsWith("image/"))return; const r=new FileReader(); r.onload=ev=>setAddImages(p=>[...p,{id:Date.now()+Math.random(),url:ev.target.result}]); r.readAsDataURL(f); }); }}/>
+              onChange={e=>{ handleFiles(e.target.files); e.target.value=""; }}/>
           </label>
           {addImages.length > 0 && (
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
               {addImages.map((img,i) => (
                 <div key={img.id} style={{ position:"relative", width:76, height:76 }}>
-                  <img src={img.url} alt="" style={{ width:76, height:76, borderRadius:10, objectFit:"cover", border:i===0?"2.5px solid #00B894":"1.5px solid #E4E6EB" }}/>
-                  {i===0 && <div style={{ position:"absolute", top:3, left:3, background:"#00B894", borderRadius:5, padding:"2px 5px", fontSize:9, fontWeight:800, color:"#fff" }}>COVER</div>}
-                  <button onClick={()=>setAddImages(p=>p.filter(x=>x.id!==img.id))} style={{ position:"absolute", top:-5, right:-5, background:"#FA3E3E", border:"2px solid #fff", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>x</button>
+                  {img.url
+                    ? <img src={img.url} alt="" style={{ width:76, height:76, borderRadius:10, objectFit:"cover", border:i===0?"2.5px solid #00B894":"1.5px solid #E4E6EB" }}/>
+                    : <div style={{ width:76, height:76, borderRadius:10, background:"#F0F2F5", border:"1.5px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <div style={{ width:26, height:26, borderRadius:"50%", border:"3px solid #00B894", borderTopColor:"transparent", animation:"spin 0.75s linear infinite" }}/>
+                      </div>
+                  }
+                  {img.url && i===0 && <div style={{ position:"absolute", top:3, left:3, background:"#00B894", borderRadius:5, padding:"2px 5px", fontSize:9, fontWeight:800, color:"#fff" }}>COVER</div>}
+                  {img.url && <button onClick={()=>setAddImages(p=>p.filter(x=>x.id!==img.id))} style={{ position:"absolute", top:-5, right:-5, background:"#FA3E3E", border:"2px solid #fff", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>x</button>}
                 </div>
               ))}
               <label htmlFor="nr-photo-input" style={{ width:76, height:76, borderRadius:10, border:"2px dashed #B2EFE3", background:"#F0F8FF", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
@@ -644,7 +673,9 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
             </div>
           )}
         </div>
-        <button style={S.pBtn} onClick={onSubmit}>Publish Listing</button>
+        <button style={{ ...S.pBtn, opacity:uploading>0?0.6:1, cursor:uploading>0?"not-allowed":"pointer" }} onClick={uploading>0?undefined:onSubmit} disabled={uploading>0}>
+          {uploading>0 ? `Uploading ${uploading} photo${uploading>1?"s":""}…` : "Publish Listing"}
+        </button>
         <button style={S.gBtn} onClick={onClose}>Cancel</button>
       </div>
     </div>
@@ -968,7 +999,7 @@ export default function Lendie() {
         color: colors[Math.floor(Math.random()*colors.length)],
         available: true, booked: [], views: 0, requests: 0, earnings: 0, rating: null, reviews: 0,
         amenities: amenArr, capacity: newListing.capacity ? Number(newListing.capacity) : null,
-        photos: [newListing.emoji||"📦","📸"], uploadedImages: [...addImages],
+        photos: [newListing.emoji||"📦"], uploadedImages: addImages.filter(img => img.url),
       }),
       user_id: user?.id,
     };
@@ -1168,7 +1199,7 @@ export default function Lendie() {
 
   return (
     <div style={S.app}>
-      <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+      <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {tab==="browse" && (
         <div>
           <div style={{ background:"#fff", borderBottom:"1px solid #E4E6EB", position:"sticky", top:0, zIndex:50, willChange:"transform", transform:"translateZ(0)" }} onClick={e=>e.stopPropagation()}>
@@ -1418,6 +1449,7 @@ export default function Lendie() {
         S={S}
         C={C}
         ALL_CATS={ALL_CATS}
+        userId={user?.id}
       />
       <NotifPanel/>
       <ChatView
