@@ -1554,6 +1554,12 @@ export default function Lendie() {
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [profileSubTab, setProfileSubTab] = useState("profile");
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const pullStartY = useRef(0);
+  const pullStartScroll = useRef(0);
   const [notifPermission, setNotifPermission] = useState(() => typeof Notification !== 'undefined' ? Notification.permission : 'default');
   const [pushEnabled, setPushEnabled] = useState(false);
   const [togglingPush, setTogglingPush] = useState(false);
@@ -1834,7 +1840,7 @@ export default function Lendie() {
         if (!error && data) setMyListings(data.map(dbToListing));
         setListingsLoading(false);
       });
-  }, [user?.id]);
+  }, [user?.id, refreshTick]);
 
   // Fetch all other users' listings (works for guests too — RLS allows public read)
   useEffect(() => {
@@ -1850,7 +1856,7 @@ export default function Lendie() {
         distance: 0,
       })));
     });
-  }, [user?.id]);
+  }, [user?.id, refreshTick]);
 
   const requireAuth = (mode = "login") => {
     if (user) return true;
@@ -2533,8 +2539,42 @@ export default function Lendie() {
         </div>
       )}
 
+      {(isPulling || isRefreshing) && !isDesktop && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:300, display:"flex", justifyContent:"center", alignItems:"flex-start", paddingTop: Math.max(8, pullY - 8), pointerEvents:"none", transition: isPulling ? "none" : "padding-top 0.3s ease" }}>
+          <div style={{ background:"#00B894", borderRadius:20, padding:"7px 16px", display:"flex", alignItems:"center", gap:7, color:"#fff", fontSize:13, fontWeight:700, boxShadow:"0 2px 12px rgba(0,184,148,0.4)", opacity: pullY > 16 || isRefreshing ? 1 : 0, transition:"opacity 0.15s, transform 0.15s", transform: `scale(${isRefreshing ? 1 : Math.min(pullY / 58, 1)})` }}>
+            {isRefreshing
+              ? <><span style={{ display:"inline-block", animation:"spin 0.8s linear infinite" }}>↻</span> Refreshing…</>
+              : <>{pullY >= 58 ? "↑ Release to refresh" : "↓ Pull to refresh"}</>}
+          </div>
+        </div>
+      )}
+
       {tab==="browse" && (
-        <div style={{ background:"#fff", minHeight: isDesktop ? "auto" : "calc(100vh - 84px)" }}>
+        <div
+          style={{ background:"#fff", minHeight: isDesktop ? "auto" : "calc(100vh - 84px)" }}
+          onTouchStart={e => {
+            pullStartY.current = e.touches[0].clientY;
+            pullStartScroll.current = window.scrollY;
+          }}
+          onTouchMove={e => {
+            if (isRefreshing || isDesktop) return;
+            if (pullStartScroll.current > 10) return;
+            const delta = e.touches[0].clientY - pullStartY.current;
+            if (delta > 4) {
+              setIsPulling(true);
+              setPullY(Math.min(delta * 0.45, 80));
+            }
+          }}
+          onTouchEnd={() => {
+            if (pullY >= 58 && !isRefreshing) {
+              setIsRefreshing(true);
+              setRefreshTick(t => t + 1);
+              setTimeout(() => setIsRefreshing(false), 1200);
+            }
+            setIsPulling(false);
+            setPullY(0);
+          }}
+        >
           <div style={{ display: isDesktop ? "none" : "block", background:"#fff", borderBottom:"1px solid #E4E6EB", position:"sticky", top:0, zIndex:50, willChange:"transform", transform:"translateZ(0)" }} onClick={e=>e.stopPropagation()}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px 8px" }}>
               <div style={{ fontSize:26, fontWeight:900, color:"#00B894", letterSpacing:-0.5, fontFamily:"'Helvetica Neue',Arial,sans-serif" }}>Lendie</div>
