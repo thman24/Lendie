@@ -18,7 +18,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-const MAPS_API_KEY = 'AIzaSyB7lXQCgUs0NWHWX-8SScOfqY0MIq1y3EM';
+const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
