@@ -918,11 +918,27 @@ function loadGoogleMaps() {
   if (_mapsPromise) return _mapsPromise;
   _mapsPromise = new Promise((resolve, reject) => {
     if (window.google?.maps) { resolve(); return; }
+
+    if (!MAPS_API_KEY || MAPS_API_KEY === 'undefined') {
+      _mapsPromise = null;
+      reject(new Error('Maps API key is not configured'));
+      return;
+    }
+
+    // Global auth-failure hook — fires when key is invalid or domain not allowed
+    window.gm_authFailure = () => {
+      _mapsPromise = null;
+      reject(new Error('Maps API key is invalid or not authorised for this domain'));
+    };
+
+    const cb = '__googleMapsReady';
+    window[cb] = () => { delete window[cb]; resolve(); };
+
     const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&loading=async&callback=${cb}`;
     s.async = true;
-    s.onload = resolve;
-    s.onerror = () => { _mapsPromise = null; reject(new Error('Maps failed to load')); };
+    s.defer = true;
+    s.onerror = () => { _mapsPromise = null; reject(new Error('Maps script failed to load')); };
     document.head.appendChild(s);
   });
   return _mapsPromise;
@@ -955,7 +971,7 @@ function makePriceIcon(price, priceUnit) {
   return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, onMoveCenter }) {
+function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, onMoveCenter, visible }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -965,6 +981,13 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
   const [mapReady, setMapReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState(null);
+
+  // Trigger a resize event when the map becomes visible so tiles fill correctly
+  useEffect(() => {
+    if (visible && mapRef.current && window.google?.maps) {
+      window.google.maps.event.trigger(mapRef.current, 'resize');
+    }
+  }, [visible]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2665,18 +2688,17 @@ export default function Lendie() {
         </div>
       )}
 
-      {tab==="map" && (
-        <div style={{ position:"fixed", top: isDesktop ? 64 : 0, bottom: isDesktop ? 0 : 84, left:0, right:0, zIndex:10 }}>
-          <MapView
-            items={allItems}
-            centerCoords={centerCoords}
-            radius={radius}
-            onRadiusChange={setRadius}
-            onMoveCenter={handleMapMoveCenter}
-            onSelectItem={item => setSelectedItem(item)}
-          />
-        </div>
-      )}
+      <div style={{ position:"fixed", top: isDesktop ? 64 : 0, bottom: isDesktop ? 0 : 84, left:0, right:0, zIndex:10, visibility: tab==="map" ? "visible" : "hidden", pointerEvents: tab==="map" ? "auto" : "none" }}>
+        <MapView
+          items={allItems}
+          centerCoords={centerCoords}
+          radius={radius}
+          onRadiusChange={setRadius}
+          onMoveCenter={handleMapMoveCenter}
+          onSelectItem={item => setSelectedItem(item)}
+          visible={tab==="map"}
+        />
+      </div>
 
       {tab==="profile" && (
         <div style={{ maxWidth: isDesktop ? 900 : "none", margin: isDesktop ? "0 auto" : 0, padding: isDesktop ? "0 0 40px" : 0 }}>
