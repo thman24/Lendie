@@ -749,6 +749,97 @@ function listingToDb(listing) {
   };
 }
 
+function AuthModal({ show, initialMode = "login", onClose }) {
+  const [mode, setMode] = useState(initialMode);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (show) { setMode(initialMode); setName(""); setEmail(""); setPassword(""); setError(""); setLoading(false); }
+  }, [show, initialMode]);
+
+  if (!show) return null;
+
+  const submit = async () => {
+    setError("");
+    if (!email || !password) { setError("Email and password are required"); return; }
+    if (mode === "signup" && !name.trim()) { setError("Name is required"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setLoading(true);
+    if (mode === "login") {
+      const { error: e } = await supabase.auth.signInWithPassword({ email, password });
+      if (e) { setError(e.message); setLoading(false); }
+      else onClose();
+    } else {
+      const { error: e } = await supabase.auth.signUp({ email, password, options: { data: { name: name.trim() } } });
+      if (e) { setError(e.message); }
+      else setError("Check your email to confirm your account, then sign in.");
+      setLoading(false);
+    }
+  };
+
+  const inp = { width:"100%", background:"#F7F8FA", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
+  const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:800, display:"flex", alignItems:"flex-end" }} onClick={onClose}>
+      <div style={{ background:"#fff", borderRadius:"16px 16px 0 0", width:"100%", maxWidth:430, margin:"0 auto", maxHeight:"92dvh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ background:"#00B894", padding:"18px 24px 22px", textAlign:"center", borderRadius:"16px 16px 0 0" }}>
+          <div style={{ width:40, height:5, borderRadius:3, background:"rgba(255,255,255,0.35)", margin:"0 auto 14px" }}/>
+          <div style={{ fontSize:26, fontWeight:900, color:"#fff", letterSpacing:-0.5, fontFamily:"'Helvetica Neue',Arial,sans-serif" }}>lendie</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", marginTop:4 }}>
+            {mode==="login" ? "Welcome back!" : "Join thousands of neighbors sharing nearby"}
+          </div>
+        </div>
+        <div style={{ padding:"20px 24px 48px" }}>
+          <div style={{ display:"flex", background:"#F0F2F5", borderRadius:12, padding:4, marginBottom:20 }}>
+            {[["login","Sign In"],["signup","Sign Up"]].map(([m,l])=>(
+              <button key={m} onClick={()=>{ setMode(m); setError(""); }} style={{ flex:1, padding:"10px", borderRadius:9, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:mode===m?"#00B894":"transparent", color:mode===m?"#fff":"#65676B", transition:"all 0.18s" }}>{l}</button>
+            ))}
+          </div>
+
+          {mode==="signup" && (
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>Your Name</label>
+              <input style={inp} placeholder="e.g. Alex Johnson" value={name} onChange={e=>setName(e.target.value)} autoComplete="name"/>
+            </div>
+          )}
+
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Email</label>
+            <input style={inp} type="email" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/>
+          </div>
+
+          <div style={{ marginBottom:20 }}>
+            <label style={lbl}>Password</label>
+            <input style={inp} type="password" placeholder={mode==="signup"?"At least 6 characters":"Your password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="signup"?"new-password":"current-password"} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+          </div>
+
+          {error && (
+            <div style={{ borderRadius:10, padding:"11px 14px", marginBottom:16, fontSize:13, border:"1px solid", ...(error.startsWith("Check")?{ background:"#E8FBF6", color:"#00A67E", borderColor:"#B2EFE3" }:{ background:"#FFF0F0", color:"#FA3E3E", borderColor:"#FFCDD2" }) }}>
+              {error}
+            </div>
+          )}
+
+          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"15px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:16, cursor:loading?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:loading?0.7:1, marginBottom:12 }}>
+            {loading ? "…" : mode==="login" ? "Sign In" : "Create Account"}
+          </button>
+
+          <div style={{ textAlign:"center", fontSize:13, color:"#65676B" }}>
+            {mode==="login" ? "New to Lendie? " : "Already have an account? "}
+            <span onClick={()=>{ setMode(mode==="login"?"signup":"login"); setError(""); }} style={{ color:"#00B894", fontWeight:700, cursor:"pointer" }}>
+              {mode==="login" ? "Sign Up" : "Sign In"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Lendie() {
   const [tab, setTab] = useState("browse");
   const [category, setCategory] = useState("all");
@@ -792,14 +883,38 @@ export default function Lendie() {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const msgEndRef = useRef(null);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState("login");
 
   useEffect(() => {
-    supabase.from('listings').select('*').order('created_at', { ascending: false })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) { setMyListings([]); setListingsLoading(false); return; }
+    setListingsLoading(true);
+    supabase.from('listings').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) setMyListings(data.map(dbToListing));
         setListingsLoading(false);
       });
-  }, []);
+  }, [user?.id]);
+
+  const requireAuth = (mode = "login") => {
+    if (user) return true;
+    setAuthModalMode(mode);
+    setShowAuthModal(true);
+    return false;
+  };
 
   const showToast = (msg, type="success") => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -847,13 +962,16 @@ export default function Lendie() {
     const colors = ["#F59E0B","#EC4899","#10B981","#3B82F6","#8B5CF6","#EF4444"];
     const amenArr = newListing.amenities ? newListing.amenities.split(",").map(a=>a.trim()).filter(Boolean) : [];
     if (newListing.offersDelivery && newListing.deliveryFee) amenArr.push("Delivery available (+$"+newListing.deliveryFee+")");
-    const dbRow = listingToDb({
-      ...newListing, price: Number(newListing.price),
-      color: colors[Math.floor(Math.random()*colors.length)],
-      available: true, booked: [], views: 0, requests: 0, earnings: 0, rating: null, reviews: 0,
-      amenities: amenArr, capacity: newListing.capacity ? Number(newListing.capacity) : null,
-      photos: [newListing.emoji||"📦","📸"], uploadedImages: [...addImages],
-    });
+    const dbRow = {
+      ...listingToDb({
+        ...newListing, price: Number(newListing.price),
+        color: colors[Math.floor(Math.random()*colors.length)],
+        available: true, booked: [], views: 0, requests: 0, earnings: 0, rating: null, reviews: 0,
+        amenities: amenArr, capacity: newListing.capacity ? Number(newListing.capacity) : null,
+        photos: [newListing.emoji||"📦","📸"], uploadedImages: [...addImages],
+      }),
+      user_id: user?.id,
+    };
     const { data, error } = await supabase.from('listings').insert(dbRow).select().single();
     if (error) { showToast("Failed to save listing","error"); console.error(error); return; }
     setMyListings(prev=>[dbToListing(data), ...prev]);
@@ -1056,11 +1174,23 @@ export default function Lendie() {
           <div style={{ background:"#fff", borderBottom:"1px solid #E4E6EB", position:"sticky", top:0, zIndex:50, willChange:"transform", transform:"translateZ(0)" }} onClick={e=>e.stopPropagation()}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px 8px" }}>
               <div style={{ fontSize:26, fontWeight:900, color:"#00B894", letterSpacing:-0.5, fontFamily:"'Helvetica Neue',Arial,sans-serif" }}>lendie<span style={{ opacity:0.45, fontSize:20 }}>.app</span></div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>
-                <button style={{ position:"relative", background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
-                  🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:0, right:0, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
-                </button>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                {user ? (
+                  <>
+                    <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>
+                    <button style={{ position:"relative", background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
+                      🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:0, right:0, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
+                    </button>
+                    <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", flexShrink:0 }}>
+                      {(user.user_metadata?.name||"L")[0].toUpperCase()}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ background:"#F0F2F5", border:"none", borderRadius:20, padding:"0 14px", height:34, fontSize:13, fontWeight:700, cursor:"pointer", color:"#1C1E21", fontFamily:"inherit" }}>Log in</button>
+                    <button onClick={()=>{ setAuthModalMode("signup"); setShowAuthModal(true); }} style={{ background:"#00B894", border:"none", borderRadius:20, padding:"0 14px", height:34, fontSize:13, fontWeight:700, cursor:"pointer", color:"#fff", fontFamily:"inherit" }}>Sign up</button>
+                  </>
+                )}
               </div>
             </div>
             <div style={{ padding:"0 14px 8px" }}>
@@ -1135,10 +1265,19 @@ export default function Lendie() {
         <div>
           <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>My Listings</div>
-            <button onClick={()=>setShowAddListing(true)} style={{ background:"#00B894", border:"none", borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ List item</button>
+            <button onClick={()=>{ if (requireAuth()) setShowAddListing(true); }} style={{ background:"#00B894", border:"none", borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ List item</button>
           </div>
-          {myListings.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No listings yet. Tap + to add one!</div>}
-          {myListings.map(l=>(
+          {!user && (
+            <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>📦</div>
+              <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>List your first item</div>
+              <div style={{ fontSize:13, color:"#65676B", marginBottom:24, lineHeight:1.6 }}>Sign in to earn money by renting out tools, gear, and more to your neighbors.</div>
+              <button onClick={()=>{ setAuthModalMode("signup"); setShowAuthModal(true); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 }}>Get started</button>
+              <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"13px", borderRadius:12, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" }}>Sign in</button>
+            </div>
+          )}
+          {user && myListings.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No listings yet. Tap + to add one!</div>}
+          {user && myListings.map(l=>(
             <div key={l.id} style={{ background:"#fff", margin:"0 0 2px", padding:"14px 16px", borderBottom:"1px solid #F0F2F5" }}>
               <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                 <div style={{ width:60, height:60, borderRadius:10, background:(l.color||"#eee")+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>
@@ -1167,8 +1306,16 @@ export default function Lendie() {
           <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB" }}>
             <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>Messages</div>
           </div>
-          {messages.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No messages yet</div>}
-          {messages.map(m=>(
+          {!user && (
+            <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>💬</div>
+              <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>Your inbox</div>
+              <div style={{ fontSize:13, color:"#65676B", marginBottom:24, lineHeight:1.6 }}>Sign in to message owners and manage your bookings.</div>
+              <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff" }}>Sign in</button>
+            </div>
+          )}
+          {user && messages.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No messages yet</div>}
+          {user && messages.map(m=>(
             <div key={m.id} onClick={()=>{ setActiveConvo(m); setMessages(prev=>prev.map(x=>x.id===m.id?{...x,unread:false}:x)); }} style={{ background:"#fff", padding:"14px 16px", borderBottom:"1px solid #F0F2F5", display:"flex", gap:12, cursor:"pointer", alignItems:"center" }}>
               <div style={{ width:50, height:50, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{m.avatar}</div>
               <div style={{ flex:1 }}>
@@ -1187,19 +1334,56 @@ export default function Lendie() {
           <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB" }}>
             <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>Profile</div>
           </div>
-          <div style={{ background:"#fff", padding:"24px 16px", textAlign:"center", borderBottom:"1px solid #E4E6EB" }}>
-            <div style={{ fontSize:64, marginBottom:12 }}>🧑</div>
-            <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>You</div>
-            <div style={{ fontSize:13, color:"#65676B", marginTop:4 }}>Lendie Member</div>
-          </div>
-          <div style={{ display:"flex", gap:12, padding:16 }}>
-            {[["Listings",myListings.length],["Favorites",favorites.length],["Messages",messages.length]].map(([label,val])=>(
-              <div key={label} style={{ flex:1, background:"#F0F2F5", borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
-                <div style={{ fontSize:22, fontWeight:800, color:"#00B894" }}>{val}</div>
-                <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{label}</div>
+          {!user && (
+            <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
+              <div style={{ width:80, height:80, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, margin:"0 auto 16px" }}>👤</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>Join Lendie</div>
+              <div style={{ fontSize:13, color:"#65676B", marginBottom:28, lineHeight:1.6 }}>Sign up to list items, save favorites, and connect with neighbors.</div>
+              <button onClick={()=>{ setAuthModalMode("signup"); setShowAuthModal(true); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 }}>Create account</button>
+              <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"13px", borderRadius:12, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" }}>Sign in</button>
+            </div>
+          )}
+          {user && (
+            <>
+              <div style={{ background:"#fff", padding:"32px 16px 24px", textAlign:"center", borderBottom:"1px solid #E4E6EB" }}>
+                <div style={{ width:80, height:80, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, margin:"0 auto 14px", color:"#fff", fontWeight:800, flexShrink:0 }}>
+                  {(user.user_metadata?.name||"L")[0].toUpperCase()}
+                </div>
+                <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>{user.user_metadata?.name || "Lendie User"}</div>
+                <div style={{ fontSize:13, color:"#65676B", marginTop:4 }}>{user.email}</div>
               </div>
-            ))}
-          </div>
+              <div style={{ display:"flex", gap:12, padding:16 }}>
+                {[["Listings",myListings.length],["Saved",favorites.length],["Messages",messages.length]].map(([label,val])=>(
+                  <div key={label} style={{ flex:1, background:"#F0F2F5", borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
+                    <div style={{ fontSize:22, fontWeight:800, color:"#00B894" }}>{val}</div>
+                    <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              {myListings.length > 0 && (
+                <div style={{ padding:"0 16px 16px" }}>
+                  <div style={{ fontSize:15, fontWeight:800, color:"#1C1E21", marginBottom:12 }}>My Listings</div>
+                  {myListings.map(l => (
+                    <div key={l.id} onClick={()=>{ setSelectedItem({...l,owner:user.user_metadata?.name||"You",ownerAvatar:"🧑",ownerId:"me",distance:0,lat:40.714,lng:-74.006}); setTab("browse"); }} style={{ display:"flex", gap:12, background:"#F7F8FA", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10, cursor:"pointer", alignItems:"center" }}>
+                      <div style={{ width:48, height:48, borderRadius:10, background:(l.color||"#eee")+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, overflow:"hidden" }}>
+                        {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{ width:48, height:48, objectFit:"cover" }}/> : l.emoji}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontWeight:600, fontSize:13, color:"#1C1E21" }}>{l.title}</div>
+                        <div style={{ fontSize:11, color:"#65676B" }}>${l.price}/{l.priceUnit||"day"}</div>
+                      </div>
+                      <div style={{ width:8, height:8, borderRadius:"50%", background:l.available?"#31A24C":"#FA3E3E", flexShrink:0 }}/>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ padding:"0 16px 40px" }}>
+                <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"1.5px solid #FA3E3E", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#FFF0F0", color:"#FA3E3E" }}>
+                  Sign Out
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1217,6 +1401,7 @@ export default function Lendie() {
         setPaymentStep={setPaymentStep}
         onConfirmBooking={(s,e)=>{
           if (!s) return;
+          if (!requireAuth()) return;
           setPaymentModal({ item:selectedItem, start:s, end:e||s });
           setPaymentStep(1);
         }}
@@ -1250,6 +1435,7 @@ export default function Lendie() {
         onClose={()=>setOwnerProfileId(null)}
         onSelectItem={item=>{ setSelectedItem(item); setOwnerProfileId(null); }}
         onMessage={owner=>{
+          if (!requireAuth()) return;
           setOwnerProfileId(null);
           const ex = messages.find(m=>m.fromId===owner.id);
           if (ex) { setActiveConvo(ex); }
@@ -1271,6 +1457,7 @@ export default function Lendie() {
           </div>
         </div>
       )}
+      <AuthModal show={showAuthModal} initialMode={authModalMode} onClose={()=>setShowAuthModal(false)}/>
       <Toast toast={toast}/>
       <nav style={S.nav}>
         {[
