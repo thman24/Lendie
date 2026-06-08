@@ -2900,11 +2900,15 @@ export default function Lendie() {
                       {req.wantsDelivery && req.deliveryAddress && (
                         <div style={{ fontSize:11, color:"#00B894", marginTop:2 }}>Delivery: {req.deliveryAddress}</div>
                       )}
-                      <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                        <button onClick={()=>handleAcceptRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Accept</button>
-                        <button onClick={()=>handleDeclineRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#FA3E3E", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Decline</button>
-                      </div>
-                      <button onClick={()=>handleCancelRequest(req)} style={{ width:"100%", marginTop:8, padding:"7px", borderRadius:8, border:"none", background:"none", color:"#8A8D91", fontSize:12, cursor:"pointer", fontFamily:"inherit", textAlign:"center" }}>Cancel my request</button>
+                      {user?.id === req.item.ownerId && user?.id !== req.renterId && (
+                        <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                          <button onClick={()=>handleAcceptRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Accept</button>
+                          <button onClick={()=>handleDeclineRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#FA3E3E", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Decline</button>
+                        </div>
+                      )}
+                      {user?.id === req.renterId && (
+                        <button onClick={()=>handleCancelRequest(req)} style={{ width:"100%", marginTop:8, padding:"7px", borderRadius:8, border:"none", background:"none", color:"#8A8D91", fontSize:12, cursor:"pointer", fontFamily:"inherit", textAlign:"center" }}>Cancel my request</button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3067,7 +3071,7 @@ export default function Lendie() {
               )}
               {(() => {
                 const TODAY = "2026-06-02";
-                const myRentals = bookingRequests.filter(r => r.status === "accepted").sort((a, b) => b.start > a.start ? 1 : -1);
+                const myRentals = bookingRequests.filter(r => r.status === "accepted" && r.renterId === user?.id).sort((a, b) => b.start > a.start ? 1 : -1);
                 if (myRentals.length === 0) return null;
                 return (
                   <div style={{ padding:"0 16px 16px" }}>
