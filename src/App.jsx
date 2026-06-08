@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag } from "lucide-react";
+import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil } from "lucide-react";
 import { supabase } from './supabase';
 
 function CatIcon({ id, size=14, strokeWidth=1.75 }) {
@@ -1518,6 +1518,7 @@ export default function Lendie() {
   const [bookedOverrides, setBookedOverrides] = useState({});
   const [reviewingBooking, setReviewingBooking] = useState(null);
   const [reviewedBookings, setReviewedBookings] = useState({});
+  const [openSections, setOpenSections] = useState({});
   const [listingRatings, setListingRatings] = useState({});
   const [paymentModal, setPaymentModal] = useState(null);
   const [paymentStep, setPaymentStep] = useState(1);
@@ -2068,9 +2069,9 @@ export default function Lendie() {
   };
 
   const handleEditSave = async () => {
-    const { error } = await supabase.from('listings').update(listingToDb({...editingListing,uploadedImages:editImages})).eq('id', editingListing.id);
+    const { error } = await supabase.from('listings').update(listingToDb({...newListing,uploadedImages:editImages})).eq('id', editingListing.id);
     if (error) { showToast("Failed to update","error"); return; }
-    setMyListings(prev=>prev.map(l=>l.id===editingListing.id?{...l,...editingListing,uploadedImages:editImages}:l));
+    setMyListings(prev=>prev.map(l=>l.id===editingListing.id?{...l,...newListing,uploadedImages:editImages}:l));
     setEditingListing(null);
     showToast("Listing updated!");
   };
@@ -3067,6 +3068,7 @@ export default function Lendie() {
           )}
           {user && profileSubTab === "profile" && (
             <>
+              {/* Avatar + name */}
               <div style={{ background:"#fff", padding:"32px 16px 24px", textAlign:"center", borderBottom:"1px solid #E4E6EB" }}>
                 <div style={{ position:"relative", width:80, height:80, margin:"0 auto 14px" }}>
                   <label style={{ cursor:"pointer", display:"block", width:80, height:80, borderRadius:"50%", overflow:"hidden" }}>
@@ -3084,88 +3086,151 @@ export default function Lendie() {
                 <div style={{ fontSize:13, color:"#65676B", marginTop:4 }}>{user.email}</div>
                 <div style={{ fontSize:11, color:"#8A8D91", marginTop:4 }}>Tap photo to change</div>
               </div>
-              <div style={{ display:"flex", gap:12, padding:16 }}>
-                {[["Listings",myListings.length],["Saved",favorites.length],["Messages",messages.length]].map(([label,val])=>(
-                  <div key={label} style={{ flex:1, background:"#fff", borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
+              {/* Stats */}
+              <div style={{ display:"flex", borderBottom:"1px solid #E4E6EB" }}>
+                {[["Listings",myListings.length],["Saved",favorites.length],["Messages",messages.length]].map(([label,val],i,arr)=>(
+                  <div key={label} style={{ flex:1, padding:"14px 8px", textAlign:"center", borderRight:i<arr.length-1?"1px solid #E4E6EB":"none" }}>
                     <div style={{ fontSize:22, fontWeight:800, color:"#00B894" }}>{val}</div>
                     <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{label}</div>
                   </div>
                 ))}
               </div>
-              {myListings.length > 0 && (
-                <div style={{ padding:"0 16px 16px" }}>
-                  <div style={{ fontSize:15, fontWeight:800, color:"#1C1E21", marginBottom:12 }}>My Listings</div>
-                  {myListings.map(l => (
-                    <div key={l.id} onClick={()=>{ setSelectedItem({...l,owner:user.user_metadata?.name||"You",ownerAvatar:"🧑",ownerId:"me",distance:0}); setTab("browse"); }} style={{ display:"flex", gap:12, background:"#fff", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10, cursor:"pointer", alignItems:"center" }}>
-                      <div style={{ width:48, height:48, borderRadius:10, background:(l.color||"#eee")+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, overflow:"hidden" }}>
-                        {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{ width:48, height:48, objectFit:"cover" }}/> : l.emoji}
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontWeight:600, fontSize:13, color:"#1C1E21" }}>{l.title}</div>
-                        <div style={{ fontSize:11, color:"#65676B" }}>${l.price}/{l.priceUnit||"day"}</div>
-                      </div>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:l.available?"#31A24C":"#FA3E3E", flexShrink:0 }}/>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(() => {
-                const TODAY = "2026-06-02";
-                const myRentals = bookingRequests.filter(r => r.status === "accepted" && r.renterId === user?.id).sort((a, b) => b.start > a.start ? 1 : -1);
-                if (myRentals.length === 0) return null;
+              {/* Accordion activity sections */}
+              {(()=>{
+                const TODAY = new Date().toISOString().slice(0,10);
+                const activeRentals   = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="accepted"&&(r.end||r.start)>=TODAY);
+                const pendingApprovals= bookingRequests.filter(r=>r.renterId===user.id&&r.status==="pending");
+                const pastRentals     = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="accepted"&&(r.end||r.start)<TODAY);
+                const toggleSec = id => setOpenSections(prev=>({...prev,[id]:prev[id]===false}));
+                const isOpen = id => openSections[id] !== false;
+
+                const SectionHeader = ({id, label, count, accent}) => (
+                  <div onClick={()=>toggleSec(id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", cursor:"pointer", userSelect:"none" }}>
+                    <span style={{ flex:1, fontWeight:700, fontSize:14, color:"#1C1E21" }}>{label}</span>
+                    {count>0 && <span style={{ background:accent+"18", color:accent, borderRadius:20, padding:"2px 9px", fontSize:12, fontWeight:700 }}>{count}</span>}
+                    <ChevronDown size={16} color="#8A8D91" style={{ transform:isOpen(id)?"rotate(180deg)":"none", transition:"transform 0.2s" }}/>
+                  </div>
+                );
+
+                const Thumb = ({item:it}) => (
+                  <div style={{ width:44, height:44, borderRadius:10, background:(it?.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
+                    {it?.uploadedImages?.[0]?.url ? <img src={it.uploadedImages[0].url} alt="" style={{width:44,height:44,objectFit:"cover"}}/> : it?.emoji}
+                  </div>
+                );
+
+                const rowStyle = { display:"flex", gap:12, alignItems:"flex-start", padding:"12px 16px", borderBottom:"1px solid #F0F2F5" };
+                const emptyStyle = { padding:"16px", fontSize:13, color:"#8A8D91", textAlign:"center" };
+
                 return (
-                  <div style={{ padding:"0 16px 16px" }}>
-                    <div style={{ fontSize:15, fontWeight:800, color:"#1C1E21", marginBottom:12 }}>My Rentals</div>
-                    {myRentals.map(req => {
-                      const completed = (req.end || req.start) <= TODAY;
-                      const reviewed = reviewedBookings[req.id];
-                      return (
-                        <div key={req.id} style={{ background:"#fff", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10 }}>
-                          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-                            <div style={{ width:44, height:44, borderRadius:10, background:(req.item.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{req.item.emoji}</div>
-                            <div style={{ flex:1 }}>
-                              <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21" }}>{req.item.title}</div>
-                              <div style={{ fontSize:11, color:"#65676B" }}>{req.item.owner} · {req.dateStr}</div>
-                              {completed && !reviewed && (
-                                <button onClick={()=>setReviewingBooking(req)}
-                                  style={{ marginTop:8, padding:"6px 14px", borderRadius:8, border:"1.5px solid #00B894", background:"#fff", color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                  ★ Leave a review
-                                </button>
-                              )}
-                              {completed && reviewed && (
-                                <div style={{ marginTop:6, fontSize:11, color:"#31A24C", fontWeight:600 }}>✓ Review submitted</div>
-                              )}
-                              {!completed && (
-                                <>
-                                  <div style={{ marginTop:8, padding:"8px 10px", borderRadius:8, background:"#FFF7ED", border:"1px solid #FFE0B2", fontSize:11, color:"#E87722", fontWeight:600, lineHeight:1.5 }}>
-                                    Contact the owner to arrange payment — Lendie payments coming soon!
-                                  </div>
-                                  <button
-                                    onClick={()=>{
-                                      const convo = messages.find(m => m.item === req.item.title);
-                                      if (convo) { setActiveConvo(convo); markConvoRead(convo); }
-                                      setTab("messages");
-                                    }}
-                                    style={{ marginTop:6, padding:"6px 14px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                    Message Owner
-                                  </button>
-                                </>
-                              )}
+                  <div style={{ padding:"12px 16px 8px", display:"flex", flexDirection:"column", gap:10 }}>
+
+                    {/* Currently Renting */}
+                    <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                      <SectionHeader id="active" label="Currently Renting" count={activeRentals.length} accent="#00B894"/>
+                      {isOpen("active") && <div style={{ borderTop:"1px solid #E4E6EB" }}>
+                        {activeRentals.length===0
+                          ? <div style={emptyStyle}>No active rentals</div>
+                          : activeRentals.map(req=>(
+                            <div key={req.id} style={rowStyle}>
+                              <Thumb item={req.item}/>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21" }}>{req.item?.title}</div>
+                                <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{req.item?.owner} · {req.dateStr}</div>
+                                <button onClick={()=>{ const c=messages.find(m=>m.item===req.item?.title); if(c){setActiveConvo(c);markConvoRead(c);} setTab("messages"); }} style={{ marginTop:8, padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message Owner</button>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          ))}
+                      </div>}
+                    </div>
+
+                    {/* Pending Approval */}
+                    <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                      <SectionHeader id="pending" label="Pending Approval" count={pendingApprovals.length} accent="#E87722"/>
+                      {isOpen("pending") && <div style={{ borderTop:"1px solid #E4E6EB" }}>
+                        {pendingApprovals.length===0
+                          ? <div style={emptyStyle}>No pending requests</div>
+                          : pendingApprovals.map(req=>(
+                            <div key={req.id} style={rowStyle}>
+                              <Thumb item={req.item}/>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21" }}>{req.item?.title}</div>
+                                <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{req.item?.owner} · {req.dateStr}</div>
+                                <div style={{ fontSize:11, color:"#E87722", fontWeight:600, marginTop:2 }}>Awaiting owner acceptance</div>
+                                <button onClick={()=>handleCancelRequest(req)} style={{ marginTop:8, padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:"#fff", color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel Request</button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>}
+                    </div>
+
+                    {/* Past Rentals */}
+                    <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                      <SectionHeader id="past" label="Past Rentals" count={pastRentals.length} accent="#65676B"/>
+                      {isOpen("past") && <div style={{ borderTop:"1px solid #E4E6EB" }}>
+                        {pastRentals.length===0
+                          ? <div style={emptyStyle}>No past rentals yet</div>
+                          : pastRentals.map(req=>{
+                            const reviewed = reviewedBookings[req.id];
+                            return (
+                              <div key={req.id} style={rowStyle}>
+                                <Thumb item={req.item}/>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21" }}>{req.item?.title}</div>
+                                  <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{req.item?.owner} · {req.dateStr}</div>
+                                  {reviewed
+                                    ? <div style={{ marginTop:6, fontSize:11, color:"#31A24C", fontWeight:600 }}>✓ Review submitted</div>
+                                    : <button onClick={()=>setReviewingBooking(req)} style={{ marginTop:8, padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:"#fff", color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4 }}><Star size={12} strokeWidth={2}/>Leave a review</button>
+                                  }
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>}
+                    </div>
+
+                    {/* My Listings */}
+                    <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E4E6EB", overflow:"hidden" }}>
+                      <SectionHeader id="mylistings" label="My Listings" count={myListings.length} accent="#00B894"/>
+                      {isOpen("mylistings") && <div style={{ borderTop:"1px solid #E4E6EB" }}>
+                        {myListings.length===0
+                          ? <div style={emptyStyle}>No listings yet</div>
+                          : myListings.map(l=>{
+                            const isBooked = bookingRequests.some(r=>r.status==="accepted"&&r.item?.id===l.id&&(r.end||r.start)>=TODAY);
+                            const status = !l.available ? {label:"Paused",color:"#8A8D91"} : isBooked ? {label:"Booked",color:"#E87722"} : {label:"Active",color:"#31A24C"};
+                            return (
+                              <div key={l.id} style={{ display:"flex", gap:12, alignItems:"center", padding:"12px 16px", borderBottom:"1px solid #F0F2F5" }}>
+                                <div style={{ width:44, height:44, borderRadius:10, background:(l.color||"#eee")+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
+                                  {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{width:44,height:44,objectFit:"cover"}}/> : l.emoji}
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontWeight:600, fontSize:13, color:"#1C1E21", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.title}</div>
+                                  <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                                    <span style={{ width:6, height:6, borderRadius:"50%", background:status.color, display:"inline-block", flexShrink:0 }}/>
+                                    <span style={{ fontSize:11, color:status.color, fontWeight:600 }}>{status.label}</span>
+                                    <span style={{ fontSize:11, color:"#8A8D91" }}>· ${l.price}/{l.priceUnit||"day"}</span>
+                                  </div>
+                                </div>
+                                <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                                  <button onClick={()=>{ setEditingListing(l); setNewListing(l); setAddImages(l.uploadedImages||[]); setShowAddListing(true); }} style={{ display:"flex", alignItems:"center", gap:4, padding:"6px 10px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#1C1E21", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                                    <Pencil size={12} strokeWidth={2}/>Edit
+                                  </button>
+                                  <button onClick={async()=>{ const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#65676B", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                                    {l.available?"Pause":"Resume"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>}
+                    </div>
+
                   </div>
                 );
               })()}
-              <div style={{ padding:"0 16px 40px", display:"flex", flexDirection:"column", gap:10 }}>
-                <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"1.5px solid #FA3E3E", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#FFF0F0", color:"#FA3E3E" }}>
-                  Sign Out
-                </button>
-                <button onClick={()=>setShowDeleteAccountModal(true)} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:600, fontSize:13, cursor:"pointer", background:"none", color:"#8A8D91" }}>
-                  Delete Account
-                </button>
+              {/* Sign out */}
+              <div style={{ padding:"8px 16px 40px", display:"flex", flexDirection:"column", gap:10 }}>
+                <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"1.5px solid #FA3E3E", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#FFF0F0", color:"#FA3E3E" }}>Sign Out</button>
+                <button onClick={()=>setShowDeleteAccountModal(true)} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:600, fontSize:13, cursor:"pointer", background:"none", color:"#8A8D91" }}>Delete Account</button>
               </div>
             </>
           )}
@@ -3242,12 +3307,12 @@ export default function Lendie() {
       )}
       <AddListingModal
         show={showAddListing}
-        onClose={()=>{ setShowAddListing(false); setAddImages([]); }}
+        onClose={()=>{ setShowAddListing(false); setAddImages([]); setEditingListing(null); }}
         newListing={newListing}
         setNewListing={setNewListing}
         addImages={addImages}
         setAddImages={setAddImages}
-        onSubmit={handleAddListing}
+        onSubmit={editingListing ? handleEditSave : handleAddListing}
         S={S}
         C={C}
         ALL_CATS={ALL_CATS}
