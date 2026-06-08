@@ -379,7 +379,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
 }
 
 // ItemDetailSheet - top-level component so hooks work correctly
-function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking, isDesktop }) {
+function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking, isDesktop }) {
   const C = { muted:"#65676B", faint:"#8A8D91" };
   const CAT_MAP = { tools:"Tools", trailers:"Trailers", construction:"Equipment", kitchen:"Kitchen", garden:"Garden", outdoors:"Outdoors", venues:"Venues", party:"Party", tech:"Tech" };
   const sheetRef = useRef(null);
@@ -431,7 +431,13 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
 
   if (!item) return null;
 
-  const alreadySent = requestSent[item.id];
+  const myRequest = (bookingRequests || []).find(r =>
+    r.item?.id === item.id &&
+    r.renterId === user?.id &&
+    r.status !== 'cancelled' &&
+    r.status !== 'declined'
+  );
+  const alreadySent = myRequest?.status;
   const rangeBooked = startDate && getDatesInRange(startDate, endDate||startDate).some(d => item.booked && item.booked.includes(d));
   const n = daysBetween(startDate, endDate||startDate);
   const progress = Math.min(1, Math.max(dragY,dragX)/200);
@@ -2129,7 +2135,8 @@ export default function Lendie() {
       }));
 
       // For the owner's own listings: also persist to Supabase
-      if (req.item.ownerId === "me") {
+      // req.item.ownerId is the owner's UUID when loaded from DB (never "me")
+      if (user && (req.item.ownerId === "me" || req.item.ownerId === user.id)) {
         setMyListings(prev => {
           const updated = prev.map(l => {
             if (l.id !== req.item.id) return l;
@@ -3123,7 +3130,8 @@ export default function Lendie() {
 
       <ItemDetailSheet
         item={selectedItem}
-        requestSent={requestSent}
+        bookingRequests={bookingRequests}
+        user={user}
         favorites={favorites}
         toggleFav={toggleFav}
         allItems={allItems}
