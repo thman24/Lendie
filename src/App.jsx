@@ -113,7 +113,7 @@ function PlacesAutocompleteInput({ placeholder, containerStyle, inputStyle, onAd
 
   const baseInputStyle = {
     width: "100%", padding: "11px 13px", borderRadius: 8,
-    border: "1.5px solid #CDD0D4", background: "#F0F2F5",
+    border: "1.5px solid #CDD0D4", background: "#fff",
     fontFamily: "inherit", fontSize: 14, outline: "none",
     boxSizing: "border-box", color: "#1C1E21",
   };
@@ -266,7 +266,7 @@ function RangeCalendar({ booked=[], startDate, endDate, onRangeChange }) {
     if (scrollEl) requestAnimationFrame(() => { scrollEl.scrollTop = savedTop; });
   };
   return (
-    <div style={{ background:"#F7F8FA", borderRadius:14, padding:14, border:"1px solid #E4E6EB", marginBottom:14 }}>
+    <div style={{ background:"#fff", borderRadius:14, padding:14, border:"1px solid #E4E6EB", marginBottom:14 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <button onMouseDown={e=>e.preventDefault()} onClick={()=>{ if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); }} style={{ background:"#E4E6EB", border:"none", borderRadius:8, width:32, height:32, cursor:"pointer", fontSize:16 }}>&#8249;</button>
         <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21" }}>{MONTHS[month]} {year}</div>
@@ -306,7 +306,7 @@ function PhotoBrowserModal({ data, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:900, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={onClose}>
       <div style={{ background:"#fff", borderRadius:16, overflow:"hidden", border:"1px solid #E4E6EB", maxWidth:380, width:"92%" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ height:280, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0F2F5", position:"relative" }}>
+        <div style={{ height:280, display:"flex", alignItems:"center", justifyContent:"center", background:"#fff", position:"relative" }}>
           {all[idx].t==="img"
             ? <img src={all[idx].s} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
             : <span style={{ fontSize:80 }}>{all[idx].s}</span>}
@@ -317,9 +317,9 @@ function PhotoBrowserModal({ data, onClose }) {
           )}
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 16px" }}>
-          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:"#1C1E21" }} disabled={idx===0}>&larr;</button>
+          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{ background:"#fff", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:"#1C1E21" }} disabled={idx===0}>&larr;</button>
           <span style={{ fontSize:12, color:"#65676B", alignSelf:"center" }}>{idx+1} / {all.length}</span>
-          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(all.length-1,i+1));}} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:"#1C1E21" }} disabled={idx===all.length-1}>&rarr;</button>
+          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(all.length-1,i+1));}} style={{ background:"#fff", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:"#1C1E21" }} disabled={idx===all.length-1}>&rarr;</button>
         </div>
       </div>
     </div>
@@ -336,7 +336,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:700, display:"flex", alignItems:"flex-end" }} onClick={onClose}>
       <div style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:"1px solid #E4E6EB" }} onClick={e=>e.stopPropagation()}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <button onClick={onClose} style={{ background:"#F0F2F5", border:"none", borderRadius:10, width:34, height:34, cursor:"pointer", fontSize:18, color:"#65676B" }}>&larr;</button>
+          <button onClick={onClose} style={{ background:"#fff", border:"none", borderRadius:10, width:34, height:34, cursor:"pointer", fontSize:18, color:"#65676B" }}>&larr;</button>
           <div style={{ fontSize:14, fontWeight:700, color:"#65676B" }}>Owner Profile</div>
           <div style={{ width:34 }}/>
         </div>
@@ -350,7 +350,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
             {owner.superhost && <div style={{ background:"#FFF8E1", borderRadius:20, padding:"4px 10px", fontSize:11, color:"#E87722", fontWeight:700 }}>Superhost</div>}
           </div>
         </div>
-        <div style={{ background:"#F7F8FA", borderRadius:12, padding:"12px 14px", marginBottom:16, border:"1px solid #E4E6EB" }}>
+        <div style={{ background:"#fff", borderRadius:12, padding:"12px 14px", marginBottom:16, border:"1px solid #E4E6EB" }}>
           <div style={{ fontWeight:700, fontSize:13, marginBottom:6, color:"#1C1E21" }}>About</div>
           <div style={{ fontSize:13, color:"#65676B", lineHeight:1.6 }}>{owner.bio}</div>
         </div>
@@ -457,14 +457,14 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
     <div style={{ position:"fixed", inset:0, background: isDesktop ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,"+(0.55-progress*0.2)+")", zIndex:200, display:"flex", alignItems: isDesktop ? "center" : "flex-end", justifyContent: isDesktop ? "center" : "flex-start", padding: isDesktop ? 20 : 0 }} onClick={onDismiss}>
       <div ref={sheetRef} style={sheetStyle} onClick={e=>e.stopPropagation()}>
         {isDesktop
-          ? <button onClick={onDismiss} style={{ position:"absolute", top:16, right:16, background:"#F0F2F5", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", color:"#65676B" }}>×</button>
+          ? <button onClick={onDismiss} style={{ position:"absolute", top:16, right:16, background:"#fff", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", color:"#65676B" }}>×</button>
           : <div style={{ width:40, height:5, borderRadius:3, background:"#CDD0D4", margin:"0 auto 16px" }}/>}
 
         {allPhotos.length > 0 && (
           <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:16 }}>
             {allPhotos.map((p,i) => (
               <div key={i} onClick={()=>setPhotoBrowser({ uploadedImages:item.uploadedImages||[], photos:item.photos||[], startIdx:i })}
-                style={{ minWidth:i===0?175:95, height:i===0?140:90, borderRadius:12, overflow:"hidden", flexShrink:0, cursor:"pointer", background:"#F0F2F5", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+                style={{ minWidth:i===0?175:95, height:i===0?140:90, borderRadius:12, overflow:"hidden", flexShrink:0, cursor:"pointer", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
                 {p.t==="img" ? <img src={p.s} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ fontSize:i===0?52:32 }}>{p.s}</span>}
                 {i===0 && allPhotos.length>1 && <div style={{ position:"absolute", bottom:6, right:6, background:"rgba(0,0,0,0.55)", borderRadius:6, padding:"3px 7px", fontSize:10, color:"#fff" }}>{allPhotos.length} photos</div>}
               </div>
@@ -490,7 +490,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         </div>
 
         {item.ownerId && item.ownerId !== "me" && (
-          <div onClick={()=>setOwnerProfileId(item.ownerId)} style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F8FA", borderRadius:12, padding:"12px 14px", marginBottom:16, cursor:"pointer", border:"1px solid #E4E6EB" }}>
+          <div onClick={()=>setOwnerProfileId(item.ownerId)} style={{ display:"flex", alignItems:"center", gap:12, background:"#fff", borderRadius:12, padding:"12px 14px", marginBottom:16, cursor:"pointer", border:"1px solid #E4E6EB" }}>
             <div style={{ width:44, height:44, borderRadius:"50%", background:"#E4E6EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, overflow:"hidden" }}>
               {item.ownerAvatarUrl
                 ? <img src={item.ownerAvatarUrl} alt="" style={{ width:44, height:44, objectFit:"cover" }}/>
@@ -522,12 +522,12 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
           <div style={{ marginBottom:14 }}>
             <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21", marginBottom:8 }}>Included</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {item.amenities.map((a,i) => <div key={i} style={{ background:"#F0F2F5", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#1C1E21", border:"1px solid #E4E6EB" }}>{a}</div>)}
+              {item.amenities.map((a,i) => <div key={i} style={{ background:"#fff", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#1C1E21", border:"1px solid #E4E6EB" }}>{a}</div>)}
             </div>
           </div>
         )}
 
-        <div style={{ background:"#F7F8FA", borderRadius:12, padding:"13px 15px", marginBottom:14, border:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ background:"#fff", borderRadius:12, padding:"13px 15px", marginBottom:14, border:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             {item.listingType !== "sale" && (
               <>
@@ -610,7 +610,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         )}
 
         {!item.available && item.listingType!=="sale" && (
-          <button style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"not-allowed", background:"#F0F2F5", color:"#8A8D91" }} disabled>Currently Unavailable</button>
+          <button style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"not-allowed", background:"#fff", color:"#8A8D91" }} disabled>Currently Unavailable</button>
         )}
 
         {!isDesktop && <div style={{ fontSize:11, color:"#8A8D91", textAlign:"center", margin:"14px 0 6px" }}>Swipe down or right to close</div>}
@@ -646,7 +646,7 @@ function BlockDatesModal({ listing, onClose, onSave }) {
         <div style={{ width:40, height:5, borderRadius:3, background:"#CDD0D4", margin:"0 auto 16px" }}/>
         <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:4 }}>Block Dates</div>
         <div style={{ fontSize:13, color:"#65676B", marginBottom:16 }}>{listing.title} — tap dates to mark unavailable</div>
-        <div style={{ background:"#F7F8FA", borderRadius:14, padding:14, border:"1px solid #E4E6EB", marginBottom:16 }}>
+        <div style={{ background:"#fff", borderRadius:14, padding:14, border:"1px solid #E4E6EB", marginBottom:16 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <button onMouseDown={e=>e.preventDefault()} onClick={()=>{ if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); }} style={{ background:"#E4E6EB", border:"none", borderRadius:8, width:32, height:32, cursor:"pointer", fontSize:16 }}>&#8249;</button>
             <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21" }}>{MONTHS[month]} {year}</div>
@@ -667,7 +667,7 @@ function BlockDatesModal({ listing, onClose, onSave }) {
           </div>
           <div style={{ display:"flex", gap:14, marginTop:12, fontSize:11 }}>
             <div style={{ display:"flex", alignItems:"center", gap:5 }}><div style={{ width:12, height:12, borderRadius:3, background:"#FA3E3E" }}/><span style={{ color:"#65676B" }}>Blocked</span></div>
-            <div style={{ display:"flex", alignItems:"center", gap:5 }}><div style={{ width:12, height:12, borderRadius:3, background:"#F0F2F5", border:"1px solid #E4E6EB" }}/><span style={{ color:"#65676B" }}>Available</span></div>
+            <div style={{ display:"flex", alignItems:"center", gap:5 }}><div style={{ width:12, height:12, borderRadius:3, background:"#fff", border:"1px solid #E4E6EB" }}/><span style={{ color:"#65676B" }}>Available</span></div>
           </div>
         </div>
         <div style={{ fontSize:12, color:"#65676B", marginBottom:14, textAlign:"center" }}>{blocked.length} date{blocked.length!==1?"s":""} blocked</div>
@@ -804,7 +804,7 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
                 <div key={img.id} style={{ position:"relative", width:76, height:76 }}>
                   {img.url
                     ? <img src={img.url} alt="" style={{ width:76, height:76, borderRadius:10, objectFit:"cover", border:i===0?"2.5px solid #00B894":"1.5px solid #E4E6EB" }}/>
-                    : <div style={{ width:76, height:76, borderRadius:10, background:"#F0F2F5", border:"1.5px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    : <div style={{ width:76, height:76, borderRadius:10, background:"#fff", border:"1.5px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"center" }}>
                         <div style={{ width:26, height:26, borderRadius:"50%", border:"3px solid #00B894", borderTopColor:"transparent", animation:"spin 0.75s linear infinite" }}/>
                       </div>
                   }
@@ -1141,7 +1141,7 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
     <div style={{ position:'absolute', inset:0 }}>
       <div ref={containerRef} style={{ position:'absolute', inset:0 }}/>
       {loading && (
-        <div style={{ position:'absolute', inset:0, background:'#F4F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:'#65676B' }}>
+        <div style={{ position:'absolute', inset:0, background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:'#65676B' }}>
           Loading map…
         </div>
       )}
@@ -1157,7 +1157,8 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
               <div style={{ display:'flex', gap:5 }}>
                 {[1, 2, 5, 10, 25].map(r => (
                   <button key={r} onClick={() => onRadiusChange?.(r)} style={{
-                    background: radius===r ? '#00B894' : '#F0F2F5',
+                    background: radius===r ? '#00B894' : '#fff',
+                    border: radius===r ? 'none' : '1px solid #E4E6EB',
                     color: radius===r ? '#fff' : '#65676B',
                     border: 'none',
                     borderRadius: 20,
@@ -1205,7 +1206,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
   return (
     <div style={containerStyle}>
       <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", alignItems:"center", gap:12 }}>
-        {!isDesktop && <button onClick={()=>setActiveConvo(null)} style={{ background:"#F0F2F5", border:"none", borderRadius:10, width:34, height:34, cursor:"pointer", fontSize:18 }}>&larr;</button>}
+        {!isDesktop && <button onClick={()=>setActiveConvo(null)} style={{ background:"#fff", border:"none", borderRadius:10, width:34, height:34, cursor:"pointer", fontSize:18 }}>&larr;</button>}
         <div style={{ width:38, height:38, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
           {activeConvo.avatarUrl ? <img src={activeConvo.avatarUrl} alt="" style={{ width:38, height:38, objectFit:"cover" }}/> : activeConvo.avatar}
         </div>
@@ -1214,7 +1215,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           <div style={{ fontSize:12, color:"#65676B" }}>{activeConvo.item}</div>
         </div>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"16px", background:"#F0F2F5" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"16px", background:"#fff" }}>
         {(activeConvo.thread||activeConvo.messages||[]).map((m,i)=>(
           <div key={i} style={{ display:"flex", justifyContent:m.mine?"flex-end":"flex-start", alignItems:"flex-end", gap:6, marginBottom:10 }}>
             {!m.mine && <TheirAvatar/>}
@@ -1234,7 +1235,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           onKeyDown={e=>e.key==="Enter"&&sendMsg()}
           placeholder="Message..."
           autoComplete="off"
-          style={{ flex:1, background:"#F0F2F5", border:"none", borderRadius:24, padding:"10px 16px", fontSize:14, outline:"none", fontFamily:"inherit" }}
+          style={{ flex:1, background:"#fff", border:"none", borderRadius:24, padding:"10px 16px", fontSize:14, outline:"none", fontFamily:"inherit" }}
         />
         <button onClick={sendMsg} style={{ background:"#00B894", border:"none", borderRadius:"50%", width:42, height:42, color:"#fff", cursor:"pointer", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center" }}>&#8593;</button>
       </div>
@@ -1356,7 +1357,7 @@ function AuthModal({ show, initialMode = "login", onClose }) {
     }
   };
 
-  const inp = { width:"100%", background:"#F7F8FA", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
+  const inp = { width:"100%", background:"#fff", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
   const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
 
   const headerSub = mode === "login" ? "Welcome back!" : mode === "signup" ? "Join thousands of neighbors sharing nearby" : "Reset your password";
@@ -1371,7 +1372,7 @@ function AuthModal({ show, initialMode = "login", onClose }) {
         </div>
         <div style={{ padding:"20px 24px 48px" }}>
           {mode !== "forgot" && (
-            <div style={{ display:"flex", background:"#F0F2F5", borderRadius:12, padding:4, marginBottom:20 }}>
+            <div style={{ display:"flex", background:"#fff", borderRadius:12, padding:4, marginBottom:20 }}>
               {[["login","Sign In"],["signup","Sign Up"]].map(([m,l])=>(
                 <button key={m} onClick={()=>goMode(m)} style={{ flex:1, padding:"10px", borderRadius:9, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:mode===m?"#00B894":"transparent", color:mode===m?"#fff":"#65676B", transition:"all 0.18s" }}>{l}</button>
               ))}
@@ -1457,7 +1458,7 @@ function PasswordResetModal({ show, onDone }) {
     setTimeout(onDone, 2000);
   };
 
-  const inp = { width:"100%", background:"#F7F8FA", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
+  const inp = { width:"100%", background:"#fff", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
   const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
 
   return (
@@ -2002,17 +2003,17 @@ export default function Lendie() {
     return a.distance-b.distance;
   });
 
-  const C = { bg:"#F0F2F5", surface:"#FFFFFF", border:"#E4E6EB", accent:"#00B894", text:"#1C1E21", muted:"#65676B", faint:"#8A8D91" };
+  const C = { bg:"#fff", surface:"#FFFFFF", border:"#E4E6EB", accent:"#00B894", text:"#1C1E21", muted:"#65676B", faint:"#8A8D91" };
   const S = {
-    app:{ fontFamily:"'Helvetica Neue',Arial,sans-serif", background: isDesktop ? "#fff" : C.bg, minHeight:"100vh", maxWidth: isDesktop ? "none" : 430, margin: isDesktop ? 0 : "0 auto", color:C.text, paddingBottom: isDesktop ? 0 : 84, paddingTop: isDesktop ? 64 : 0 },
+    app:{ fontFamily:"'Helvetica Neue',Arial,sans-serif", background:"#fff", minHeight:"100vh", maxWidth: isDesktop ? "none" : 430, margin: isDesktop ? 0 : "0 auto", color:C.text, paddingBottom: isDesktop ? 0 : 84, paddingTop: isDesktop ? 64 : 0 },
     overlay:{ position:"fixed", inset:0, height:"100dvh", background:"rgba(0,0,0,0.55)", zIndex:300, display:"flex", alignItems:"flex-end" },
     sheet:{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 16px calc(40px + env(safe-area-inset-bottom, 0px))", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:"1px solid #E4E6EB", overscrollBehavior:"contain" },
     pBtn:{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 },
     gBtn:{ width:"100%", padding:"12px", borderRadius:8, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" },
     fg:{ marginBottom:14 },
     lbl:{ fontSize:12, fontWeight:600, color:C.text, marginBottom:6, display:"block" },
-    inp:{ width:"100%", background:"#F0F2F5", border:"1.5px solid #CDD0D4", borderRadius:8, padding:"11px 13px", color:C.text, fontFamily:"inherit", fontSize:14, outline:"none", boxSizing:"border-box" },
-    sel:{ width:"100%", background:"#F0F2F5", border:"1.5px solid #CDD0D4", borderRadius:8, padding:"11px 13px", color:C.text, fontFamily:"inherit", fontSize:14, outline:"none" },
+    inp:{ width:"100%", background:"#fff", border:"1.5px solid #CDD0D4", borderRadius:8, padding:"11px 13px", color:C.text, fontFamily:"inherit", fontSize:14, outline:"none", boxSizing:"border-box" },
+    sel:{ width:"100%", background:"#fff", border:"1.5px solid #CDD0D4", borderRadius:8, padding:"11px 13px", color:C.text, fontFamily:"inherit", fontSize:14, outline:"none" },
     nav:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"#fff", borderTop:"1px solid #E4E6EB", display: isDesktop ? "none" : "flex", zIndex:100 },
   };
   const CAT_EMOJI_MAP = { tools:"🔧", trailers:"🚛", construction:"🏗️", kitchen:"🍳", garden:"🌱", outdoors:"🏕️", venues:"🏛️", party:"🎉", tech:"💻", other:"📦" };
@@ -2322,7 +2323,7 @@ export default function Lendie() {
   ];
 
   const TypeFilterBar = () => (
-    <div style={{ display:"flex", background:"#F0F2F5", borderRadius:10, padding:3, gap:2 }}>
+    <div style={{ display:"flex", background:"#fff", borderRadius:10, padding:3, gap:2 }}>
       {[["all","All"],["rent","Rent"],["buy","Buy"]].map(([val,label]) => (
         <button key={val} onClick={()=>setListingTypeFilter(val)} style={{
           flex:1, padding:"7px 0", borderRadius:7, border:"none", fontFamily:"inherit",
@@ -2346,7 +2347,7 @@ export default function Lendie() {
   );
 
   const CardGrid = () => (
-    <div style={{ display:"grid", gridTemplateColumns: isDesktop ? "repeat(auto-fill, minmax(200px,1fr))" : "1fr 1fr", gap: isDesktop ? 16 : 2, padding: isDesktop ? 0 : 2, background: isDesktop ? "transparent" : "#F0F2F5" }}>
+    <div style={{ display:"grid", gridTemplateColumns: isDesktop ? "repeat(auto-fill, minmax(200px,1fr))" : "1fr 1fr", gap: isDesktop ? 16 : 2, padding: isDesktop ? 0 : 2, background: "transparent" }}>
       {filtered.map(item => (
         <div key={item.id} style={{ background:"#fff", overflow:"hidden", cursor:"pointer", position:"relative", borderRadius: isDesktop ? 8 : 4 }} onClick={()=>setSelectedItem(item)}>
           {/* Photo area */}
@@ -2405,13 +2406,13 @@ export default function Lendie() {
               <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>{item.owner} &middot; {item.distance}mi away</div>
             </div>
             {start && (
-              <div style={{ background:"#F7F8FA", borderRadius:12, padding:"12px 16px", marginBottom:14, border:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", fontSize:14 }}>
+              <div style={{ background:"#fff", borderRadius:12, padding:"12px 16px", marginBottom:14, border:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", fontSize:14 }}>
                 <span style={{ color:C.muted }}>Dates</span>
                 <span style={{ fontWeight:700, color:"#1C1E21" }}>{formatDate(start)}{end&&end!==start?" – "+formatDate(end):""}</span>
               </div>
             )}
             {delivFee && (
-              <div style={{ background:"#F7F8FA", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1.5px solid #E4E6EB" }}>
+              <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1.5px solid #E4E6EB" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
                   <div style={{ fontSize:24 }}>🚚</div>
                   <div>
@@ -2527,8 +2528,8 @@ export default function Lendie() {
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
               {user ? (
                 <>
-                  <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)} title={showFavOnly?"Show all":"Favorites only"}>{showFavOnly?"❤️":"🤍"}</button>
-                  <button style={{ position:"relative", background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
+                  <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)} title={showFavOnly?"Show all":"Favorites only"}>{showFavOnly?"❤️":"🤍"}</button>
+                  <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
                     🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:-1, right:-1, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
                   </button>
                   <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", overflow:"hidden", flexShrink:0 }}>
@@ -2617,7 +2618,7 @@ export default function Lendie() {
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 {user ? (
                   <>
-                    <button style={{ position:"relative", background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
+                    <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
                       🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:0, right:0, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
                     </button>
                     <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", flexShrink:0, overflow:"hidden" }}>
@@ -2626,7 +2627,7 @@ export default function Lendie() {
                   </>
                 ) : (
                   <>
-                    <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ background:"#F0F2F5", border:"none", borderRadius:20, padding:"0 14px", height:34, fontSize:13, fontWeight:700, cursor:"pointer", color:"#1C1E21", fontFamily:"inherit" }}>Log in</button>
+                    <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ background:"#fff", border:"none", borderRadius:20, padding:"0 14px", height:34, fontSize:13, fontWeight:700, cursor:"pointer", color:"#1C1E21", fontFamily:"inherit" }}>Log in</button>
                     <button onClick={()=>{ setAuthModalMode("signup"); setShowAuthModal(true); }} style={{ background:"#00B894", border:"none", borderRadius:20, padding:"0 14px", height:34, fontSize:13, fontWeight:700, cursor:"pointer", color:"#fff", fontFamily:"inherit" }}>Sign up</button>
                   </>
                 )}
@@ -2634,7 +2635,7 @@ export default function Lendie() {
             </div>
             {/* Search bar — prominent, always visible */}
             <div style={{ padding:"0 12px 10px" }}>
-              <div style={{ background:"#F0F2F5", borderRadius:12, display:"flex", alignItems:"center", padding:"10px 14px", gap:8 }}>
+              <div style={{ background:"#fff", borderRadius:12, display:"flex", alignItems:"center", padding:"10px 14px", gap:8 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8D91" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:15, fontFamily:"inherit" }} placeholder="Search Lendie..." value={search} autoComplete="off" autoCorrect="off" spellCheck="false" onClick={e=>e.stopPropagation()} onChange={e=>{ e.stopPropagation(); setSearch(e.target.value); }}/>
                 {search && <span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#8A8D91", fontSize:18, lineHeight:1 }}>×</span>}
@@ -2650,8 +2651,8 @@ export default function Lendie() {
                 <span style={{ fontSize:12, color:"#8A8D91" }}>· {radius}mi {showLocationPicker?"▲":"▼"}</span>
               </div>
               <div style={{ display:"flex", gap:4 }}>
-                <button onClick={()=>setListingTypeFilter(f=>f==="all"?"rent":f==="rent"?"buy":"all")} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>{listingTypeFilter==="all"?"All":listingTypeFilter==="rent"?"Rent":"Buy"}</button>
-                <button onClick={()=>setSortBy(s=>s==="distance"?"price":s==="price"?"rating":"distance")} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>Sort</button>
+                <button onClick={()=>setListingTypeFilter(f=>f==="all"?"rent":f==="rent"?"buy":"all")} style={{ background:"#fff", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>{listingTypeFilter==="all"?"All":listingTypeFilter==="rent"?"Rent":"Buy"}</button>
+                <button onClick={()=>setSortBy(s=>s==="distance"?"price":s==="price"?"rating":"distance")} style={{ background:"#fff", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>Sort</button>
               </div>
             </div>
             {/* Category pills — horizontally scrollable */}
@@ -2670,7 +2671,7 @@ export default function Lendie() {
                   key={locationPickerKey}
                   placeholder="City or address..."
                   containerStyle={{ flex:1 }}
-                  inputStyle={{ width:"100%", background:"#F0F2F5", border:"none", borderRadius:8, padding:"10px 12px", color:"#1C1E21", fontSize:13, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}
+                  inputStyle={{ width:"100%", background:"#fff", border:"none", borderRadius:8, padding:"10px 12px", color:"#1C1E21", fontSize:13, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}
                   onAddressChange={text => setLocationText(text || "Current Location")}
                   onPlaceSelect={({ lat, lng }) => { setSearchCoords({ lat, lng }); setShowLocationPicker(false); }}
                 />
@@ -2678,7 +2679,7 @@ export default function Lendie() {
               </div>
               <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-                  <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"#F0F2F5", border:locationText==="Current Location"?"1px solid #00B894":"1px solid #E4E6EB", borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":"#65676B", cursor:"pointer" }}>
+                  <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"#fff", border:locationText==="Current Location"?"1px solid #00B894":"1px solid #E4E6EB", borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":"#65676B", cursor:"pointer" }}>
                     Current Location
                   </button>
                   {resolvedLocation && (
@@ -2692,7 +2693,7 @@ export default function Lendie() {
               </div>
               <div style={{ display:"flex", gap:6, marginBottom:12 }}>
                 {[1,2,5,10,20,25].map(r=>(
-                  <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#F0F2F5", border:"none", borderRadius:20, padding:"5px 0", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer", flex:1 }}>{r}mi</button>
+                  <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#fff", border:radius===r?"none":"1px solid #E4E6EB", borderRadius:20, padding:"5px 0", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer", flex:1 }}>{r}mi</button>
                 ))}
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #E4E6EB", paddingTop:12 }}>
@@ -2707,7 +2708,7 @@ export default function Lendie() {
               <aside style={{ width:200, flexShrink:0, background:"#fff", borderRight:"1px solid #E4E6EB" }}>
                 <div style={{ position:"sticky", top:64, overflowY:"auto", maxHeight:"calc(100vh - 64px)", padding:"16px 14px" }}>
                   <div style={{ marginBottom:16 }}>
-                    <div style={{ background:"#F0F2F5", borderRadius:8, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
+                    <div style={{ background:"#fff", borderRadius:8, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
                       <span style={{ color:"#65676B", fontSize:14 }}>🔍</span>
                       <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:13, fontFamily:"inherit" }} placeholder="Search..." value={search} autoComplete="off" onChange={e=>setSearch(e.target.value)}/>
                       {search&&<span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#65676B", fontSize:13 }}>✕</span>}
@@ -2723,7 +2724,7 @@ export default function Lendie() {
                   <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Radius</div>
                   <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:14 }}>
                     {[1,2,5,10,25].map(r=>(
-                      <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#F0F2F5", border:"none", borderRadius:20, padding:"4px 9px", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer" }}>{r}mi</button>
+                      <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#fff", border:radius===r?"none":"1px solid #E4E6EB", borderRadius:20, padding:"4px 9px", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer" }}>{r}mi</button>
                     ))}
                   </div>
                   <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Sort by</div>
@@ -2751,7 +2752,7 @@ export default function Lendie() {
                       <span style={{ fontSize:13, color:"#00B894" }}>· {radius}mi</span>
                       <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker ? "▲" : "▼"}</span>
                     </div>
-                    {user && <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
+                    {user && <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
                   </div>
                 </div>
                 <div style={{ marginBottom:16 }}><CategoryPills/></div>
@@ -2764,7 +2765,7 @@ export default function Lendie() {
           ) : (
             <>
               {filtered.length===0
-                ? <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B", background:"#F0F2F5" }}>
+                ? <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B", background:"#fff" }}>
                     <div style={{ fontSize:36, marginBottom:10 }}>🔍</div>
                     <div style={{ fontWeight:700, color:"#1C1E21", marginBottom:4 }}>No listings found</div>
                     <div style={{ fontSize:13 }}>Try a different category or location</div>
@@ -2776,7 +2777,7 @@ export default function Lendie() {
       )}
 
       {tab==="listings" && (
-        <div style={{ background:"#F0F2F5", minHeight:"100vh", maxWidth: isDesktop ? 960 : "none", margin: isDesktop ? "0 auto" : 0 }}>
+        <div style={{ background:"#fff", minHeight:"100vh", maxWidth: isDesktop ? 960 : "none", margin: isDesktop ? "0 auto" : 0 }}>
           {/* Header */}
           <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top: isDesktop ? 64 : 0, zIndex:40 }}>
             <div style={{ fontSize:20, fontWeight:900, color:"#1C1E21" }}>My Listings</div>
@@ -2821,8 +2822,8 @@ export default function Lendie() {
                   </div>
                   {/* Action buttons */}
                   <div style={{ display:"flex", gap:4, padding:"0 8px 10px" }} onClick={e=>e.stopPropagation()}>
-                    <button onClick={(e)=>{ e.stopPropagation(); setBlockingDatesFor(l.id); }} style={{ flex:1, background:"#F0F2F5", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>Dates</button>
-                    <button onClick={async(e)=>{ e.stopPropagation(); const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ flex:1, background:"#F0F2F5", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>{l.available?"Pause":"Resume"}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setBlockingDatesFor(l.id); }} style={{ flex:1, background:"#fff", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>Dates</button>
+                    <button onClick={async(e)=>{ e.stopPropagation(); const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ flex:1, background:"#fff", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>{l.available?"Pause":"Resume"}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setDeletingId(l.id); }} style={{ background:"#FFF0F0", border:"none", borderRadius:6, padding:"5px 8px", fontSize:11, fontWeight:600, cursor:"pointer", color:"#FA3E3E", fontFamily:"inherit" }}>✕</button>
                   </div>
                 </div>
@@ -2868,7 +2869,7 @@ export default function Lendie() {
           <div style={{ flex:1, minWidth:0 }}>
             {activeConvo
               ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl}/>
-              : <div style={{ height:"calc(100vh - 64px)", background:"#F4F6F8", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#65676B", gap:12 }}>
+              : <div style={{ height:"calc(100vh - 64px)", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#65676B", gap:12 }}>
                   <div style={{ fontSize:48 }}>💬</div>
                   <div style={{ fontSize:16, fontWeight:700, color:"#1C1E21" }}>Select a conversation</div>
                   <div style={{ fontSize:13 }}>Choose from your messages on the left</div>
@@ -2879,7 +2880,7 @@ export default function Lendie() {
       )}
 
       {tab==="messages" && !activeConvo && !isDesktop && (
-        <div style={{ background:"#F0F2F5", minHeight:"100vh" }}>
+        <div style={{ background:"#fff", minHeight:"100vh" }}>
           {/* Header */}
           <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:40 }}>
             <div style={{ fontSize:20, fontWeight:900, color:"#1C1E21" }}>Inbox</div>
@@ -3047,7 +3048,7 @@ export default function Lendie() {
                   <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"14px 16px", textAlign:"left", background:"none", border:"none", fontFamily:"inherit", fontWeight:600, fontSize:15, cursor:"pointer", color:"#FA3E3E" }}>
                     Sign Out
                   </button>
-                  <div style={{ height:1, background:"#F0F2F5", margin:"0 16px" }}/>
+                  <div style={{ height:1, background:"#fff", margin:"0 16px" }}/>
                   <button onClick={()=>setShowDeleteAccountModal(true)} style={{ width:"100%", padding:"14px 16px", textAlign:"left", background:"none", border:"none", fontFamily:"inherit", fontWeight:600, fontSize:15, cursor:"pointer", color:"#8A8D91" }}>
                     Delete Account
                   </button>
@@ -3076,7 +3077,7 @@ export default function Lendie() {
               </div>
               <div style={{ display:"flex", gap:12, padding:16 }}>
                 {[["Listings",myListings.length],["Saved",favorites.length],["Messages",messages.length]].map(([label,val])=>(
-                  <div key={label} style={{ flex:1, background:"#F0F2F5", borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
+                  <div key={label} style={{ flex:1, background:"#fff", borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
                     <div style={{ fontSize:22, fontWeight:800, color:"#00B894" }}>{val}</div>
                     <div style={{ fontSize:11, color:"#65676B", marginTop:2 }}>{label}</div>
                   </div>
@@ -3086,7 +3087,7 @@ export default function Lendie() {
                 <div style={{ padding:"0 16px 16px" }}>
                   <div style={{ fontSize:15, fontWeight:800, color:"#1C1E21", marginBottom:12 }}>My Listings</div>
                   {myListings.map(l => (
-                    <div key={l.id} onClick={()=>{ setSelectedItem({...l,owner:user.user_metadata?.name||"You",ownerAvatar:"🧑",ownerId:"me",distance:0}); setTab("browse"); }} style={{ display:"flex", gap:12, background:"#F7F8FA", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10, cursor:"pointer", alignItems:"center" }}>
+                    <div key={l.id} onClick={()=>{ setSelectedItem({...l,owner:user.user_metadata?.name||"You",ownerAvatar:"🧑",ownerId:"me",distance:0}); setTab("browse"); }} style={{ display:"flex", gap:12, background:"#fff", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10, cursor:"pointer", alignItems:"center" }}>
                       <div style={{ width:48, height:48, borderRadius:10, background:(l.color||"#eee")+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, overflow:"hidden" }}>
                         {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{ width:48, height:48, objectFit:"cover" }}/> : l.emoji}
                       </div>
@@ -3110,7 +3111,7 @@ export default function Lendie() {
                       const completed = (req.end || req.start) <= TODAY;
                       const reviewed = reviewedBookings[req.id];
                       return (
-                        <div key={req.id} style={{ background:"#F7F8FA", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10 }}>
+                        <div key={req.id} style={{ background:"#fff", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10 }}>
                           <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                             <div style={{ width:44, height:44, borderRadius:10, background:(req.item.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{req.item.emoji}</div>
                             <div style={{ flex:1 }}>
