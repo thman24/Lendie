@@ -3007,7 +3007,7 @@ export default function Lendie() {
 
       <div style={{ position:"fixed", top: isDesktop ? 64 : 0, bottom: isDesktop ? 0 : 84, left:0, right:0, zIndex:10, visibility: tab==="map" ? "visible" : "hidden", pointerEvents: tab==="map" ? "auto" : "none" }}>
         <MapView
-          items={allItems}
+          items={filtered}
           centerCoords={centerCoords}
           radius={radius}
           onRadiusChange={setRadius}
