@@ -718,7 +718,7 @@ function ReviewModal({ booking, onClose, onSubmit }) {
   );
 }
 
-function AddListingModal({ show, onClose, newListing, setNewListing, addImages, setAddImages, onSubmit, S, C, ALL_CATS, userId, onError }) {
+function AddListingModal({ show, onClose, newListing, setNewListing, addImages, setAddImages, onSubmit, S, C, ALL_CATS, userId, onError, submitting }) {
   const [uploading, setUploading] = useState(0);
 
   if (!show) return null;
@@ -902,8 +902,8 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
             </div>
           )}
         </div>
-        <button style={{ ...S.pBtn, opacity:uploading>0?0.6:1, cursor:uploading>0?"not-allowed":"pointer" }} onClick={uploading>0?undefined:onSubmit} disabled={uploading>0}>
-          {uploading>0 ? `Uploading ${uploading} photo${uploading>1?"s":""}…` : "Publish Listing"}
+        <button style={{ ...S.pBtn, opacity:(uploading>0||submitting)?0.6:1, cursor:(uploading>0||submitting)?"not-allowed":"pointer" }} onClick={(uploading>0||submitting)?undefined:onSubmit} disabled={uploading>0||submitting}>
+          {uploading>0 ? `Uploading ${uploading} photo${uploading>1?"s":""}…` : submitting ? "Publishing…" : "Publish Listing"}
         </button>
         <button style={S.gBtn} onClick={onClose}>Cancel</button>
       </div>
@@ -1997,11 +1997,14 @@ export default function Lendie() {
   };
   const CAT_EMOJI_MAP = { tools:"🔧", trailers:"🚛", construction:"🏗️", kitchen:"🍳", garden:"🌱", outdoors:"🏕️", venues:"🏛️", party:"🎉", tech:"💻", other:"📦" };
 
+  const [submittingListing, setSubmittingListing] = useState(false);
   const handleAddListing = async () => {
+    if (submittingListing) return;
     if (!newListing.title) { showToast("Enter a name for your listing","error"); return; }
     if (newListing.listingType !== "sale" && !newListing.price) { showToast("Enter a rental price","error"); return; }
     if (newListing.listingType === "sale" && !newListing.price) { showToast("Enter a sale price","error"); return; }
     if (newListing.listingType === "both" && !newListing.salePrice) { showToast("Enter a sale price","error"); return; }
+    setSubmittingListing(true);
     console.log("[AddListing] submit — lat:", newListing.lat, "lng:", newListing.lng, "offersDelivery:", newListing.offersDelivery);
     if (newListing.offersDelivery && (!newListing.lat || !newListing.lng)) { showToast("Select your delivery origin address from the suggestions","error"); return; }
     const colors = ["#F59E0B","#EC4899","#10B981","#3B82F6","#8B5CF6","#EF4444"];
@@ -2025,12 +2028,14 @@ export default function Lendie() {
       console.error('[listings insert] code:', error.code, '| status:', error.status);
       console.error('[listings insert] row sent:', JSON.stringify(dbRow, null, 2));
       showToast(error.message || "Failed to save listing", "error");
+      setSubmittingListing(false);
       return;
     }
     setMyListings(prev=>[dbToListing(data), ...prev]);
     setNewListing({ title:"", price:"", priceUnit:"day", category:"tools", emoji:"🔧", description:"", amenities:"", capacity:"", listingType:"rent", offersDelivery:false, deliveryFee:"", deliveryRadius:"", deliveryLocationAddress:"", lat:null, lng:null });
     setAddImages([]);
     setShowAddListing(false);
+    setSubmittingListing(false);
     showToast("Listing published!");
   };
 
@@ -3174,6 +3179,7 @@ export default function Lendie() {
         ALL_CATS={ALL_CATS}
         userId={user?.id}
         onError={showToast}
+        submitting={submittingListing}
       />
       {NotifPanel()}
       {!isDesktop && <ChatView
