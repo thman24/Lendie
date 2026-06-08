@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil } from "lucide-react";
 import { supabase } from './supabase';
 
@@ -25,7 +25,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-const MAPS_API_KEY = 'AIzaSyB7lXQCgUs0NWHWX-8SScOfqY0MIq1y3EM';
+const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const VAPID_PUBLIC_KEY = 'BJlsUiWJmTTuliqPp62DEJpwwmCCpvb0s4LZRqn66VgYLtmobRYTMD-r4fcCbob8zIjyru7XfUQom03qaZyUs84';
 const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -61,14 +61,12 @@ function PlacesAutocompleteInput({ placeholder, containerStyle, inputStyle, onAd
     setFetching(true);
     try {
       const body = { input };
-      console.log("[PlacesAC] POST autocomplete | key present:", !!MAPS_API_KEY, "| body:", body);
       const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Goog-Api-Key": MAPS_API_KEY },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      console.log("[PlacesAC] response status:", res.status, "| body:", data);
       if (data.error) { console.error("[PlacesAC] autocomplete error:", data.error.message); setSuggestions([]); }
       else setSuggestions(data.suggestions || []);
     } catch (err) {
@@ -103,12 +101,9 @@ function PlacesAutocompleteInput({ placeholder, containerStyle, inputStyle, onAd
       const lat = data.location?.latitude;
       const lng = data.location?.longitude;
       const addr = data.formattedAddress || displayText;
-      console.log("[PlacesAC] details response:", { addr, lat, lng, raw: data });
       setValue(addr);
       onAddressChange(addr);
-      console.log("[PlacesAC] called onAddressChange (resets lat/lng in parent)");
       if (lat != null && lng != null) {
-        console.log("[PlacesAC] calling onPlaceSelect with:", { lat, lng });
         onPlaceSelect({ lat, lng });
       } else {
         console.error("[PlacesAC] no coordinates in response — location:", data.location);
@@ -236,7 +231,7 @@ function StarRow({ rating, count, size=13 }) {
 
 // RangeCalendar
 function RangeCalendar({ booked=[], startDate, endDate, onRangeChange }) {
-  const today = new Date(2026, 5, 2);
+  const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -336,9 +331,16 @@ function PhotoBrowserModal({ data, onClose }) {
 // OwnerProfileModal
 function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage }) {
   if (!ownerId) return null;
-  const owner = OWNERS[ownerId];
-  if (!owner) return null;
   const owned = allItems.filter(i => i.ownerId === ownerId);
+  if (!owned.length) return null;
+  const first = owned[0];
+  const ownerName = first.owner || 'Neighbor';
+  const ownerAvatar = first.ownerAvatar || '🧑';
+  const totalReviews = owned.reduce((s, i) => s + (i.reviews || 0), 0);
+  const avgRating = totalReviews > 0
+    ? Math.round(owned.reduce((s, i) => s + (i.rating || 0) * (i.reviews || 0), 0) / totalReviews * 10) / 10
+    : null;
+  const owner = { id: ownerId, name: ownerName, avatar: ownerAvatar };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:700, display:"flex", alignItems:"flex-end" }} onClick={onClose}>
       <div style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:"1px solid #E4E6EB" }} onClick={e=>e.stopPropagation()}>
@@ -348,21 +350,11 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
           <div style={{ width:34 }}/>
         </div>
         <div style={{ textAlign:"center", marginBottom:20 }}>
-          <div style={{ fontSize:60, marginBottom:8 }}>{owner.avatar}</div>
-          <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>{owner.name}</div>
-          <div style={{ fontSize:12, color:"#65676B", marginBottom:6 }}>Member since {owner.joined}</div>
-          <StarRow rating={owner.rating} count={owner.reviews} size={14}/>
-          <div style={{ display:"flex", gap:6, justifyContent:"center", marginTop:10 }}>
-            {owner.verified && <div style={{ background:"#E9F5E9", borderRadius:20, padding:"4px 10px", fontSize:11, color:"#31A24C", fontWeight:700 }}>Verified</div>}
-            {owner.superhost && <div style={{ background:"#FFF8E1", borderRadius:20, padding:"4px 10px", fontSize:11, color:"#E87722", fontWeight:700 }}>Superhost</div>}
-          </div>
+          <div style={{ fontSize:60, marginBottom:8 }}>{ownerAvatar}</div>
+          <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>{ownerName}</div>
+          {avgRating && <StarRow rating={avgRating} count={totalReviews} size={14}/>}
         </div>
-        <div style={{ background:"#fff", borderRadius:12, padding:"12px 14px", marginBottom:16, border:"1px solid #E4E6EB" }}>
-          <div style={{ fontWeight:700, fontSize:13, marginBottom:6, color:"#1C1E21" }}>About</div>
-          <div style={{ fontSize:13, color:"#65676B", lineHeight:1.6 }}>{owner.bio}</div>
-        </div>
-        <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#1C1E21" }}>{owner.name.split(" ")[0]}&#39;s Listings ({owned.length})</div>
-        {owned.length === 0 && <div style={{ textAlign:"center", padding:20, color:"#65676B" }}>No listings</div>}
+        <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#1C1E21" }}>{ownerName.split(" ")[0]}&#39;s Listings ({owned.length})</div>
         {owned.map(item => (
           <div key={item.id} onClick={()=>{ onSelectItem(item); onClose(); }} style={{ display:"flex", gap:12, background:"#fff", borderRadius:12, border:"1px solid #E4E6EB", padding:"12px 14px", marginBottom:10, cursor:"pointer", alignItems:"center" }}>
             <div style={{ fontSize:28, minWidth:48, textAlign:"center", background:(item.color||"#eee")+"15", borderRadius:10, padding:"8px 0" }}>{item.emoji}</div>
@@ -377,7 +369,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
           </div>
         ))}
         <button onClick={()=>onMessage(owner)} style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginTop:10 }}>
-          Message {owner.name.split(" ")[0]}
+          Message {ownerName.split(" ")[0]}
         </button>
         <button onClick={onClose} style={{ width:"100%", padding:"12px", borderRadius:8, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21", marginTop:8 }}>Close</button>
       </div>
@@ -628,7 +620,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
 }
 
 function BlockDatesModal({ listing, onClose, onSave }) {
-  const today = new Date(2026, 5, 2);
+  const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
   const [blocked, setBlocked] = useState(listing.booked || []);
@@ -914,7 +906,7 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
                 containerStyle={{ width:"100%" }}
                 inputStyle={S.inp}
                 onAddressChange={text => setNewListing(n=>({...n, deliveryLocationAddress: text, lat: null, lng: null}))}
-                onPlaceSelect={({ lat, lng }) => { console.log("[AddListing] onPlaceSelect received:", { lat, lng }); setNewListing(n=>({...n, lat, lng})); }}
+                onPlaceSelect={({ lat, lng }) => { setNewListing(n=>({...n, lat, lng})); }}
               />
               {newListing.lat ? (
                 <div style={{ fontSize:11, color:"#00B894", marginTop:4 }}>✓ Location confirmed</div>
@@ -1540,7 +1532,9 @@ export default function Lendie() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lendie_favorites') || '[]'); } catch { return []; }
+  });
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [requestSent, setRequestSent] = useState({});
   const [bookingRequests, setBookingRequests] = useState([]);
@@ -1674,7 +1668,7 @@ export default function Lendie() {
           groups[cid] = {
             id: new Date(row.created_at).getTime(),
             conversation_id: cid,
-            from: row.is_mine ? (row.to_name || "Unknown") : (row.from_name || "Unknown"),
+            from: row.from_user_id === user.id ? (row.to_name || "Unknown") : (row.from_name || "Unknown"),
             fromId: cid,
             avatar: row.from_avatar || "🧑",
             item: row.listing_title || "",
@@ -1684,8 +1678,8 @@ export default function Lendie() {
             otherUserId: null,
           };
         }
-        groups[cid].thread.push({ mine: row.is_mine, text: row.content, time: new Date(row.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) });
-        if (!row.read && !row.is_mine && !stored[cid]) groups[cid].unread = true;
+        groups[cid].thread.push({ mine: row.from_user_id === user.id, text: row.content, time: new Date(row.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) });
+        if (!row.read && row.from_user_id !== user.id && !stored[cid]) groups[cid].unread = true;
         groups[cid].id = new Date(row.created_at).getTime();
         groups[cid].time = row.created_at;
         // Derive other user's ID for push notifications
@@ -1845,12 +1839,12 @@ export default function Lendie() {
     setMessages(prev => prev.map(m => m.id === convo.id ? {...m, unread:false} : m));
     try {
       const r = JSON.parse(localStorage.getItem('lendie_read') || '{}');
-      r[String(convo.id)] = true;
+      r[convo.conversation_id] = true;
       localStorage.setItem('lendie_read', JSON.stringify(r));
     } catch {}
     if (convo.conversation_id) {
       supabase.from('messages').update({ read:true })
-        .eq('conversation_id', convo.conversation_id).eq('is_mine', false)
+        .eq('conversation_id', convo.conversation_id).neq('from_user_id', user.id)
         .then(({ error }) => { if (error) console.error('[Read]', error.message); });
     }
   };
@@ -1925,7 +1919,11 @@ export default function Lendie() {
     setToast({ msg, type });
     toastTimer.current = setTimeout(() => setToast(null), 3000);
   };
-  const toggleFav = id => setFavorites(f => f.includes(id) ? f.filter(x=>x!==id) : [...f,id]);
+  const toggleFav = id => setFavorites(f => {
+    const next = f.includes(id) ? f.filter(x => x !== id) : [...f, id];
+    try { localStorage.setItem('lendie_favorites', JSON.stringify(next)); } catch {}
+    return next;
+  });
 
   const handleMapMoveCenter = ({ lat, lng }) => {
     setSearchCoords({ lat, lng });
@@ -1977,9 +1975,9 @@ export default function Lendie() {
     const dbConvos = messages.filter(m => m.conversation_id);
     setInboxEditMode(false);
     setConvoDeleteId(null);
-    for (const convo of dbConvos) {
-      await supabase.from('messages').delete().eq('conversation_id', convo.conversation_id);
-    }
+    await Promise.all(dbConvos.map(convo =>
+      supabase.from('messages').delete().eq('conversation_id', convo.conversation_id)
+    ));
     setMessages([]);
   };
 
@@ -2003,27 +2001,27 @@ export default function Lendie() {
   const unreadMsgs = messages.filter(m=>m.unread).length + pendingRequests;
   const unreadNotifs = notifications.filter(n=>n.unread).length;
 
-  const mergeBooked = (item) => {
-    const extra = bookedOverrides[item.id];
-    if (!extra || extra.length === 0) return item;
-    return { ...item, booked: [...new Set([...(item.booked || []), ...extra])] };
-  };
-  const enrichRating = (item) => {
-    const lr = listingRatings[item.id];
-    if (!lr) return item;
-    return { ...item, rating: lr.avg, reviews: lr.count };
-  };
-  const myListingIds = new Set(myListings.map(l => l.id));
-  const allItems = [
-    ...myListings.map(l => enrichRating(mergeBooked({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
-    ...publicListings
-      .filter(l => !myListingIds.has(l.id))
-      .map(l => enrichRating(mergeBooked({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
-  ];
+  const allItems = useMemo(() => {
+    const myIds = new Set(myListings.map(l => l.id));
+    const merge = item => {
+      const extra = bookedOverrides[item.id];
+      return extra?.length ? { ...item, booked: [...new Set([...(item.booked || []), ...extra])] } : item;
+    };
+    const enrich = item => {
+      const lr = listingRatings[item.id];
+      return lr ? { ...item, rating: lr.avg, reviews: lr.count } : item;
+    };
+    return [
+      ...myListings.map(l => enrich(merge({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
+      ...publicListings
+        .filter(l => !myIds.has(l.id))
+        .map(l => enrich(merge({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
+    ];
+  }, [myListings, publicListings, bookedOverrides, listingRatings]);
 
   const centerCoords = locationText === "Current Location" ? gpsCoords : searchCoords;
 
-  const filtered = allItems.filter(item => {
+  const filtered = useMemo(() => allItems.filter(item => {
     if (item.ownerId === "me" && !item.available) return false;
     if (showFavOnly && !favorites.includes(item.id)) return false;
     if (category!=="all" && category!=="everything" && item.category!==category) return false;
@@ -2039,7 +2037,7 @@ export default function Lendie() {
     if (sortBy==="price") return a.price-b.price;
     if (sortBy==="rating") return (b.rating||0)-(a.rating||0);
     return a.distance-b.distance;
-  });
+  }), [allItems, showFavOnly, favorites, category, search, centerCoords, radius, listingTypeFilter, sortBy]);
 
   const C = { bg:"#fff", surface:"#FFFFFF", border:"#E4E6EB", accent:"#00B894", text:"#1C1E21", muted:"#65676B", faint:"#8A8D91" };
   const S = {
@@ -2064,7 +2062,6 @@ export default function Lendie() {
     if (newListing.listingType === "sale" && !newListing.price) { showToast("Enter a sale price","error"); return; }
     if (newListing.listingType === "both" && !newListing.salePrice) { showToast("Enter a sale price","error"); return; }
     setSubmittingListing(true);
-    console.log("[AddListing] submit — lat:", newListing.lat, "lng:", newListing.lng, "offersDelivery:", newListing.offersDelivery);
     if (newListing.offersDelivery && (!newListing.lat || !newListing.lng)) { showToast("Select your delivery origin address from the suggestions","error"); return; }
     const colors = ["#F59E0B","#EC4899","#10B981","#3B82F6","#8B5CF6","#EF4444"];
     const amenArr = newListing.amenities ? newListing.amenities.split(",").map(a=>a.trim()).filter(Boolean) : [];
@@ -2080,7 +2077,6 @@ export default function Lendie() {
       user_id: user?.id,
       owner_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Lender',
     };
-    console.log("[AddListing] dbRow lat:", dbRow.lat, "lng:", dbRow.lng);
     const { data, error } = await supabase.from('listings').insert(dbRow).select().single();
     if (error) {
       console.error('[listings insert] error:', error);
@@ -2098,11 +2094,15 @@ export default function Lendie() {
     showToast("Listing published!");
   };
 
+  const [submittingEdit, setSubmittingEdit] = useState(false);
   const handleEditSave = async () => {
+    if (submittingEdit) return;
+    setSubmittingEdit(true);
     const { error } = await supabase.from('listings').update(listingToDb({...newListing,uploadedImages:editImages})).eq('id', editingListing.id);
-    if (error) { showToast("Failed to update","error"); return; }
+    if (error) { setSubmittingEdit(false); showToast("Failed to update","error"); return; }
     setMyListings(prev=>prev.map(l=>l.id===editingListing.id?{...l,...newListing,uploadedImages:editImages}:l));
     setEditingListing(null);
+    setSubmittingEdit(false);
     showToast("Listing updated!");
   };
 
@@ -2131,7 +2131,7 @@ export default function Lendie() {
     setTab("messages");
     // Persist to DB and notify owner
     if (user && item.ownerId && item.ownerId !== 'me') {
-      const { data } = await supabase.from('booking_requests').insert({
+      const { data, error: insertErr } = await supabase.from('booking_requests').insert({
         renter_id: user.id,
         owner_id: item.ownerId,
         item_title: item.title,
@@ -2145,6 +2145,7 @@ export default function Lendie() {
         renter_name: user?.user_metadata?.name || "You",
         status: 'pending',
       }).select('id').single();
+      if (insertErr) { console.error('[BookingRequest] insert error:', insertErr.message); return; }
       if (data) setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, dbId: data.id } : r));
       sendPushToUser(item.ownerId, {
         title: 'New booking request',
@@ -2321,8 +2322,8 @@ export default function Lendie() {
 
   const handleSubmitReview = async (booking, stars, comment) => {
     const reviewerName = user?.user_metadata?.name || booking.renterName || "Anonymous";
-    // Only set listing_id for the owner's own Supabase listings; seed items use null (FK allows null)
-    const listingId = booking.item.ownerId === "me" ? booking.item.id : null;
+    // Link review to listing when it has a numeric DB id (not a seed/demo item)
+    const listingId = typeof booking.item.id === 'number' ? booking.item.id : null;
     const { error } = await supabase.from('reviews').insert({
       listing_id: listingId,
       reviewer_name: reviewerName,
@@ -2340,7 +2341,12 @@ export default function Lendie() {
         return { ...prev, [listingId]: { avg: Math.round(newSum / newCount * 10) / 10, count: newCount, sum: newSum } };
       });
       // Also update selectedItem if it's this listing
-      setSelectedItem(prev => prev?.id === listingId ? { ...prev, rating: Math.round((stars) / 1 * 10) / 10, reviews: (prev.reviews || 0) + 1 } : prev);
+      setSelectedItem(prev => {
+        if (!prev || prev.id !== listingId) return prev;
+        const newCount = (prev.reviews || 0) + 1;
+        const newSum = (prev.rating || 0) * (prev.reviews || 0) + stars;
+        return { ...prev, rating: Math.round(newSum / newCount * 10) / 10, reviews: newCount };
+      });
     }
     setReviewedBookings(prev => ({ ...prev, [booking.id]: true }));
     setReviewingBooking(null);
@@ -2743,64 +2749,48 @@ export default function Lendie() {
             </div>
           )}
           {isDesktop ? (
-            <div style={{ display:"flex", minHeight:"calc(100vh - 64px)" }}>
-              {/* Sidebar — flush to left edge, full height */}
-              <aside style={{ width:200, flexShrink:0, background:"#fff", borderRight:"1px solid #E4E6EB" }}>
-                <div style={{ position:"sticky", top:64, overflowY:"auto", maxHeight:"calc(100vh - 64px)", padding:"16px 14px" }}>
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ background:"#fff", borderRadius:8, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
-                      <Search size={14} strokeWidth={2} color="#65676B"/>
-                      <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:13, fontFamily:"inherit" }} placeholder="Search..." value={search} autoComplete="off" onChange={e=>setSearch(e.target.value)}/>
-                      {search&&<span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#65676B", fontSize:13 }}>✕</span>}
-                    </div>
+            <div style={{ maxWidth:1200, margin:"0 auto", padding:"16px 24px", minHeight:"calc(100vh - 64px)" }}>
+              {/* Title + location row */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                <div style={{ fontSize:18, fontWeight:800, color:"#1C1E21" }}>
+                  {showFavOnly ? "Favorites" : category==="all" ? "Near you" : TABS.find(([id])=>id===category)?.[1] || category}
+                </div>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
+                    <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
+                    <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
+                      {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
+                    </span>
+                    <span style={{ fontSize:13, color:"#00B894" }}>· {radius}mi</span>
+                    <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker ? "▲" : "▼"}</span>
                   </div>
-                  <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Category</div>
-                  {TABS.map(([id,label])=>(
-                    <div key={id} onClick={()=>setCategory(id)} style={{ padding:"6px 8px", borderRadius:6, cursor:"pointer", background:category===id?"#E8FBF6":"transparent", color:category===id?"#00B894":"#65676B", fontWeight:category===id?700:400, fontSize:13, marginBottom:1, display:"flex", alignItems:"center", gap:7 }}>
-                      <CatIcon id={id} size={14}/>{label}
-                    </div>
+                  {user && <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
+                </div>
+              </div>
+              {/* Search + radius + sort row */}
+              <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:14, flexWrap:"wrap" }}>
+                <div style={{ flex:1, minWidth:160, background:"#F2F3F5", borderRadius:8, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
+                  <Search size={14} strokeWidth={2} color="#65676B"/>
+                  <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:13, fontFamily:"inherit" }} placeholder="Search..." value={search} autoComplete="off" onChange={e=>setSearch(e.target.value)}/>
+                  {search && <span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#65676B", fontSize:13 }}>✕</span>}
+                </div>
+                <div style={{ display:"flex", gap:4 }}>
+                  {[1,2,5,10,25].map(r=>(
+                    <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#fff", border:radius===r?"none":"1px solid #E4E6EB", borderRadius:20, padding:"5px 10px", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer" }}>{r}mi</button>
                   ))}
-                  <div style={{ borderTop:"1px solid #E4E6EB", margin:"14px 0 10px" }}/>
-                  <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Radius</div>
-                  <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:14 }}>
-                    {[1,2,5,10,25].map(r=>(
-                      <button key={r} onClick={()=>setRadius(r)} style={{ background:radius===r?"#00B894":"#fff", border:radius===r?"none":"1px solid #E4E6EB", borderRadius:20, padding:"4px 9px", fontSize:12, fontWeight:radius===r?700:500, color:radius===r?"#fff":"#65676B", cursor:"pointer" }}>{r}mi</button>
-                    ))}
-                  </div>
-                  <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Sort by</div>
+                </div>
+                <div style={{ display:"flex", gap:4 }}>
                   {[["distance","Distance"],["price","Price"],["rating","Rating"]].map(([val,lbl])=>(
-                    <div key={val} onClick={()=>setSortBy(val)} style={{ padding:"6px 8px", borderRadius:6, cursor:"pointer", background:sortBy===val?"#E8FBF6":"transparent", color:sortBy===val?"#00B894":"#65676B", fontWeight:sortBy===val?700:400, fontSize:13, marginBottom:1 }}>
-                      {lbl}
-                    </div>
+                    <button key={val} onClick={()=>setSortBy(val)} style={{ background:sortBy===val?"#E8FBF6":"transparent", border:"1px solid "+(sortBy===val?"#00B894":"#E4E6EB"), borderRadius:20, padding:"5px 10px", fontSize:12, fontWeight:sortBy===val?700:500, color:sortBy===val?"#00B894":"#65676B", cursor:"pointer" }}>{lbl}</button>
                   ))}
-                  <div style={{ borderTop:"1px solid #E4E6EB", margin:"14px 0 8px" }}/>
-                  <div style={{ fontSize:12, color:"#8A8D91" }}><span style={{ fontWeight:700, color:"#1C1E21", fontSize:14 }}>{filtered.length}</span> listings</div>
                 </div>
-              </aside>
-              {/* Main grid — fills all remaining width */}
-              <main style={{ flex:1, minWidth:0, padding:"16px 14px" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                  <div style={{ fontSize:18, fontWeight:800, color:"#1C1E21" }}>
-                    {showFavOnly ? "Favorites" : category==="all" ? "Near you" : TABS.find(([id])=>id===category)?.[1] || category}
-                  </div>
-                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
-                      <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
-                      <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
-                        {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
-                      </span>
-                      <span style={{ fontSize:13, color:"#00B894" }}>· {radius}mi</span>
-                      <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker ? "▲" : "▼"}</span>
-                    </div>
-                    {user && <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
-                  </div>
-                </div>
-                <div style={{ marginBottom:16 }}><CategoryPills/></div>
-                <div style={{ marginBottom:16 }}><TypeFilterBar/></div>
-                {filtered.length===0
-                  ? <div style={{ textAlign:"center", padding:"80px 20px", color:"#65676B", background:"#fff" }}>No listings found. Try adjusting the filters.</div>
-                  : <CardGrid/>}
-              </main>
+                <div style={{ fontSize:12, color:"#8A8D91", whiteSpace:"nowrap" }}><span style={{ fontWeight:700, color:"#1C1E21" }}>{filtered.length}</span> listings</div>
+              </div>
+              <div style={{ marginBottom:16 }}><CategoryPills/></div>
+              <div style={{ marginBottom:16 }}><TypeFilterBar/></div>
+              {filtered.length===0
+                ? <div style={{ textAlign:"center", padding:"80px 20px", color:"#65676B" }}>No listings found. Try adjusting the filters.</div>
+                : <CardGrid/>}
             </div>
           ) : (
             <>
