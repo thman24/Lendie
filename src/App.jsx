@@ -3098,9 +3098,11 @@ export default function Lendie() {
               {/* Accordion activity sections */}
               {(()=>{
                 const TODAY = new Date().toISOString().slice(0,10);
-                const activeRentals   = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="accepted"&&(r.end||r.start)>=TODAY);
+                const endOf = r => r.end || r.start || '';
+                const myAccepted      = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="accepted");
+                const activeRentals   = myAccepted.filter(r=>endOf(r)>=TODAY);
+                const pastRentals     = myAccepted.filter(r=>endOf(r)<TODAY);
                 const pendingApprovals= bookingRequests.filter(r=>r.renterId===user.id&&r.status==="pending");
-                const pastRentals     = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="accepted"&&(r.end||r.start)<TODAY);
                 const toggleSec = id => setOpenSections(prev=>({...prev,[id]:prev[id]===false}));
                 const isOpen = id => openSections[id] !== false;
 
@@ -3195,7 +3197,7 @@ export default function Lendie() {
                         {myListings.length===0
                           ? <div style={emptyStyle}>No listings yet</div>
                           : myListings.map(l=>{
-                            const isBooked = bookingRequests.some(r=>r.status==="accepted"&&r.item?.id===l.id&&(r.end||r.start)>=TODAY);
+                            const isBooked = bookingRequests.some(r=>r.status==="accepted"&&r.item?.id===l.id&&endOf(r)>=TODAY);
                             const status = !l.available ? {label:"Paused",color:"#8A8D91"} : isBooked ? {label:"Booked",color:"#E87722"} : {label:"Active",color:"#31A24C"};
                             return (
                               <div key={l.id} style={{ display:"flex", gap:12, alignItems:"center", padding:"12px 16px", borderBottom:"1px solid #F0F2F5" }}>
