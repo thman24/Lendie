@@ -336,6 +336,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
   const first = owned[0];
   const ownerName = first.owner || 'Neighbor';
   const ownerAvatar = first.ownerAvatar || '🧑';
+  const ownerAvatarUrl = first.ownerAvatarUrl || null;
   const totalReviews = owned.reduce((s, i) => s + (i.reviews || 0), 0);
   const avgRating = totalReviews > 0
     ? Math.round(owned.reduce((s, i) => s + (i.rating || 0) * (i.reviews || 0), 0) / totalReviews * 10) / 10
@@ -350,7 +351,9 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
           <div style={{ width:34 }}/>
         </div>
         <div style={{ textAlign:"center", marginBottom:20 }}>
-          <div style={{ fontSize:60, marginBottom:8 }}>{ownerAvatar}</div>
+          <div style={{ width:80, height:80, borderRadius:"50%", background:"#E4E6EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, margin:"0 auto 10px", overflow:"hidden" }}>
+            {ownerAvatarUrl ? <img src={ownerAvatarUrl} alt="" style={{ width:80, height:80, objectFit:"cover" }}/> : <span>{ownerAvatar}</span>}
+          </div>
           <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>{ownerName}</div>
           {avgRating && <StarRow rating={avgRating} count={totalReviews} size={14}/>}
         </div>
@@ -1271,6 +1274,7 @@ function dbToListing(row) {
     uploadedImages: row.uploaded_images || [],
     photos: row.photos || [],
     ownerName: row.owner_name || null,
+    ownerAvatarUrl: row.owner_avatar_url || null,
     ownerId: row.user_id || null,
   };
 }
@@ -1302,6 +1306,7 @@ function listingToDb(listing) {
     lng: listing.lng || null,
     uploaded_images: listing.uploadedImages || [],
     photos: listing.photos || [],
+    owner_avatar_url: listing.ownerAvatarUrl || null,
   };
 }
 
@@ -2076,6 +2081,7 @@ export default function Lendie() {
       }),
       user_id: user?.id,
       owner_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Lender',
+      owner_avatar_url: user?.user_metadata?.avatar_url || null,
     };
     const { data, error } = await supabase.from('listings').insert(dbRow).select().single();
     if (error) {
