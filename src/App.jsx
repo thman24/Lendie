@@ -1919,22 +1919,23 @@ export default function Lendie() {
   };
 
   const deleteConversation = async (convo) => {
-    setMessages(prev => prev.filter(m => m.id !== convo.id));
     setConvoDeleteId(null);
-    if (activeConvo?.id === convo.id) setActiveConvo(null);
     if (convo.conversation_id) {
-      await supabase.from('messages').delete().eq('conversation_id', convo.conversation_id);
+      const { error } = await supabase.from('messages').delete().eq('conversation_id', convo.conversation_id);
+      if (error) { showToast('Failed to delete conversation', 'error'); return; }
     }
+    setMessages(prev => prev.filter(m => m.id !== convo.id));
+    if (activeConvo?.id === convo.id) setActiveConvo(null);
   };
 
   const clearAllConversations = async () => {
     const dbConvos = messages.filter(m => m.conversation_id);
-    setMessages([]);
     setInboxEditMode(false);
     setConvoDeleteId(null);
     for (const convo of dbConvos) {
       await supabase.from('messages').delete().eq('conversation_id', convo.conversation_id);
     }
+    setMessages([]);
   };
 
   const addNotification = (notif) => {
