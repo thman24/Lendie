@@ -2356,7 +2356,7 @@ export default function Lendie() {
   const TABS = [
     ["all","For you"],["everything","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],
     ["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],
-    ["party","Party"],["tech","Tech"]
+    ["party","Party"],["tech","Tech"],["other","Other"]
   ];
   const ALL_CATS = [
     {id:"tools",label:"Tools",emoji:"🔧"},{id:"trailers",label:"Trailers",emoji:"🚛"},
@@ -2382,7 +2382,7 @@ export default function Lendie() {
 
   const CategoryPills = () => (
     <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
-      {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"]].map(([id,label])=>(
+      {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"],["other","Other"]].map(([id,label])=>(
         <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"6px 13px", borderRadius:20, border: category===id ? "none" : "1px solid #E4E6EB", background: category===id ? "#00B894" : "#fff", color: category===id ? "#fff" : "#1C1E21", fontSize:13, fontWeight: category===id ? 700 : 400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
           <CatIcon id={id} size={14}/>{label}
         </button>
@@ -2703,7 +2703,7 @@ export default function Lendie() {
             </div>
             {/* Category pills — horizontally scrollable */}
             <div style={{ padding:"0 12px 10px", overflowX:"auto", scrollbarWidth:"none", display:"flex", gap:7, WebkitOverflowScrolling:"touch" }}>
-              {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"]].map(([id,label])=>(
+              {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"],["other","Other"]].map(([id,label])=>(
                 <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:4, padding:"5px 12px", borderRadius:20, border: category===id?"none":"1px solid #E4E6EB", background: category===id?"#00B894":"#fff", color: category===id?"#fff":"#1C1E21", fontSize:13, fontWeight: category===id?700:400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                   <CatIcon id={id} size={13}/>{label}
                 </button>
