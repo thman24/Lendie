@@ -379,7 +379,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
 }
 
 // ItemDetailSheet - top-level component so hooks work correctly
-function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking }) {
+function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking, isDesktop }) {
   const C = { muted:"#65676B", faint:"#8A8D91" };
   const CAT_MAP = { tools:"Tools", trailers:"Trailers", construction:"Equipment", kitchen:"Kitchen", garden:"Garden", outdoors:"Outdoors", venues:"Venues", party:"Party", tech:"Tech" };
   const sheetRef = useRef(null);
@@ -431,7 +431,6 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
 
   if (!item) return null;
 
-  const owner = OWNERS[item.ownerId];
   const alreadySent = requestSent[item.id];
   const rangeBooked = startDate && getDatesInRange(startDate, endDate||startDate).some(d => item.booked && item.booked.includes(d));
   const n = daysBetween(startDate, endDate||startDate);
@@ -440,18 +439,20 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
   const deliveryAmenity = item.amenities && item.amenities.find(a => /delivery/i.test(a) && /\$\d+/.test(a));
   const hasDelivery = !!deliveryAmenity;
 
-  const sheetStyle = {
-    background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:"1px solid #E4E6EB", overscrollBehavior:"contain",
-    transform: "translateY("+dragY+"px) translateX("+(dragX*0.35)+"px)",
-    transition: dragging?"none":"transform 0.32s cubic-bezier(0.32,0.72,0,1), opacity 0.2s",
-    animation: dragY===0&&dragX===0?"slideUp 0.32s cubic-bezier(0.32,0.72,0,1)":"none",
-    opacity: 1 - progress*0.45,
-  };
+  const sheetStyle = isDesktop
+    ? { background:"#fff", borderRadius:16, padding:"28px 28px 36px", width:"100%", maxWidth:620, maxHeight:"90vh", overflowY:"auto", overscrollBehavior:"contain", position:"relative", boxShadow:"0 8px 40px rgba(0,0,0,0.22)" }
+    : { background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:"1px solid #E4E6EB", overscrollBehavior:"contain",
+        transform: "translateY("+dragY+"px) translateX("+(dragX*0.35)+"px)",
+        transition: dragging?"none":"transform 0.32s cubic-bezier(0.32,0.72,0,1), opacity 0.2s",
+        animation: dragY===0&&dragX===0?"slideUp 0.32s cubic-bezier(0.32,0.72,0,1)":"none",
+        opacity: 1 - progress*0.45 };
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,"+(0.55-progress*0.2)+")", zIndex:200, display:"flex", alignItems:"flex-end" }} onClick={onDismiss}>
+    <div style={{ position:"fixed", inset:0, background: isDesktop ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,"+(0.55-progress*0.2)+")", zIndex:200, display:"flex", alignItems: isDesktop ? "center" : "flex-end", justifyContent: isDesktop ? "center" : "flex-start", padding: isDesktop ? 20 : 0 }} onClick={onDismiss}>
       <div ref={sheetRef} style={sheetStyle} onClick={e=>e.stopPropagation()}>
-        <div style={{ width:40, height:5, borderRadius:3, background:"#CDD0D4", margin:"0 auto 16px" }}/>
+        {isDesktop
+          ? <button onClick={onDismiss} style={{ position:"absolute", top:16, right:16, background:"#F0F2F5", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", color:"#65676B" }}>×</button>
+          : <div style={{ width:40, height:5, borderRadius:3, background:"#CDD0D4", margin:"0 auto 16px" }}/>}
 
         {allPhotos.length > 0 && (
           <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:16 }}>
@@ -466,7 +467,7 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
         )}
 
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
-          <div style={{ fontSize:19, fontWeight:800, color:"#1C1E21", flex:1, marginRight:10 }}>{item.title}</div>
+          <div style={{ fontSize:19, fontWeight:800, color:"#1C1E21", flex:1, marginRight:10, textTransform:"capitalize" }}>{item.title}</div>
           <button onClick={()=>toggleFav(item.id)} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer" }}>{favorites.includes(item.id)?"❤️":"🤍"}</button>
         </div>
 
@@ -482,15 +483,23 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
           {hasDelivery && <span style={{ fontSize:11, fontWeight:600, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>Delivery avail.</span>}
         </div>
 
-        {owner && (
+        {item.ownerId && item.ownerId !== "me" && (
           <div onClick={()=>setOwnerProfileId(item.ownerId)} style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F8FA", borderRadius:12, padding:"12px 14px", marginBottom:16, cursor:"pointer", border:"1px solid #E4E6EB" }}>
-            <div style={{ width:44, height:44, borderRadius:"50%", background:"#E4E6EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{item.ownerAvatar||owner.avatar}</div>
+            <div style={{ width:44, height:44, borderRadius:"50%", background:"#E4E6EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, overflow:"hidden" }}>
+              {item.ownerAvatarUrl
+                ? <img src={item.ownerAvatarUrl} alt="" style={{ width:44, height:44, objectFit:"cover" }}/>
+                : <span>{item.ownerAvatar || '🧑'}</span>}
+            </div>
             <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21", marginBottom:2 }}>{item.owner||owner.name}</div>
-              <div style={{ fontSize:12, color:"#65676B" }}>
-                {owner.verified && <span style={{ color:"#31A24C" }}>Verified &middot; </span>}
-                {owner.responseTime}
-              </div>
+              <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21", marginBottom:2 }}>{item.owner || 'Neighbor'}</div>
+              {(() => {
+                const ownerListings = allItems.filter(x => x.ownerId === item.ownerId && x.reviews > 0);
+                const totalReviews = ownerListings.reduce((s, x) => s + (x.reviews || 0), 0);
+                const avgRating = totalReviews > 0
+                  ? Math.round(ownerListings.reduce((s, x) => s + (x.rating || 0) * (x.reviews || 0), 0) / totalReviews * 10) / 10
+                  : null;
+                return avgRating ? <StarRow rating={avgRating} count={totalReviews} size={12}/> : null;
+              })()}
               {allItems.filter(x=>x.ownerId===item.ownerId&&x.id!==item.id).length > 0 && (
                 <div style={{ fontSize:11, color:"#00B894", fontWeight:600, marginTop:2 }}>
                   +{allItems.filter(x=>x.ownerId===item.ownerId&&x.id!==item.id).length} other listings
@@ -598,8 +607,8 @@ function ItemDetailSheet({ item, requestSent, favorites, toggleFav, allItems, OW
           <button style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"not-allowed", background:"#F0F2F5", color:"#8A8D91" }} disabled>Currently Unavailable</button>
         )}
 
-        <div style={{ fontSize:11, color:"#8A8D91", textAlign:"center", margin:"14px 0 6px" }}>Swipe down or right to close</div>
-        <button style={{ width:"100%", padding:"12px", borderRadius:8, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" }} onClick={onDismiss}>Close</button>
+        {!isDesktop && <div style={{ fontSize:11, color:"#8A8D91", textAlign:"center", margin:"14px 0 6px" }}>Swipe down or right to close</div>}
+        <button style={{ width:"100%", padding:"12px", borderRadius:8, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21", marginTop: isDesktop ? 14 : 0 }} onClick={onDismiss}>Close</button>
       </div>
     </div>
   );
@@ -1842,20 +1851,21 @@ export default function Lendie() {
       });
   }, [user?.id, refreshTick]);
 
-  // Fetch all other users' listings (works for guests too — RLS allows public read)
+  // Fetch all listings for browse view — no user filter so every listing is visible
+  // (Supabase RLS must have a SELECT policy with USING (true) for this to work for guests)
   useEffect(() => {
-    let query = supabase.from('listings').select('*').order('created_at', { ascending: false });
-    if (user?.id) query = query.neq('user_id', user.id);
-    query.then(({ data }) => {
-      if (!data) return;
-      setPublicListings(data.map(row => ({
-        ...dbToListing(row),
-        owner: row.owner_name || 'Neighbor',
-        ownerAvatar: '🧑',
-        ownerId: row.user_id || 'unknown',
-        distance: 0,
-      })));
-    });
+    supabase.from('listings').select('*').order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) { console.error('[Listings] fetch error:', error.message); return; }
+        if (!data) return;
+        setPublicListings(data.map(row => ({
+          ...dbToListing(row),
+          owner: row.owner_name || 'Neighbor',
+          ownerAvatar: '🧑',
+          ownerId: row.user_id || 'unknown',
+          distance: 0,
+        })));
+      });
   }, [user?.id, refreshTick]);
 
   const requireAuth = (mode = "login") => {
@@ -1957,9 +1967,12 @@ export default function Lendie() {
     if (!lr) return item;
     return { ...item, rating: lr.avg, reviews: lr.count };
   };
+  const myListingIds = new Set(myListings.map(l => l.id));
   const allItems = [
     ...myListings.map(l => enrichRating(mergeBooked({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
-    ...publicListings.map(l => enrichRating(mergeBooked({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
+    ...publicListings
+      .filter(l => !myListingIds.has(l.id))
+      .map(l => enrichRating(mergeBooked({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
   ];
 
   const centerCoords = locationText === "Current Location" ? gpsCoords : searchCoords;
@@ -2324,7 +2337,7 @@ export default function Lendie() {
               </button>
             </div>
             <div style={{ padding:"8px 10px 12px" }}>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:1, color:"#1C1E21" }}>{item.title}</div>
+              <div style={{ fontWeight:600, fontSize:13, marginBottom:1, color:"#1C1E21", textTransform:"capitalize" }}>{item.title}</div>
               <div style={{ fontSize:11, color:"#65676B", marginBottom:3 }}>{item.owner||"You"} &middot; {item.distance===0?"Just listed":item.distance+"mi"}</div>
               {deliveryBadge && <div style={{ fontSize:10, fontWeight:600, color:"#00B894", background:"#E8FBF6", borderRadius:5, padding:"2px 6px", display:"inline-block", marginBottom:4, border:"1px solid #B2EFE3" }}>Delivery avail.</div>}
               {(item.listingType==="sale"||item.listingType==="both") && <div style={{ fontSize:10, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:5, padding:"2px 6px", display:"inline-block", marginBottom:4, border:"1px solid #FFE0B2" }}>{item.listingType==="sale"?"For Sale":"Rent or Buy"}</div>}
@@ -3112,6 +3125,7 @@ export default function Lendie() {
         onDismiss={()=>setSelectedItem(null)}
         setPaymentModal={setPaymentModal}
         setPaymentStep={setPaymentStep}
+        isDesktop={isDesktop}
         onConfirmBooking={(s,e)=>{
           if (!s) return;
           if (!requireAuth()) return;
