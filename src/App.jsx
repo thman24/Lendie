@@ -2322,57 +2322,59 @@ export default function Lendie() {
   ];
 
   const TypeFilterBar = () => (
-    <div style={{ display:"flex", background:"#F0F2F5", borderRadius:12, padding:3, gap:2 }}>
+    <div style={{ display:"flex", background:"#F0F2F5", borderRadius:10, padding:3, gap:2 }}>
       {[["all","All"],["rent","Rent"],["buy","Buy"]].map(([val,label]) => (
         <button key={val} onClick={()=>setListingTypeFilter(val)} style={{
-          flex:1, padding:"8px 0", borderRadius:9, border:"none", fontFamily:"inherit",
-          fontSize:14, fontWeight:listingTypeFilter===val ? 700 : 500,
+          flex:1, padding:"7px 0", borderRadius:7, border:"none", fontFamily:"inherit",
+          fontSize:13, fontWeight:listingTypeFilter===val ? 700 : 500,
           background: listingTypeFilter===val ? "#00B894" : "transparent",
           color: listingTypeFilter===val ? "#fff" : "#65676B",
-          cursor:"pointer", transition:"background 0.15s, color 0.15s",
-          boxShadow: listingTypeFilter===val ? "0 1px 4px rgba(0,184,148,0.25)" : "none",
+          cursor:"pointer",
         }}>{label}</button>
       ))}
     </div>
   );
 
+  const CategoryPills = () => (
+    <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
+      {[["all","All","🏷️"],["tools","Tools","🔧"],["trailers","Trailers","🚛"],["construction","Equipment","🏗️"],["kitchen","Kitchen","🍳"],["garden","Garden","🌱"],["outdoors","Outdoors","🏕️"],["venues","Venues","🏛️"],["party","Party","🎉"],["tech","Tech","💻"]].map(([id,label,emoji])=>(
+        <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"6px 13px", borderRadius:20, border: category===id ? "none" : "1px solid #E4E6EB", background: category===id ? "#00B894" : "#fff", color: category===id ? "#fff" : "#1C1E21", fontSize:13, fontWeight: category===id ? 700 : 400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+          <span style={{ fontSize:14 }}>{emoji}</span>{label}
+        </button>
+      ))}
+    </div>
+  );
+
   const CardGrid = () => (
-    <div style={{ display:"grid", gridTemplateColumns: isDesktop ? "repeat(auto-fill, minmax(155px,1fr))" : "1fr 1fr", gap: isDesktop ? 10 : 3, padding: isDesktop ? 0 : 3, background: isDesktop ? "transparent" : "#E4E6EB" }}>
-      {filtered.map(item => {
-        const deliveryBadge = item.amenities && item.amenities.find(a=>/delivery/i.test(a));
-        return (
-          <div key={item.id} style={{ background:"#fff", overflow:"hidden", cursor:"pointer", position:"relative", borderRadius: isDesktop ? 14 : 0, boxShadow: isDesktop ? "0 2px 12px rgba(0,0,0,0.07)" : "none", transition:"box-shadow 0.15s" }} onClick={()=>setSelectedItem(item)}>
-            <div style={{ background:(item.color||"#eee")+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, height:155, position:"relative", overflow:"hidden" }}>
-              {item.uploadedImages && item.uploadedImages[0]
-                ? <img src={item.uploadedImages[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                : <span>{item.emoji}</span>}
-              <div style={{ position:"absolute", top:8, left:8, width:10, height:10, borderRadius:"50%", background:item.available?"#31A24C":"#FA3E3E", border:"2px solid #fff" }}/>
-              <button style={{ position:"absolute", top:8, right:8, background:"rgba(255,255,255,0.9)", border:"none", borderRadius:"50%", width:30, height:30, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={e=>{e.stopPropagation();toggleFav(item.id);}}>
-                {favorites.includes(item.id)?"❤️":"🤍"}
-              </button>
-            </div>
-            <div style={{ padding:"8px 10px 12px" }}>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:1, color:"#1C1E21", textTransform:"capitalize" }}>{item.title}</div>
-              <div style={{ fontSize:11, color:"#65676B", marginBottom:3 }}>{item.owner||"You"} &middot; {item.distance===0?"Just listed":item.distance+"mi"}</div>
-              {deliveryBadge && <div style={{ fontSize:10, fontWeight:600, color:"#00B894", background:"#E8FBF6", borderRadius:5, padding:"2px 6px", display:"inline-block", marginBottom:4, border:"1px solid #B2EFE3" }}>Delivery avail.</div>}
-              {(item.listingType==="sale"||item.listingType==="both") && <div style={{ fontSize:10, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:5, padding:"2px 6px", display:"inline-block", marginBottom:4, border:"1px solid #FFE0B2" }}>{item.listingType==="sale"?"For Sale":"Rent or Buy"}</div>}
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
-                <div>
-                  {item.listingType!=="sale" && <div><span style={{ fontSize:15, fontWeight:700, color:"#1C1E21" }}>${item.price}</span><span style={{ fontSize:9, color:"#8A8D91" }}>/{item.priceUnit||"day"}</span></div>}
-                  {item.listingType==="sale" && <div><span style={{ fontSize:15, fontWeight:700, color:"#E87722" }}>${item.price}</span><span style={{ fontSize:9, color:"#8A8D91" }}> firm</span></div>}
-                  {item.listingType==="both" && (
-                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ fontSize:15, fontWeight:700, color:"#1C1E21" }}>${item.price}</span><span style={{ fontSize:9, color:"#8A8D91" }}>/{item.priceUnit||"day"}</span>
-                      {item.salePrice && <span style={{ fontSize:10, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:5, padding:"1px 5px", border:"1px solid #FFE0B2" }}>Buy ${item.salePrice}</span>}
-                    </div>
-                  )}
-                </div>
-                {item.rating && <div style={{ fontSize:11, color:"#F5A623" }}>&#9733;{item.rating}</div>}
+    <div style={{ display:"grid", gridTemplateColumns: isDesktop ? "repeat(auto-fill, minmax(200px,1fr))" : "1fr 1fr", gap: isDesktop ? 16 : 2, padding: isDesktop ? 0 : 2, background: isDesktop ? "transparent" : "#F0F2F5" }}>
+      {filtered.map(item => (
+        <div key={item.id} style={{ background:"#fff", overflow:"hidden", cursor:"pointer", position:"relative", borderRadius: isDesktop ? 8 : 4 }} onClick={()=>setSelectedItem(item)}>
+          {/* Photo area */}
+          <div style={{ background:(item.color||"#eee")+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:52, height:190, position:"relative", overflow:"hidden" }}>
+            {item.uploadedImages?.[0]
+              ? <img src={item.uploadedImages[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+              : <span>{item.emoji}</span>}
+            <button style={{ position:"absolute", top:8, right:8, background:"rgba(255,255,255,0.88)", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }} onClick={e=>{e.stopPropagation();toggleFav(item.id);}}>
+              {favorites.includes(item.id)?"❤️":"🤍"}
+            </button>
+            {(item.listingType==="sale"||item.listingType==="both") && (
+              <div style={{ position:"absolute", bottom:8, left:8, background:"#E87722", borderRadius:4, padding:"2px 7px", fontSize:10, fontWeight:700, color:"#fff" }}>
+                {item.listingType==="sale"?"For Sale":"Rent or Buy"}
               </div>
-            </div>
+            )}
           </div>
-        );
-      })}
+          {/* Info */}
+          <div style={{ padding:"8px 10px 11px" }}>
+            <div style={{ fontWeight:600, fontSize:13, color:"#1C1E21", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textTransform:"capitalize", marginBottom:2 }}>{item.title}</div>
+            <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21", marginBottom:2 }}>
+              {item.listingType==="sale"
+                ? <>${item.price}<span style={{ fontSize:10, fontWeight:400, color:"#8A8D91" }}> firm</span></>
+                : <>${item.price}<span style={{ fontSize:10, fontWeight:400, color:"#8A8D91" }}>/{item.priceUnit||"day"}</span></>}
+            </div>
+            <div style={{ fontSize:11, color:"#8A8D91" }}>{item.distance===0?"Just listed":`${item.distance} mi away`}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 
@@ -2608,13 +2610,13 @@ export default function Lendie() {
             setPullY(0);
           }}
         >
-          <div style={{ display: isDesktop ? "none" : "block", background:"#fff", borderBottom:"1px solid #E4E6EB", position:"sticky", top:0, zIndex:50, willChange:"transform", transform:"translateZ(0)" }} onClick={e=>e.stopPropagation()}>
+          <div style={{ display: isDesktop ? "none" : "block", background:"#fff", borderBottom:"1px solid #E4E6EB", position:"sticky", top:0, zIndex:50 }} onClick={e=>e.stopPropagation()}>
+            {/* Top bar: logo + user actions */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px 8px" }}>
-              <div style={{ fontSize:26, fontWeight:900, color:"#00B894", letterSpacing:-0.5, fontFamily:"'Helvetica Neue',Arial,sans-serif" }}>Lendie</div>
+              <div style={{ fontSize:24, fontWeight:900, color:"#00B894", letterSpacing:-0.5 }}>Lendie</div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 {user ? (
                   <>
-                    <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>
                     <button style={{ position:"relative", background:"#F0F2F5", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
                       🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:0, right:0, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
                     </button>
@@ -2630,36 +2632,33 @@ export default function Lendie() {
                 )}
               </div>
             </div>
-            <div style={{ padding:"0 14px 8px" }}>
-              <div style={{ background:"#F0F2F5", borderRadius:50, display:"flex", alignItems:"center", padding:"9px 14px", gap:8 }}>
-                <span style={{ color:"#65676B", fontSize:15 }}>🔍</span>
-                <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:14, fontFamily:"inherit" }} placeholder="Search Lendie — borrow, rent, buy nearby" value={search} autoComplete="off" autoCorrect="off" spellCheck="false" onClick={e=>e.stopPropagation()} onChange={e=>{ e.stopPropagation(); setSearch(e.target.value); }}/>
-                {search&&<span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#65676B", fontSize:14 }}>x</span>}
+            {/* Search bar — prominent, always visible */}
+            <div style={{ padding:"0 12px 10px" }}>
+              <div style={{ background:"#F0F2F5", borderRadius:12, display:"flex", alignItems:"center", padding:"10px 14px", gap:8 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8D91" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:15, fontFamily:"inherit" }} placeholder="Search Lendie..." value={search} autoComplete="off" autoCorrect="off" spellCheck="false" onClick={e=>e.stopPropagation()} onChange={e=>{ e.stopPropagation(); setSearch(e.target.value); }}/>
+                {search && <span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#8A8D91", fontSize:18, lineHeight:1 }}>×</span>}
               </div>
             </div>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px 8px" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
+            {/* Location + sort row */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 12px 8px" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
                 <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
-                <div style={{ display:"flex", flexDirection:"column", lineHeight:1.2 }}>
-                  <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
-                    {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
-                  </span>
-                  {locationText === "Current Location" && resolvedLocation && (
-                    <span style={{ fontSize:10, color:"#65676B" }}>Current Location</span>
-                  )}
-                </div>
-                <span style={{ fontSize:12, color:"#65676B" }}>&middot; {radius}mi</span>
-                <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker?"▲":"▼"}</span>
+                <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
+                  {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
+                </span>
+                <span style={{ fontSize:12, color:"#8A8D91" }}>· {radius}mi {showLocationPicker?"▲":"▼"}</span>
               </div>
-              <div style={{ display:"flex", gap:6 }}>
-                <button onClick={()=>setViewMode("grid")} style={{ background:viewMode==="grid"?"#E8FBF6":"#F0F2F5", border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:viewMode==="grid"?700:500, color:viewMode==="grid"?"#00B894":"#65676B", cursor:"pointer" }}>Grid</button>
-                <button onClick={()=>setSortBy(s=>s==="distance"?"price":s==="price"?"rating":"distance")} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:500, color:"#65676B", cursor:"pointer" }}>Sort: {sortBy}</button>
+              <div style={{ display:"flex", gap:4 }}>
+                <button onClick={()=>setListingTypeFilter(f=>f==="all"?"rent":f==="rent"?"buy":"all")} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>{listingTypeFilter==="all"?"All":listingTypeFilter==="rent"?"Rent":"Buy"}</button>
+                <button onClick={()=>setSortBy(s=>s==="distance"?"price":s==="price"?"rating":"distance")} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#65676B", cursor:"pointer", fontFamily:"inherit" }}>Sort</button>
               </div>
             </div>
-            <div style={{ display:"flex", borderTop:"1px solid #E4E6EB", overflowX:"auto", overflowY:"hidden", scrollbarWidth:"none", height:44, alignItems:"stretch", WebkitOverflowScrolling:"touch" }}>
-              {TABS.map(([id,label])=>(
-                <button key={id} onClick={()=>setCategory(id)} style={{ background:"transparent", border:"none", borderBottom:category===id?"3px solid #00B894":"3px solid transparent", height:44, padding:"0 14px", fontSize:13, fontWeight:category===id?700:500, color:category===id?"#00B894":"#65676B", cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxSizing:"border-box" }}>
-                  {label}
+            {/* Category pills — horizontally scrollable */}
+            <div style={{ padding:"0 12px 10px", overflowX:"auto", scrollbarWidth:"none", display:"flex", gap:7, WebkitOverflowScrolling:"touch" }}>
+              {[["all","All","🏷️"],["tools","Tools","🔧"],["trailers","Trailers","🚛"],["construction","Equipment","🏗️"],["kitchen","Kitchen","🍳"],["garden","Garden","🌱"],["outdoors","Outdoors","🏕️"],["venues","Venues","🏛️"],["party","Party","🎉"],["tech","Tech","💻"]].map(([id,label,emoji])=>(
+                <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:4, padding:"5px 12px", borderRadius:20, border: category===id?"none":"1px solid #E4E6EB", background: category===id?"#00B894":"#fff", color: category===id?"#fff":"#1C1E21", fontSize:13, fontWeight: category===id?700:400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                  <span style={{ fontSize:13 }}>{emoji}</span>{label}
                 </button>
               ))}
             </div>
@@ -2755,6 +2754,7 @@ export default function Lendie() {
                     {user && <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
                   </div>
                 </div>
+                <div style={{ marginBottom:16 }}><CategoryPills/></div>
                 <div style={{ marginBottom:16 }}><TypeFilterBar/></div>
                 {filtered.length===0
                   ? <div style={{ textAlign:"center", padding:"80px 20px", color:"#65676B", background:"#fff" }}>No listings found. Try adjusting the filters.</div>
@@ -2763,15 +2763,12 @@ export default function Lendie() {
             </div>
           ) : (
             <>
-              <div style={{ background:"#fff", padding:"12px 14px 8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ fontSize:18, fontWeight:800, color:"#1C1E21" }}>Near you</div>
-                <div style={{ fontSize:13, color:"#00B894", fontWeight:600, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>{locationText.split(",")[0]}, {radius}mi</div>
-              </div>
-              <div style={{ padding:"8px 12px 10px", background:"#fff" }}>
-                <TypeFilterBar/>
-              </div>
               {filtered.length===0
-                ? <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B", background:"#fff" }}>No listings found</div>
+                ? <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B", background:"#F0F2F5" }}>
+                    <div style={{ fontSize:36, marginBottom:10 }}>🔍</div>
+                    <div style={{ fontWeight:700, color:"#1C1E21", marginBottom:4 }}>No listings found</div>
+                    <div style={{ fontSize:13 }}>Try a different category or location</div>
+                  </div>
                 : <CardGrid/>}
             </>
           )}
@@ -2779,13 +2776,16 @@ export default function Lendie() {
       )}
 
       {tab==="listings" && (
-        <div style={{ background:"#fff", minHeight:"100vh", maxWidth: isDesktop ? 960 : "none", margin: isDesktop ? "0 auto" : 0 }}>
-          <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>My Listings</div>
-            <button onClick={()=>{ if (requireAuth()) setShowAddListing(true); }} style={{ background:"#00B894", border:"none", borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ List item</button>
+        <div style={{ background:"#F0F2F5", minHeight:"100vh", maxWidth: isDesktop ? 960 : "none", margin: isDesktop ? "0 auto" : 0 }}>
+          {/* Header */}
+          <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top: isDesktop ? 64 : 0, zIndex:40 }}>
+            <div style={{ fontSize:20, fontWeight:900, color:"#1C1E21" }}>My Listings</div>
+            <button onClick={()=>{ if (requireAuth()) setShowAddListing(true); }} style={{ background:"#00B894", border:"none", borderRadius:22, padding:"9px 18px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontSize:18, lineHeight:1 }}>+</span> New Listing
+            </button>
           </div>
           {!user && (
-            <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
+            <div style={{ textAlign:"center", padding:"60px 24px 40px", background:"#fff", margin:12, borderRadius:16 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>📦</div>
               <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>List your first item</div>
               <div style={{ fontSize:13, color:"#65676B", marginBottom:24, lineHeight:1.6 }}>Sign in to earn money by renting out tools, gear, and more to your neighbors.</div>
@@ -2793,36 +2793,42 @@ export default function Lendie() {
               <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"13px", borderRadius:12, border:"1px solid #CDD0D4", fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:"#fff", color:"#1C1E21" }}>Sign in</button>
             </div>
           )}
-          {user && myListings.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No listings yet. Tap + to add one!</div>}
-          {user && myListings.map(l=>(
-            <div key={l.id} onClick={()=>setSelectedItem({...l, owner:user.user_metadata?.name||"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[]})} style={{ background:"#fff", margin:"0 0 2px", padding:"14px 16px", borderBottom:"1px solid #F0F2F5", cursor:"pointer" }}>
-              <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-                <div style={{ width:60, height:60, borderRadius:10, background:(l.color||"#eee")+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>
-                  {l.uploadedImages&&l.uploadedImages[0] ? <img src={l.uploadedImages[0].url} alt="" style={{ width:60, height:60, borderRadius:10, objectFit:"cover" }}/> : l.emoji}
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21" }}>{l.title}</div>
-                  <div style={{ fontSize:12, color:"#65676B" }}>${l.price}/{l.priceUnit||"day"} &middot; {l.views||0} views &middot; {l.requests||0} requests</div>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4, flexWrap:"wrap" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:l.available?"#31A24C":"#FA3E3E" }}/>
-                      <span style={{ fontSize:11, color:l.available?"#31A24C":"#FA3E3E", fontWeight:600 }}>{l.available?"Live":"Paused"}</span>
+          {user && myListings.length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+              <div style={{ fontWeight:700, fontSize:15, color:"#1C1E21", marginBottom:6 }}>No listings yet</div>
+              <div style={{ fontSize:13 }}>Tap + New Listing to get started</div>
+            </div>
+          )}
+          {user && myListings.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2, padding:2 }}>
+              {myListings.map(l=>(
+                <div key={l.id} style={{ background:"#fff", borderRadius:4, overflow:"hidden", position:"relative", cursor:"pointer" }} onClick={()=>setSelectedItem({...l, owner:user.user_metadata?.name||"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[]})}>
+                  {/* Photo */}
+                  <div style={{ background:(l.color||"#eee")+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, height:160, position:"relative", overflow:"hidden" }}>
+                    {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span>{l.emoji}</span>}
+                    {/* Status dot */}
+                    <div style={{ position:"absolute", top:8, left:8, display:"flex", alignItems:"center", gap:4, background:"rgba(255,255,255,0.92)", borderRadius:10, padding:"2px 7px" }}>
+                      <div style={{ width:7, height:7, borderRadius:"50%", background:l.available?"#31A24C":"#FA3E3E" }}/>
+                      <span style={{ fontSize:10, fontWeight:700, color:l.available?"#31A24C":"#FA3E3E" }}>{l.available?"Live":"Paused"}</span>
                     </div>
-                    {(l.booked||[]).filter(d=>d>="2026-06-02").length > 0 && (
-                      <span style={{ fontSize:11, color:"#DC2626", fontWeight:600, background:"#FEF2F2", borderRadius:4, padding:"1px 6px", border:"1px solid #FCA5A5" }}>
-                        {(l.booked||[]).filter(d=>d>="2026-06-02").length} date{(l.booked||[]).filter(d=>d>="2026-06-02").length!==1?"s":""} booked
-                      </span>
-                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding:"8px 10px 10px" }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:"#1C1E21", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textTransform:"capitalize", marginBottom:2 }}>{l.title}</div>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1C1E21", marginBottom:2 }}>${l.price}<span style={{ fontSize:10, fontWeight:400, color:"#8A8D91" }}>/{l.priceUnit||"day"}</span></div>
+                    <div style={{ fontSize:11, color:"#8A8D91" }}>{l.views||0} views · {l.requests||0} requests</div>
+                  </div>
+                  {/* Action buttons */}
+                  <div style={{ display:"flex", gap:4, padding:"0 8px 10px" }} onClick={e=>e.stopPropagation()}>
+                    <button onClick={(e)=>{ e.stopPropagation(); setBlockingDatesFor(l.id); }} style={{ flex:1, background:"#F0F2F5", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>Dates</button>
+                    <button onClick={async(e)=>{ e.stopPropagation(); const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ flex:1, background:"#F0F2F5", border:"none", borderRadius:6, padding:"5px 0", fontSize:11, fontWeight:600, cursor:"pointer", color:"#65676B", fontFamily:"inherit" }}>{l.available?"Pause":"Resume"}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setDeletingId(l.id); }} style={{ background:"#FFF0F0", border:"none", borderRadius:6, padding:"5px 8px", fontSize:11, fontWeight:600, cursor:"pointer", color:"#FA3E3E", fontFamily:"inherit" }}>✕</button>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:6 }}>
-                  <button onClick={(e)=>{ e.stopPropagation(); setBlockingDatesFor(l.id); }} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#65676B" }}>Dates</button>
-                  <button onClick={async(e)=>{ e.stopPropagation(); const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error)setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); }} style={{ background:"#F0F2F5", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#65676B" }}>{l.available?"Pause":"Resume"}</button>
-                  <button onClick={(e)=>{ e.stopPropagation(); setDeletingId(l.id); }} style={{ background:"#FFF0F0", border:"none", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:700, cursor:"pointer", color:"#FA3E3E" }}>Del</button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -2873,9 +2879,10 @@ export default function Lendie() {
       )}
 
       {tab==="messages" && !activeConvo && !isDesktop && (
-        <div style={{ background:"#fff", minHeight:"100vh" }}>
-          <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <div style={{ fontSize:22, fontWeight:900, color:"#00B894" }}>Messages</div>
+        <div style={{ background:"#F0F2F5", minHeight:"100vh" }}>
+          {/* Header */}
+          <div style={{ background:"#fff", padding:"14px 16px 12px", borderBottom:"1px solid #E4E6EB", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:40 }}>
+            <div style={{ fontSize:20, fontWeight:900, color:"#1C1E21" }}>Inbox</div>
             {user && messages.length > 0 && (
               <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                 {inboxEditMode && <button onClick={clearAllConversations} style={{ background:"none", border:"none", color:"#FA3E3E", fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>Clear all</button>}
@@ -2886,34 +2893,35 @@ export default function Lendie() {
             )}
           </div>
           {!user && (
-            <div style={{ textAlign:"center", padding:"60px 24px 40px" }}>
+            <div style={{ textAlign:"center", padding:"60px 24px 40px", background:"#fff", margin:12, borderRadius:16 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>💬</div>
               <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>Your inbox</div>
               <div style={{ fontSize:13, color:"#65676B", marginBottom:24, lineHeight:1.6 }}>Sign in to message owners and manage your bookings.</div>
               <button onClick={()=>{ setAuthModalMode("login"); setShowAuthModal(true); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff" }}>Sign in</button>
             </div>
           )}
+          {/* Pending booking requests — distinct highlighted section */}
           {user && bookingRequests.filter(r=>r.status==="pending").length > 0 && (
-            <div>
-              <div style={{ padding:"10px 16px 6px", fontSize:11, fontWeight:700, color:"#E87722", letterSpacing:0.5, background:"#FFF7ED", borderBottom:"1px solid #FFE0B2" }}>PENDING BOOKING REQUESTS</div>
+            <div style={{ margin:"10px 10px 4px", background:"#FFF7ED", borderRadius:14, border:"1px solid #FFE0B2", overflow:"hidden" }}>
+              <div style={{ padding:"10px 14px 6px", fontSize:11, fontWeight:800, color:"#E87722", letterSpacing:0.8, textTransform:"uppercase" }}>Pending Requests</div>
               {bookingRequests.filter(r=>r.status==="pending").map(req=>(
-                <div key={req.id} style={{ background:"#fff", padding:"14px 16px", borderBottom:"1px solid #F0F2F5" }}>
-                  <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-                    <div style={{ width:50, height:50, borderRadius:12, background:(req.item.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{req.item.emoji}</div>
+                <div key={req.id} style={{ padding:"10px 14px 14px", borderTop:"1px solid #FFE0B2" }}>
+                  <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                    <div style={{ width:46, height:46, borderRadius:10, background:(req.item.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{req.item.emoji}</div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21" }}>{req.item.title}</div>
-                      <div style={{ fontSize:12, color:"#65676B" }}>{req.renterName} &middot; {req.dateStr}</div>
+                      <div style={{ fontSize:12, color:"#E87722", fontWeight:600 }}>{req.renterName} · {req.dateStr}</div>
                       {req.wantsDelivery && req.deliveryAddress && (
-                        <div style={{ fontSize:11, color:"#00B894", marginTop:2 }}>Delivery: {req.deliveryAddress}</div>
+                        <div style={{ fontSize:11, color:"#00B894", marginTop:2 }}>📦 Delivery: {req.deliveryAddress}</div>
                       )}
                       {user?.id === req.item.ownerId && user?.id !== req.renterId && (
                         <div style={{ display:"flex", gap:8, marginTop:10 }}>
                           <button onClick={()=>handleAcceptRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Accept</button>
-                          <button onClick={()=>handleDeclineRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#FA3E3E", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Decline</button>
+                          <button onClick={()=>handleDeclineRequest(req)} style={{ flex:1, padding:"9px", borderRadius:8, border:"1.5px solid #FA3E3E", background:"#fff", color:"#FA3E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Decline</button>
                         </div>
                       )}
                       {user?.id === req.renterId && (
-                        <button onClick={()=>handleCancelRequest(req)} style={{ width:"100%", marginTop:8, padding:"7px", borderRadius:8, border:"none", background:"none", color:"#8A8D91", fontSize:12, cursor:"pointer", fontFamily:"inherit", textAlign:"center" }}>Cancel my request</button>
+                        <button onClick={()=>handleCancelRequest(req)} style={{ marginTop:8, padding:"6px 14px", borderRadius:8, border:"1px solid #E4E6EB", background:"#fff", color:"#8A8D91", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Cancel request</button>
                       )}
                     </div>
                   </div>
@@ -2921,32 +2929,48 @@ export default function Lendie() {
               ))}
             </div>
           )}
-          {user && messages.length===0 && bookingRequests.filter(r=>r.status==="pending").length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:"#65676B" }}>No messages yet</div>}
-          {user && [...messages].sort((a, b) => {
-            if (a.unread !== b.unread) return (b.unread ? 1 : 0) - (a.unread ? 1 : 0);
-            const aNew = a.id >= 1000, bNew = b.id >= 1000;
-            if (aNew && bNew) return b.id - a.id;
-            if (!aNew && !bNew) return a.id - b.id;
-            return aNew ? -1 : 1;
-          }).map(m=>(
-            <div key={m.id}
-              style={{ background:"#fff", padding:"14px 16px", borderBottom:"1px solid #F0F2F5", display:"flex", gap:12, cursor:"pointer", alignItems:"center", userSelect:"none" }}
-              onClick={()=>{ if(inboxEditMode) return; setActiveConvo(m); markConvoRead(m); }}
-            >
-              {inboxEditMode && (
-                <button onClick={e=>{ e.stopPropagation(); deleteConversation(m); }} style={{ width:28, height:28, borderRadius:"50%", background:"#FA3E3E", border:"none", color:"#fff", fontSize:18, fontWeight:700, lineHeight:1, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
-              )}
-              <div style={{ width:50, height:50, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, overflow:"hidden" }}>
-                {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:50, height:50, objectFit:"cover" }}/> : m.avatar}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:m.unread?700:500, fontSize:14, color:"#1C1E21" }}>{m.from}</div>
-                <div style={{ fontSize:12, color:"#65676B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.item}</div>
-                <div style={{ fontSize:11, color:"#8A8D91" }}>{m.time}</div>
-              </div>
-              {!inboxEditMode && m.unread && <div style={{ width:10, height:10, borderRadius:"50%", background:"#00B894", flexShrink:0 }}/>}
+          {user && messages.length===0 && bookingRequests.filter(r=>r.status==="pending").length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
+              <div style={{ fontWeight:700, fontSize:15, color:"#1C1E21", marginBottom:6 }}>No messages yet</div>
+              <div style={{ fontSize:13 }}>Start browsing to contact owners</div>
             </div>
-          ))}
+          )}
+          {/* Conversation list */}
+          {user && messages.length > 0 && (
+            <div style={{ background:"#fff", margin:"8px 0 0", borderRadius:0 }}>
+              {[...messages].sort((a, b) => {
+                if (a.unread !== b.unread) return (b.unread ? 1 : 0) - (a.unread ? 1 : 0);
+                const aNew = a.id >= 1000, bNew = b.id >= 1000;
+                if (aNew && bNew) return b.id - a.id;
+                if (!aNew && !bNew) return a.id - b.id;
+                return aNew ? -1 : 1;
+              }).map(m=>(
+                <div key={m.id}
+                  style={{ background:"#fff", padding:"12px 16px", borderBottom:"1px solid #F0F2F5", display:"flex", gap:12, cursor:"pointer", alignItems:"center", userSelect:"none" }}
+                  onClick={()=>{ if(inboxEditMode) return; setActiveConvo(m); markConvoRead(m); }}
+                >
+                  {inboxEditMode && (
+                    <button onClick={e=>{ e.stopPropagation(); deleteConversation(m); }} style={{ width:28, height:28, borderRadius:"50%", background:"#FA3E3E", border:"none", color:"#fff", fontSize:18, fontWeight:700, lineHeight:1, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                  )}
+                  {/* Avatar */}
+                  <div style={{ width:52, height:52, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, overflow:"hidden", position:"relative" }}>
+                    {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:52, height:52, objectFit:"cover" }}/> : m.avatar}
+                    {m.unread && <div style={{ position:"absolute", bottom:1, right:1, width:12, height:12, borderRadius:"50%", background:"#00B894", border:"2px solid #fff" }}/>}
+                  </div>
+                  {/* Text */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:2 }}>
+                      <div style={{ fontWeight:m.unread?700:600, fontSize:14, color:"#1C1E21", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%" }}>{m.from}</div>
+                      <div style={{ fontSize:11, color:"#8A8D91", flexShrink:0 }}>{typeof m.time === "string" && m.time.includes("T") ? new Date(m.time).toLocaleDateString([],{month:"short",day:"numeric"}) : m.time}</div>
+                    </div>
+                    <div style={{ fontSize:13, color:m.unread?"#1C1E21":"#8A8D91", fontWeight:m.unread?600:400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.thread?.[m.thread.length-1]?.text || m.item}</div>
+                    <div style={{ fontSize:11, color:"#B0B3B8", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.item}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -3339,15 +3363,15 @@ export default function Lendie() {
 
       <nav style={S.nav}>
         {[
-          {id:"browse", icon:"🏠", label:"Browse"},
-          {id:"listings", icon:"📦", label:"My Items"},
-          {id:"messages", icon:"💬", label:"Inbox", badge:unreadMsgs},
-          {id:"map", icon:"🗺️", label:"Map"},
+          {id:"browse", label:"Browse", icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>},
+          {id:"listings", label:"Sell", icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>},
+          {id:"messages", label:"Inbox", badge:unreadMsgs, icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>},
+          {id:"map", label:"Map", icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>},
         ].map(n=>(
-          <div key={n.id} onClick={()=>{ setTab(n.id); if(activeConvo&&n.id!=="messages") setActiveConvo(null); }} style={{ flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", color:tab===n.id?"#00B894":"#65676B", fontSize:9, fontWeight:tab===n.id?700:500, position:"relative" }}>
-            <span style={{ fontSize:22 }}>{n.icon}</span>
-            {n.label}
-            {n.badge>0 && <div style={{ position:"absolute", top:5, right:"16%", background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff" }}>{n.badge}</div>}
+          <div key={n.id} onClick={()=>{ setTab(n.id); if(activeConvo&&n.id!=="messages") setActiveConvo(null); }} style={{ flex:1, paddingTop:8, paddingBottom:6, display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer", color:tab===n.id?"#00B894":"#8A8D91", position:"relative" }}>
+            {n.icon}
+            <span style={{ fontSize:10, fontWeight:tab===n.id?700:400, letterSpacing:0.1 }}>{n.label}</span>
+            {n.badge>0 && <div style={{ position:"absolute", top:4, right:"20%", background:"#FA3E3E", borderRadius:"50%", minWidth:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", padding:"0 3px", boxSizing:"border-box" }}>{n.badge}</div>}
           </div>
         ))}
       </nav>
