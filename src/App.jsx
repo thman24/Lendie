@@ -2110,7 +2110,11 @@ export default function Lendie() {
     }
   };
 
-  const handleAcceptRequest = (req) => {
+  const handleAcceptRequest = async (req) => {
+    if (req.dbId) {
+      const { error } = await supabase.from('booking_requests').update({ status: 'accepted' }).eq('id', req.dbId);
+      if (error) { showToast('Failed to accept booking', 'error'); return; }
+    }
     setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:"accepted"} : r));
     setRequestSent(r => ({...r, [req.item.id]: "accepted"}));
 
@@ -2164,9 +2168,6 @@ export default function Lendie() {
     const ownerId = req.item.ownerId;
     const ownerAvatar = req.item.ownerAvatar || "🧑";
 
-    // Update DB booking request status
-    if (req.dbId) supabase.from('booking_requests').update({ status: 'accepted' }).eq('id', req.dbId);
-
     const existing = messages.find(m => m.fromId === ownerId && m.item === req.item.title);
     if (existing) {
       const updatedConvo = { ...existing, thread: [...(existing.thread || []), firstMsg], time: "Just now", unread: true };
@@ -2211,10 +2212,13 @@ export default function Lendie() {
     setTab("messages");
   };
 
-  const handleDeclineRequest = (req) => {
+  const handleDeclineRequest = async (req) => {
+    if (req.dbId) {
+      const { error } = await supabase.from('booking_requests').update({ status: 'declined' }).eq('id', req.dbId);
+      if (error) { showToast('Failed to decline booking', 'error'); return; }
+    }
     setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:"declined"} : r));
     setRequestSent(r => ({...r, [req.item.id]: "declined"}));
-    if (req.dbId) supabase.from('booking_requests').update({ status: 'declined' }).eq('id', req.dbId);
     if (req.renterId && req.renterId !== user?.id) {
       sendPushToUser(req.renterId, {
         title: 'Booking not available',
@@ -2227,10 +2231,13 @@ export default function Lendie() {
     showToast("Booking request declined.");
   };
 
-  const handleCancelRequest = (req) => {
+  const handleCancelRequest = async (req) => {
+    if (req.dbId) {
+      const { error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', req.dbId);
+      if (error) { showToast('Failed to cancel booking', 'error'); return; }
+    }
     setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:"cancelled"} : r));
     setRequestSent(r => { const next = {...r}; delete next[req.item.id]; return next; });
-    if (req.dbId) supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', req.dbId);
     if (req.item.ownerId && req.item.ownerId !== 'me') {
       sendPushToUser(req.item.ownerId, {
         title: 'Booking cancelled',
