@@ -1901,7 +1901,7 @@ export default function Lendie() {
           ...dbToListing(row),
           owner: row.owner_name || 'Neighbor',
           ownerAvatar: '🧑',
-          ownerId: row.user_id || 'unknown',
+          ownerId: row.user_id || ('anon-' + (row.owner_name || 'unknown').toLowerCase().replace(/\s+/g, '-')),
           distance: 0,
         })));
       });
