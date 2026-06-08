@@ -1364,6 +1364,9 @@ function AuthModal({ show, initialMode = "login", onClose }) {
     }
   };
 
+  const signInWithProvider = (provider) =>
+    supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+
   const inp = { width:"100%", background:"#fff", border:"1.5px solid #E4E6EB", borderRadius:12, padding:"14px 16px", color:"#1C1E21", fontFamily:"inherit", fontSize:15, outline:"none", boxSizing:"border-box" };
   const lbl = { fontSize:13, fontWeight:600, color:"#1C1E21", marginBottom:6, display:"block" };
 
@@ -1425,6 +1428,33 @@ function AuthModal({ show, initialMode = "login", onClose }) {
           <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"15px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:16, cursor:loading?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:loading?0.7:1, marginBottom:12 }}>
             {loading ? "…" : mode==="login" ? "Sign In" : mode==="signup" ? "Create Account" : "Send Reset Link"}
           </button>
+
+          {mode !== "forgot" && (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 16px" }}>
+                <div style={{ flex:1, height:1, background:"#E4E6EB" }}/>
+                <span style={{ fontSize:12, color:"#8A8D91", fontWeight:500, whiteSpace:"nowrap" }}>or continue with</span>
+                <div style={{ flex:1, height:1, background:"#E4E6EB" }}/>
+              </div>
+              <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+                {/* Google */}
+                <button onClick={()=>signInWithProvider("google")} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 0", borderRadius:12, border:"1.5px solid #E4E6EB", background:"#fff", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:600, color:"#1C1E21" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  Google
+                </button>
+                {/* Apple */}
+                <button onClick={()=>signInWithProvider("apple")} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 0", borderRadius:12, border:"1.5px solid #E4E6EB", background:"#000", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:600, color:"#fff" }}>
+                  <svg width="16" height="16" viewBox="0 0 814 1000" fill="#fff"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.3-162-39.3c-76.5 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663.8 0 543.1c0-207.8 134.7-317.5 267.1-317.5 77.8 0 142.3 51.3 189.5 51.3 44.6 0 119.2-54.7 204.7-54.7zm-90.9-186.3c37.1-44.6 64-105.6 64-166.6 0-8.3-.6-16.7-2-24.4-60.6 2.3-132.3 40.4-176.4 91.7-33.8 38.5-65.4 99.5-65.4 161.8 0 9 1.4 18 2 21 3.5.6 9 1.4 14.5 1.4 54.1 0 120.6-36.4 163.3-84.9z"/></svg>
+                  Apple
+                </button>
+                {/* Facebook */}
+                <button onClick={()=>signInWithProvider("facebook")} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 0", borderRadius:12, border:"1.5px solid #1877F2", background:"#1877F2", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:600, color:"#fff" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  Facebook
+                </button>
+              </div>
+            </>
+          )}
 
           {mode === "forgot" ? (
             <div style={{ textAlign:"center", fontSize:13, color:"#65676B" }}>
