@@ -2744,8 +2744,14 @@ export default function Lendie() {
                     {showFavOnly ? "Favorites" : category==="all" ? "Near you" : TABS.find(([id])=>id===category)?.[1] || category}
                   </div>
                   <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                    <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
-                    <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>{locationText.split(",")[0]} · {radius}mi</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
+                      <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
+                      <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
+                        {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
+                      </span>
+                      <span style={{ fontSize:13, color:"#00B894" }}>· {radius}mi</span>
+                      <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker ? "▲" : "▼"}</span>
+                    </div>
                     {user && <button style={{ background:"#F0F2F5", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
                   </div>
                 </div>
