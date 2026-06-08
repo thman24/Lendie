@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect } from "react";
+import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag } from "lucide-react";
 import { supabase } from './supabase';
+
+function CatIcon({ id, size=14, strokeWidth=1.75 }) {
+  const map = { all:LayoutGrid, tools:Wrench, trailers:Truck, construction:Hammer, kitchen:Utensils, garden:Leaf, outdoors:Compass, venues:Building2, party:Sparkles, tech:Monitor, other:Package };
+  const Icon = map[id] || Tag;
+  return <Icon size={size} strokeWidth={strokeWidth}/>;
+}
 
 async function geocodeAddress(address) {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
@@ -2338,9 +2345,9 @@ export default function Lendie() {
 
   const CategoryPills = () => (
     <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
-      {[["all","All","🏷️"],["tools","Tools","🔧"],["trailers","Trailers","🚛"],["construction","Equipment","🏗️"],["kitchen","Kitchen","🍳"],["garden","Garden","🌱"],["outdoors","Outdoors","🏕️"],["venues","Venues","🏛️"],["party","Party","🎉"],["tech","Tech","💻"]].map(([id,label,emoji])=>(
+      {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"]].map(([id,label])=>(
         <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"6px 13px", borderRadius:20, border: category===id ? "none" : "1px solid #E4E6EB", background: category===id ? "#00B894" : "#fff", color: category===id ? "#fff" : "#1C1E21", fontSize:13, fontWeight: category===id ? 700 : 400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
-          <span style={{ fontSize:14 }}>{emoji}</span>{label}
+          <CatIcon id={id} size={14}/>{label}
         </button>
       ))}
     </div>
@@ -2528,9 +2535,10 @@ export default function Lendie() {
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
               {user ? (
                 <>
-                  <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowFavOnly(f=>!f)} title={showFavOnly?"Show all":"Favorites only"}>{showFavOnly?"❤️":"🤍"}</button>
-                  <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
-                    🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:-1, right:-1, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
+                  <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} onClick={()=>setShowFavOnly(f=>!f)} title={showFavOnly?"Show all":"Favorites only"}><Heart size={18} strokeWidth={1.75} color={showFavOnly?"#FA3E3E":"#65676B"} fill={showFavOnly?"#FA3E3E":"none"}/></button>
+                  <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} onClick={()=>setShowNotifs(true)}>
+                    <Bell size={18} strokeWidth={1.75} color="#1C1E21"/>
+                    {unreadNotifs>0&&<div style={{ position:"absolute", top:-1, right:-1, background:"#FA3E3E", borderRadius:"50%", minWidth:16, height:16, padding:"0 4px", fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff", boxSizing:"border-box" }}>{unreadNotifs}</div>}
                   </button>
                   <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", overflow:"hidden", flexShrink:0 }}>
                     {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" style={{ width:36, height:36, objectFit:"cover" }}/> : (user.user_metadata?.name||"L")[0].toUpperCase()}
@@ -2618,8 +2626,9 @@ export default function Lendie() {
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 {user ? (
                   <>
-                    <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17 }} onClick={()=>setShowNotifs(true)}>
-                      🔔{unreadNotifs>0&&<div style={{ position:"absolute", top:0, right:0, background:"#FA3E3E", borderRadius:"50%", width:14, height:14, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff" }}>{unreadNotifs}</div>}
+                    <button style={{ position:"relative", background:"#fff", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} onClick={()=>setShowNotifs(true)}>
+                      <Bell size={18} strokeWidth={1.75} color="#1C1E21"/>
+                      {unreadNotifs>0&&<div style={{ position:"absolute", top:-1, right:-1, background:"#FA3E3E", borderRadius:"50%", minWidth:16, height:16, padding:"0 4px", fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff", boxSizing:"border-box" }}>{unreadNotifs}</div>}
                     </button>
                     <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", flexShrink:0, overflow:"hidden" }}>
                       {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" style={{ width:36, height:36, objectFit:"cover" }}/> : (user.user_metadata?.name||"L")[0].toUpperCase()}
@@ -2644,7 +2653,7 @@ export default function Lendie() {
             {/* Location + sort row */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 12px 8px" }}>
               <div style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
-                <span style={{ fontSize:13, color:"#00B894" }}>📍</span>
+                <MapPin size={13} strokeWidth={2} color="#00B894"/>
                 <span style={{ fontSize:13, fontWeight:600, color:"#00B894" }}>
                   {locationText === "Current Location" && resolvedLocation ? resolvedLocation : locationText.split(",")[0]}
                 </span>
@@ -2657,9 +2666,9 @@ export default function Lendie() {
             </div>
             {/* Category pills — horizontally scrollable */}
             <div style={{ padding:"0 12px 10px", overflowX:"auto", scrollbarWidth:"none", display:"flex", gap:7, WebkitOverflowScrolling:"touch" }}>
-              {[["all","All","🏷️"],["tools","Tools","🔧"],["trailers","Trailers","🚛"],["construction","Equipment","🏗️"],["kitchen","Kitchen","🍳"],["garden","Garden","🌱"],["outdoors","Outdoors","🏕️"],["venues","Venues","🏛️"],["party","Party","🎉"],["tech","Tech","💻"]].map(([id,label,emoji])=>(
+              {[["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"]].map(([id,label])=>(
                 <button key={id} onClick={()=>setCategory(id)} style={{ flexShrink:0, display:"flex", alignItems:"center", gap:4, padding:"5px 12px", borderRadius:20, border: category===id?"none":"1px solid #E4E6EB", background: category===id?"#00B894":"#fff", color: category===id?"#fff":"#1C1E21", fontSize:13, fontWeight: category===id?700:400, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
-                  <span style={{ fontSize:13 }}>{emoji}</span>{label}
+                  <CatIcon id={id} size={13}/>{label}
                 </button>
               ))}
             </div>
@@ -2709,7 +2718,7 @@ export default function Lendie() {
                 <div style={{ position:"sticky", top:64, overflowY:"auto", maxHeight:"calc(100vh - 64px)", padding:"16px 14px" }}>
                   <div style={{ marginBottom:16 }}>
                     <div style={{ background:"#fff", borderRadius:8, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
-                      <span style={{ color:"#65676B", fontSize:14 }}>🔍</span>
+                      <Search size={14} strokeWidth={2} color="#65676B"/>
                       <input style={{ flex:1, background:"none", border:"none", outline:"none", color:"#1C1E21", fontSize:13, fontFamily:"inherit" }} placeholder="Search..." value={search} autoComplete="off" onChange={e=>setSearch(e.target.value)}/>
                       {search&&<span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:"#65676B", fontSize:13 }}>✕</span>}
                     </div>
@@ -2717,7 +2726,7 @@ export default function Lendie() {
                   <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Category</div>
                   {TABS.map(([id,label])=>(
                     <div key={id} onClick={()=>setCategory(id)} style={{ padding:"6px 8px", borderRadius:6, cursor:"pointer", background:category===id?"#E8FBF6":"transparent", color:category===id?"#00B894":"#65676B", fontWeight:category===id?700:400, fontSize:13, marginBottom:1, display:"flex", alignItems:"center", gap:7 }}>
-                      <span style={{ fontSize:14 }}>{CAT_EMOJI_MAP[id]||"🏷️"}</span>{label}
+                      <CatIcon id={id} size={14}/>{label}
                     </div>
                   ))}
                   <div style={{ borderTop:"1px solid #E4E6EB", margin:"14px 0 10px" }}/>
@@ -2728,7 +2737,7 @@ export default function Lendie() {
                     ))}
                   </div>
                   <div style={{ fontSize:10, fontWeight:700, color:"#8A8D91", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Sort by</div>
-                  {[["distance","📍 Distance"],["price","💲 Price"],["rating","⭐ Rating"]].map(([val,lbl])=>(
+                  {[["distance","Distance"],["price","Price"],["rating","Rating"]].map(([val,lbl])=>(
                     <div key={val} onClick={()=>setSortBy(val)} style={{ padding:"6px 8px", borderRadius:6, cursor:"pointer", background:sortBy===val?"#E8FBF6":"transparent", color:sortBy===val?"#00B894":"#65676B", fontWeight:sortBy===val?700:400, fontSize:13, marginBottom:1 }}>
                       {lbl}
                     </div>
@@ -2787,7 +2796,7 @@ export default function Lendie() {
           </div>
           {!user && (
             <div style={{ textAlign:"center", padding:"60px 24px 40px", background:"#fff", margin:12, borderRadius:16 }}>
-              <div style={{ fontSize:48, marginBottom:16 }}>📦</div>
+              <div style={{ marginBottom:16, display:"flex", justifyContent:"center" }}><Package size={48} strokeWidth={1.25} color="#CDD0D4"/></div>
               <div style={{ fontSize:17, fontWeight:800, color:"#1C1E21", marginBottom:8 }}>List your first item</div>
               <div style={{ fontSize:13, color:"#65676B", marginBottom:24, lineHeight:1.6 }}>Sign in to earn money by renting out tools, gear, and more to your neighbors.</div>
               <button onClick={()=>{ setAuthModalMode("signup"); setShowAuthModal(true); }} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 }}>Get started</button>
@@ -2796,7 +2805,7 @@ export default function Lendie() {
           )}
           {user && myListings.length===0 && (
             <div style={{ textAlign:"center", padding:"60px 20px", color:"#65676B" }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+              <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><Package size={40} strokeWidth={1.25} color="#CDD0D4"/></div>
               <div style={{ fontWeight:700, fontSize:15, color:"#1C1E21", marginBottom:6 }}>No listings yet</div>
               <div style={{ fontSize:13 }}>Tap + New Listing to get started</div>
             </div>
@@ -2913,7 +2922,7 @@ export default function Lendie() {
                       <div style={{ fontWeight:700, fontSize:14, color:"#1C1E21" }}>{req.item.title}</div>
                       <div style={{ fontSize:12, color:"#E87722", fontWeight:600 }}>{req.renterName} · {req.dateStr}</div>
                       {req.wantsDelivery && req.deliveryAddress && (
-                        <div style={{ fontSize:11, color:"#00B894", marginTop:2 }}>📦 Delivery: {req.deliveryAddress}</div>
+                        <div style={{ fontSize:11, color:"#00B894", marginTop:2, display:"flex", alignItems:"center", gap:3 }}><Package size={11} strokeWidth={2}/>Delivery: {req.deliveryAddress}</div>
                       )}
                       {user?.id === req.item.ownerId && user?.id !== req.renterId && (
                         <div style={{ display:"flex", gap:8, marginTop:10 }}>
@@ -3069,7 +3078,7 @@ export default function Lendie() {
                     }
                     <input type="file" accept="image/*" style={{ display:"none" }} onChange={handleProfilePhotoUpload}/>
                   </label>
-                  <div style={{ position:"absolute", bottom:0, right:0, background:"#00B894", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, border:"2px solid #fff", pointerEvents:"none" }}>📷</div>
+                  <div style={{ position:"absolute", bottom:0, right:0, background:"#00B894", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff", pointerEvents:"none" }}><Camera size={13} strokeWidth={2} color="#fff"/></div>
                 </div>
                 <div style={{ fontSize:20, fontWeight:800, color:"#1C1E21" }}>{user.user_metadata?.name || "Lendie User"}</div>
                 <div style={{ fontSize:13, color:"#65676B", marginTop:4 }}>{user.email}</div>
