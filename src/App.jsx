@@ -2215,15 +2215,15 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             </div>
           ) : pendingReq.item?.listingType === "service" ? (
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:`1.5px solid ${border}`, borderRadius:9, padding:"7px 9px", width:84, flexShrink:0 }}>
+              <div style={{ display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:`1.5px solid ${border}`, borderRadius:9, padding:"7px 8px", width:74, flexShrink:0 }}>
                 <span style={{ color:"#7B61FF", fontWeight:700, marginRight:2, fontSize:15 }}>$</span>
                 <input value={quotePrice} onChange={e=>setQuotePrice(e.target.value.replace(/[^0-9.]/g,""))} placeholder={String(pendingReq.item?.price||"")} type="number" style={{ width:"100%", minWidth:0, background:"none", border:"none", outline:"none", fontSize:15, fontFamily:"inherit", color:textPrimary, fontWeight:700 }}/>
               </div>
               <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 Decline
               </button>
-              <button onClick={()=>{ const amt = parseFloat(quotePrice || pendingReq.item?.price || 0); if(!amt) return; onAccept&&onAccept({...pendingReq, quotedAmount: amt}); }} style={{ flex:1.5, padding:"8px 0", borderRadius:9, border:"none", background:"#7B61FF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
-                Send ${quotePrice || pendingReq.item?.price || ""}
+              <button onClick={()=>{ const amt = parseFloat(quotePrice || pendingReq.item?.price || 0); if(!amt) return; onAccept&&onAccept({...pendingReq, quotedAmount: amt}); }} style={{ flex:1.7, padding:"8px 0", borderRadius:9, border:"none", background:"#7B61FF", color:"#fff", fontSize:12.5, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                Send quote of ${quotePrice || pendingReq.item?.price || ""}
               </button>
             </div>
           ) : (
