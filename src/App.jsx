@@ -2823,6 +2823,10 @@ export default function Lendie() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
   const [convoDeleteId, setConvoDeleteId] = useState(null);
   const [inboxEditMode, setInboxEditMode] = useState(false);
+  // Conversations the current user has hidden from their own inbox (per-user delete).
+  const [hiddenConvoIds, setHiddenConvoIds] = useState(() => new Set());
+  const hiddenConvoIdsRef = useRef(hiddenConvoIds);
+  useEffect(() => { hiddenConvoIdsRef.current = hiddenConvoIds; }, [hiddenConvoIds]);
   const [inboxFilter, setInboxFilter] = useState("all");
   const longPressRef = useRef(null);
   const longPressDidFire = useRef(false);
@@ -2929,8 +2933,12 @@ export default function Lendie() {
   useEffect(() => {
     if (!user) {
       setMessages([]);
+      setHiddenConvoIds(new Set());
       return;
     }
+    // Conversations this user has hidden from their inbox
+    supabase.from('hidden_conversations').select('conversation_id').eq('user_id', user.id)
+      .then(({ data }) => { if (data) setHiddenConvoIds(new Set(data.map(r => r.conversation_id))); });
     supabase.from('messages').select('*').order('created_at', { ascending: true }).then(({ data, error }) => {
       if (error) { console.error('[Messages] Load error:', error.message); return; }
       if (!data || data.length === 0) { setMessages([]); return; }
@@ -3149,6 +3157,12 @@ export default function Lendie() {
 
     const handleIncomingMsg = (row) => {
       if (!row || row.from_user_id === user.id) return;
+      // A new message resurfaces a conversation the user had hidden.
+      if (row.conversation_id && hiddenConvoIdsRef.current.has(row.conversation_id)) {
+        setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(row.conversation_id); return next; });
+        supabase.from('hidden_conversations').delete().eq('user_id', user.id).eq('conversation_id', row.conversation_id)
+          .then(({ error }) => { if (error) console.error('[Inbox] unhide failed:', error.message); });
+      }
       const newMsg = { mine: false, text: row.content, image: row.image_url || null, time: new Date(row.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }), created_at: row.created_at, db_id: row.id };
       setMessages(prev => {
         // Match by conversation_id first, then by sender+item so the same two people
@@ -3670,22 +3684,36 @@ export default function Lendie() {
 
   const deleteConversation = async (convo) => {
     setConvoDeleteId(null);
-    if (convo.conversation_id) {
-      const { error } = await supabase.from('messages').delete().eq('conversation_id', convo.conversation_id);
-      if (error) { showToast('Failed to delete conversation', 'error'); return; }
+    // Hide for this user only — don't delete the shared messages (which would
+    // also wipe the thread for the other person).
+    if (convo.conversation_id && user) {
+      setHiddenConvoIds(prev => new Set(prev).add(convo.conversation_id));
+      const { error } = await supabase.from('hidden_conversations')
+        .insert({ user_id: user.id, conversation_id: convo.conversation_id });
+      if (error && error.code !== '23505') { // ignore "already hidden"
+        console.error('[Inbox] hide failed:', error.message);
+        showToast('Failed to delete conversation', 'error');
+        setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(convo.conversation_id); return next; });
+        return;
+      }
+    } else {
+      // Local-only convo with no server id — just drop it from state.
+      setMessages(prev => prev.filter(m => m.id !== convo.id));
     }
-    setMessages(prev => prev.filter(m => m.id !== convo.id));
     if (activeConvo?.id === convo.id) setActiveConvo(null);
   };
 
   const clearAllConversations = async () => {
-    const dbConvos = messages.filter(m => m.conversation_id);
+    const ids = [...new Set(visibleMessages.map(m => m.conversation_id).filter(Boolean))];
     setInboxEditMode(false);
     setConvoDeleteId(null);
-    await Promise.all(dbConvos.map(convo =>
-      supabase.from('messages').delete().eq('conversation_id', convo.conversation_id)
-    ));
-    setMessages([]);
+    // Drop ephemeral local-only convos (no server id) outright.
+    setMessages(prev => prev.filter(m => m.conversation_id));
+    if (!user || ids.length === 0) return;
+    setHiddenConvoIds(prev => { const next = new Set(prev); ids.forEach(id => next.add(id)); return next; });
+    const { error } = await supabase.from('hidden_conversations')
+      .upsert(ids.map(conversation_id => ({ user_id: user.id, conversation_id })), { onConflict: 'user_id,conversation_id' });
+    if (error) console.error('[Inbox] clear-all hide failed:', error.message);
   };
 
   const addNotification = (notif) => {
@@ -3708,7 +3736,7 @@ export default function Lendie() {
     }
   };
 
-  const visibleMessages = useMemo(() => messages.filter(m => !m.otherUserId || !blocks.includes(m.otherUserId)), [messages, blocks]);
+  const visibleMessages = useMemo(() => messages.filter(m => (!m.otherUserId || !blocks.includes(m.otherUserId)) && !(m.conversation_id && hiddenConvoIds.has(m.conversation_id))), [messages, blocks, hiddenConvoIds]);
 
   // Incoming requests on my listings, surfaced in the inbox
   const ownerPendingReqs = bookingRequests.filter(r=>r.ownerId===user?.id && r.status==="pending" && r.dateStr!=="Offer");
