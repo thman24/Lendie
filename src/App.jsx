@@ -272,6 +272,13 @@ function reqWhen(dateStr, prefix = ' on ') {
   return prefix + dateStr;
 }
 
+// Noun for a transaction in user-facing copy: service / purchase / rental.
+function txNoun(req) {
+  if (req?.item?.listingType === 'service') return 'service';
+  if (req?.dateStr === 'Purchase') return 'purchase';
+  return 'rental';
+}
+
 // Toast
 function Toast({ toast }) {
   if (!toast) return null;
@@ -4393,7 +4400,7 @@ export default function Lendie() {
       // Always send a decline message in chat — find existing convo or create one
       const declineText = req.dateStr === 'Purchase'
         ? `Unfortunately I'm unable to accept your purchase request for "${req.item.title}". Sorry about that!`
-        : `Unfortunately I'm unable to accept your rental request for "${req.item.title}"${reqWhen(req.dateStr)}. The dates may already be taken — feel free to try different dates!`;
+        : `Unfortunately I'm unable to accept your ${txNoun(req)} request for "${req.item.title}"${reqWhen(req.dateStr)}. The dates may already be taken — feel free to try different dates!`;
       const convo = messages.find(m => (m.otherUserId === req.renterId || m.fromId === req.renterId) && m.item === req.item.title);
       const convId = convo?.conversation_id || `conv_req_${req.dbId || req.id}`;
       const createdAt = new Date().toISOString();
@@ -4474,7 +4481,7 @@ export default function Lendie() {
         type: 'cancel',
       }).then(({ error }) => { if (error) console.error('[Cancel] notif failed:', error.message); });
       // Always send a cancel message in chat — find existing convo or create one
-      const cancelText = `I've had to cancel my ${req.dateStr === 'Purchase' ? 'purchase' : 'rental'} request for "${req.item.title}"${reqWhen(req.dateStr)}. Sorry for any inconvenience!`;
+      const cancelText = `I've had to cancel my ${txNoun(req)} request for "${req.item.title}"${reqWhen(req.dateStr)}. Sorry for any inconvenience!`;
       const convo = messages.find(m => (m.otherUserId === req.item.ownerId || m.fromId === req.item.ownerId) && m.item === req.item.title);
       const convId = convo?.conversation_id || `conv_req_${req.dbId || req.id}`;
       const createdAt = new Date().toISOString();
@@ -4546,13 +4553,13 @@ export default function Lendie() {
         user_id: req.renterId,
         icon: '❌',
         text: `Transaction cancelled: ${itemTitle}`,
-        sub: `${ownerName} cancelled your ${req.dateStr === 'Purchase' ? 'purchase' : 'rental'}${reqWhen(req.dateStr, ' for ')}`,
+        sub: `${ownerName} cancelled your ${txNoun(req)}${reqWhen(req.dateStr, ' for ')}`,
         time_label: 'Just now',
         unread: true,
         type: 'cancel',
       }).then(({ error }) => { if (error) console.error('[OwnerCancel] notif failed:', error.message); });
       // Always send a chat message — find existing convo or create one
-      const cancelMsg = `Sorry, I've had to cancel your ${req.dateStr === 'Purchase' ? 'purchase' : 'rental'} for "${itemTitle}"${reqWhen(req.dateStr, ' (')}${reqWhen(req.dateStr) ? ')' : ''}. Please reach out if you have any questions.`;
+      const cancelMsg = `Sorry, I've had to cancel your ${txNoun(req)} for "${itemTitle}"${reqWhen(req.dateStr, ' (')}${reqWhen(req.dateStr) ? ')' : ''}. Please reach out if you have any questions.`;
       const ownerAvatarUrl = profilePhotoUrl || user?.user_metadata?.avatar_url || null;
       const convo = messages.find(m => (m.otherUserId === req.renterId || m.fromId === req.renterId) && m.item === itemTitle);
       const convId = convo?.conversation_id || `conv_req_${req.dbId || req.id}`;
@@ -4585,7 +4592,7 @@ export default function Lendie() {
       });
       sendEmail(req.renterId, `Transaction cancelled — ${itemTitle}`,
         `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">📋 Transaction cancelled</h2>
-         <p style="margin:0 0 6px;color:#3A3B3C;font-size:15px">Unfortunately <strong>${ownerName}</strong> has cancelled your ${req.dateStr === 'Purchase' ? 'purchase' : 'rental'} for <strong>${itemTitle}</strong>.</p>
+         <p style="margin:0 0 6px;color:#3A3B3C;font-size:15px">Unfortunately <strong>${ownerName}</strong> has cancelled your ${txNoun(req)} for <strong>${itemTitle}</strong>.</p>
          ${isPaid ? `<p style="margin:0 0 6px;color:#00B894;font-size:15px;font-weight:600">↩️ A full refund has been issued to your original payment method.</p>` : ''}
          ${reqWhen(req.dateStr) ? `<p style="margin:0 0 20px;color:#65676B;font-size:14px">Dates: ${req.dateStr}</p>` : ''}
          ${emailBtn('Browse Listings')}`
@@ -4613,8 +4620,8 @@ export default function Lendie() {
         ? `Because this is within 72 hours of the rental start, the 8% service fee ($${fee.toFixed(2)}) is non-refundable.`
         : '';
     const confirmMsg = keepFee
-      ? `Cancel this ${isSale ? 'purchase' : 'rental'}? ${reason} You'll be refunded $${refundAmt.toFixed(2)} of $${total.toFixed(2)}.`
-      : `Cancel this rental? You'll be refunded in full ($${total.toFixed(2)}).`;
+      ? `Cancel this ${txNoun(req)}? ${reason} You'll be refunded $${refundAmt.toFixed(2)} of $${total.toFixed(2)}.`
+      : `Cancel this ${txNoun(req)}? You'll be refunded in full ($${total.toFixed(2)}).`;
     if (!window.confirm(confirmMsg)) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -5466,7 +5473,7 @@ export default function Lendie() {
                             <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
                               <button onClick={()=>{ openRequestConvo(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message Renter</button>
                               {req.status==="confirmed" && endOf(req)<=TODAY && (
-                                <button onClick={async()=>{ if(!window.confirm(`Mark ${req.renterName}'s rental as returned?`)) return; if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r)); showToast("Marked as returned!"); }} style={{ padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:C.bg, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>✓ Returned</button>
+                                <button onClick={async()=>{ const svc=req.item?.listingType==="service"; if(!window.confirm(`Mark ${req.renterName}'s ${svc?"service as complete":"rental as returned"}?`)) return; if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r)); showToast(svc?"Marked as complete!":"Marked as returned!"); }} style={{ padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:C.bg, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.item?.listingType==="service"?"✓ Complete":"✓ Returned"}</button>
                               )}
                               <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction${reqWhen(req.dateStr, ' for ')}?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:C.bg, color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}</button>
                             </div>
@@ -5635,12 +5642,13 @@ export default function Lendie() {
                             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                               {isConfirmed && (
                                 <button onClick={async () => {
-                                  if (!window.confirm(`Mark ${req.renterName}'s rental of ${item?.title} as returned?`)) return;
+                                  const svc = item?.listingType === "service";
+                                  if (!window.confirm(`Mark ${req.renterName}'s ${svc ? `${item?.title} service as complete` : `rental of ${item?.title} as returned`}?`)) return;
                                   if (req.dbId) await supabase.from('booking_requests').update({ status: 'completed' }).eq('id', req.dbId);
                                   setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:'completed'} : r));
-                                  showToast("Marked as returned — item is available again!");
+                                  showToast(svc ? "Marked as complete!" : "Marked as returned — item is available again!");
                                 }} style={{ padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                  ✓ Mark Returned
+                                  {item?.listingType === "service" ? "✓ Mark Complete" : "✓ Mark Returned"}
                                 </button>
                               )}
                               {!isPending && (
@@ -6299,16 +6307,17 @@ export default function Lendie() {
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                           {isConfirmed && (()=>{
                             const isSale = req.dateStr === "Purchase" || req.dateStr?.startsWith("Offer");
+                            const isSvc = req.item?.listingType === "service";
                             return (
                               <button onClick={async()=>{
-                                if(!window.confirm(isSale ? `Mark ${req.renterName}'s purchase as complete?` : `Mark ${req.renterName}'s rental as returned?`)) return;
+                                if(!window.confirm(isSvc ? `Mark ${req.renterName}'s service as complete?` : isSale ? `Mark ${req.renterName}'s purchase as complete?` : `Mark ${req.renterName}'s rental as returned?`)) return;
                                 if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId);
                                 setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r));
                                 if (req.renterId && req.renterId !== user?.id) {
-                                  supabase.from('notifications').insert({ user_id: req.renterId, icon:"🎉", text: (isSale?"Purchase complete: ":"Rental complete: ")+req.item?.title, sub:"Thanks for using Lendie — leave a review in My Items!", time_label:"Just now", unread:true, type:"confirm" }).then(({ error }) => { if (error) console.error('[Complete] notif failed:', error.message); });
-                                  sendPushToUser(req.renterId, { title: isSale?"Purchase complete!":"Rental complete!", body:`${req.item?.title} — leave a review on Lendie`, url:'/?tab=listings', tag:`completed-${req.dbId||req.id}` });
+                                  supabase.from('notifications').insert({ user_id: req.renterId, icon:"🎉", text: (isSvc?"Service complete: ":isSale?"Purchase complete: ":"Rental complete: ")+req.item?.title, sub:"Thanks for using Lendie — leave a review in My Items!", time_label:"Just now", unread:true, type:"confirm" }).then(({ error }) => { if (error) console.error('[Complete] notif failed:', error.message); });
+                                  sendPushToUser(req.renterId, { title: isSvc?"Service complete!":isSale?"Purchase complete!":"Rental complete!", body:`${req.item?.title} — leave a review on Lendie`, url:'/?tab=listings', tag:`completed-${req.dbId||req.id}` });
                                 }
-                                showToast(isSale ? "Marked as complete!" : "Marked as returned!");
+                                showToast((isSale||isSvc) ? "Marked as complete!" : "Marked as returned!");
                                 setManagingListing(null);
                               }} style={{ padding:"7px 14px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{isSale?"✓ Mark Complete":"✓ Mark Returned"}</button>
                             );
