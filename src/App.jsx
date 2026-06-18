@@ -2084,11 +2084,16 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                     <div style={{ fontSize:11, fontWeight:700, color:"#E87722", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>💸 Offer</div>
                     <div style={{ fontSize:22, fontWeight:800, color:"#E87722", marginBottom:4 }}>${offerAmt}</div>
                     {!m.mine && (
-                      <div style={{ display:"flex", gap:6, marginTop:6 }}>
-                        <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                      <div style={{ display:"flex", gap:5, marginTop:6 }}>
+                        {pendingReq && (
+                          <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                            Decline
+                          </button>
+                        )}
+                        <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                           Counter
                         </button>
-                        <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background:"#E87722", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                        <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1.2, padding:"7px 0", borderRadius:8, border:"none", background:"#E87722", color:"#fff", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                           Accept ${offerAmt}
                         </button>
                       </div>
@@ -2216,11 +2221,14 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           )}
           {pendingReq.dateStr === "Offer" ? (
             <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                Decline
+              </button>
               <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 💸 Counter
               </button>
               {latestReceivedAmt && (
-                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background:"#E87722", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1.2, padding:"8px 0", borderRadius:9, border:"none", background:"#E87722", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                   Accept ${latestReceivedAmt}
                 </button>
               )}
