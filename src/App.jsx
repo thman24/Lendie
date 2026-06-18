@@ -1833,7 +1833,7 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
   );
 }
 
-function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onAcceptOffer, allItems }) {
+function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onAcceptOffer, allItems }) {
   if (!activeConvo) return null;
   const [showMenu, setShowMenu] = useState(false);
   const bg        = darkMode ? "#000000" : "#ffffff";
@@ -2107,11 +2107,15 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
 
       {/* Checkout card — visible to renter after owner accepts */}
       {acceptedReq && !pendingReq && (
-        <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"12px 16px", flexShrink:0 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#007AFF", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>💳 Payment Required</div>
-          <div style={{ fontSize:14, fontWeight:600, color:textPrimary, marginBottom:2 }}>{acceptedReq.item?.title}</div>
-          {acceptedReq.dateStr && <div style={{ fontSize:13, color:textMuted, marginBottom:4 }}>📅 {acceptedReq.dateStr}</div>}
-          <div style={{ background: darkMode?"#2C2C2E":"#fff", borderRadius:10, padding:"10px 12px", marginBottom:10, border:`0.5px solid ${border}` }}>
+        <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", flexShrink:0 }}>
+          <div style={{ display:"flex", alignItems:"baseline", gap:7, marginBottom:7, flexWrap:"wrap" }}>
+            <span style={{ fontSize:10.5, fontWeight:700, color:"#007AFF", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>💳 Payment</span>
+            <span style={{ fontSize:13, fontWeight:600, color:textPrimary }}>
+              {acceptedReq.item?.title}
+              {acceptedReq.dateStr && acceptedReq.dateStr!=="Purchase" && !acceptedReq.dateStr?.startsWith("Offer") && <span style={{ color:textMuted, fontWeight:400 }}> · {acceptedReq.dateStr}</span>}
+            </span>
+          </div>
+          <div style={{ background: darkMode?"#2C2C2E":"#fff", borderRadius:10, padding:"8px 10px", marginBottom:8, border:`0.5px solid ${border}` }}>
             {(() => {
               const isService = acceptedReq.item?.listingType === "service";
               const isOfferType = acceptedReq.dateStr?.startsWith("Offer:");
@@ -2172,9 +2176,14 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               );
             })()}
           </div>
-          <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"11px 0", borderRadius:10, border:"none", background:"#007AFF", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"10px 0", borderRadius:10, border:"none", background:"#007AFF", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
             Checkout →
           </button>
+          {onCancelRequest && (
+            <button onClick={()=>{ if(window.confirm("Cancel this request? The other person will be notified and the date freed up.")) onCancelRequest(acceptedReq); }} style={{ width:"100%", padding:"6px 0", marginTop:2, borderRadius:10, border:"none", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+              Cancel request
+            </button>
+          )}
         </div>
       )}
 
@@ -5721,7 +5730,7 @@ export default function Lendie() {
           {/* Desktop chat panel (right) */}
           <div style={{ flex:1, minWidth:0 }}>
             {activeConvo
-              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onAcceptOffer={handleAcceptOffer} allItems={allItems}/>
+              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onAcceptOffer={handleAcceptOffer} allItems={allItems}/>
               : <div style={{ height:"calc(100vh - 64px)", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:C.muted, gap:12 }}>
                   <div style={{ fontSize:48 }}>💬</div>
                   <div style={{ fontSize:16, fontWeight:700, color:C.text }}>Select a conversation</div>
@@ -6421,6 +6430,7 @@ export default function Lendie() {
         onAccept={handleAcceptRequest}
         onDecline={handleDeclineRequest}
         onCheckout={handleChatCheckout}
+        onCancelRequest={handleCancelRequest}
         onAcceptOffer={handleAcceptOffer}
         allItems={allItems}
       />}
