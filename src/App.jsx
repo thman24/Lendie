@@ -4218,20 +4218,38 @@ export default function Lendie() {
 
   const handleAcceptOffer = async (offerAmount) => {
     // Works for both sides: seller accepting buyer's offer, or buyer accepting seller's counter
-    const req = bookingRequests?.find(r =>
+    let req = bookingRequests?.find(r =>
       r.dateStr === "Offer" && r.status === "pending" &&
       r.item?.title === activeConvo?.item &&
       (r.ownerId === user?.id || r.renterId === user?.id) &&
       (r.ownerId === activeConvo?.otherUserId || r.renterId === activeConvo?.otherUserId)
     );
-    if (!req) return;
-    const isOwner = req.ownerId === user?.id;
     const newDateStr = `Offer:${offerAmount}`;
-    if (req.dbId) {
-      const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr }).eq('id', req.dbId);
-      if (error) { showToast('Failed to accept offer', 'error'); return; }
+    if (!req) {
+      // A negotiation started in chat (not from the listing) has no booking_request
+      // yet — create one now so the accepted offer can be tracked and paid.
+      const listing = allItems?.find(l => l.title === activeConvo?.item);
+      if (!listing) { showToast('Could not find this listing', 'error'); return; }
+      const ownerId = listing.ownerId;
+      const renterId = (user?.id === ownerId) ? activeConvo?.otherUserId : user?.id;
+      if (!ownerId || !renterId) { showToast('Failed to accept offer', 'error'); return; }
+      const renterName = (renterId === user?.id) ? (user?.user_metadata?.name || 'Buyer') : (activeConvo?.from || 'Buyer');
+      const { data, error } = await supabase.from('booking_requests').insert({
+        renter_id: renterId, owner_id: ownerId, item_title: listing.title, item_json: listing,
+        date_str: newDateStr, start_date: null, end_date: null,
+        status: 'accepted', payment_status: 'delivery_confirmed', renter_name: renterName,
+      }).select('id').single();
+      if (error || !data) { console.error('[AcceptOffer] create failed:', error?.message); showToast('Failed to accept offer', 'error'); return; }
+      req = { id: data.id, dbId: data.id, item: listing, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
+      setBookingRequests(prev => [...prev, req]);
+    } else {
+      if (req.dbId) {
+        const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr }).eq('id', req.dbId);
+        if (error) { showToast('Failed to accept offer', 'error'); return; }
+      }
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr } : r));
     }
-    setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr } : r));
+    const isOwner = req.ownerId === user?.id;
     // Seller accepting an offer takes the item off the market
     if (isOwner && typeof req.item?.id === 'number') {
       supabase.from('listings').update({ available: false }).eq('id', req.item.id).then(({ error }) => { if (error) console.error('[Sold] pause failed:', error.message); });
