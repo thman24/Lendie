@@ -1841,7 +1841,7 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
   );
 }
 
-function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onOwnerCancel, onAcceptOffer, allItems }) {
+function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onOwnerCancel, onAcceptOffer, onDeclineOffer, allItems }) {
   if (!activeConvo) return null;
   const [showMenu, setShowMenu] = useState(false);
   const bg        = darkMode ? "#000000" : "#ffffff";
@@ -2086,11 +2086,9 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                     <div style={{ fontSize:22, fontWeight:800, color:"#E87722", marginBottom:4 }}>${offerAmt}</div>
                     {!m.mine && (
                       <div style={{ display:"flex", gap:5, marginTop:6 }}>
-                        {pendingReq && (
-                          <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                            Decline
-                          </button>
-                        )}
+                        <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          Decline
+                        </button>
                         <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                           Counter
                         </button>
@@ -2222,7 +2220,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           )}
           {pendingReq.dateStr === "Offer" ? (
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+              <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 Decline
               </button>
               <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:600, cursor:"pointer" }}>
@@ -2311,8 +2309,8 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
         </button>
         {!showOfferInput && offerable && (
-          <button onClick={()=>setShowOfferInput(true)} style={{ height:34, padding:"0 12px", borderRadius:22, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0, marginBottom:3, fontFamily:"inherit" }}>
-            💸 Offer
+          <button onClick={()=>setShowOfferInput(true)} style={{ height:34, padding:"0 12px", borderRadius:22, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0, marginBottom:3, fontFamily:"inherit", whiteSpace:"nowrap" }}>
+            💸 {latestReceivedAmt ? "Counter" : "Offer"}
           </button>
         )}
         <div style={{ flex:1, background:inputBg, border:"1.5px solid #00B894", borderRadius:22, padding:"9px 14px", display:"flex", alignItems:"center", minHeight:40 }}>
@@ -4263,6 +4261,37 @@ export default function Lendie() {
     if (isOwner) addNotification({ icon: '✅', text: `Offer accepted: ${req.item?.title}`, sub: `$${offerAmount}`, time: 'Just now', type: 'confirm' });
   };
 
+  const handleDeclineOffer = async () => {
+    // Mirror handleAcceptOffer's request lookup — works for either side of a negotiation.
+    const req = bookingRequests?.find(r =>
+      r.dateStr === "Offer" && r.status === "pending" &&
+      r.item?.title === activeConvo?.item &&
+      (r.ownerId === user?.id || r.renterId === user?.id) &&
+      (r.ownerId === activeConvo?.otherUserId || r.renterId === activeConvo?.otherUserId)
+    );
+    const isOwner = req ? req.ownerId === user?.id : true;
+    const otherId = req ? (isOwner ? req.renterId : req.ownerId) : activeConvo?.otherUserId;
+    if (req?.dbId) {
+      const { error } = await supabase.from('booking_requests').update({ status: 'declined' }).eq('id', req.dbId);
+      if (error) { showToast('Failed to decline offer', 'error'); return; }
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'declined' } : r));
+    }
+    const myName = user?.user_metadata?.name || 'Someone';
+    const itemTitle = activeConvo?.item || req?.item?.title || 'this item';
+    const convId = activeConvo?.conversation_id;
+    const createdAt = new Date().toISOString();
+    const declineText = `I'll have to pass on the offer for "${itemTitle}". Thanks anyway!`;
+    const declineMsgObj = { mine: true, text: declineText, time: 'Just now', created_at: createdAt };
+    setMessages(prev => prev.map(m => m.conversation_id === convId ? { ...m, thread: [...(m.thread || []), declineMsgObj] } : m));
+    setActiveConvo(prev => prev?.conversation_id === convId ? { ...prev, thread: [...(prev.thread || []), declineMsgObj] } : prev);
+    if (convId && otherId) {
+      supabase.from('messages').insert({ conversation_id: convId, from_name: myName, from_avatar: profilePhotoUrl || null, to_name: activeConvo?.from, listing_title: itemTitle, content: declineText, read: false, from_user_id: user?.id, to_user_id: otherId }).then(({ error }) => { if (error) console.error('[DeclineOffer] msg failed:', error.message); });
+      broadcastMessage(otherId, { conversation_id: convId, listing_title: itemTitle, content: declineText, from_user_id: user?.id, from_name: myName, from_avatar: profilePhotoUrl || null, created_at: createdAt });
+      sendPushToUser(otherId, { title: 'Offer declined', body: `Your offer on ${itemTitle} was declined`, url: '/?tab=messages', tag: `offer-declined-${req?.dbId || Date.now()}` });
+    }
+    showToast('Offer declined');
+  };
+
   const handleDirectBookingRequest = async (item, start, end, wantsDelivery = false) => {
     if (!user || !item?.ownerId || item.ownerId === 'me') return;
     const dateStr = formatDate(start) + (end && end !== start ? " - " + formatDate(end) : "");
@@ -5776,7 +5805,7 @@ export default function Lendie() {
           {/* Desktop chat panel (right) */}
           <div style={{ flex:1, minWidth:0 }}>
             {activeConvo
-              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onOwnerCancel={handleOwnerCancelBooking} onAcceptOffer={handleAcceptOffer} allItems={allItems}/>
+              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onOwnerCancel={handleOwnerCancelBooking} onAcceptOffer={handleAcceptOffer} onDeclineOffer={handleDeclineOffer} allItems={allItems}/>
               : <div style={{ height:"calc(100vh - 64px)", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:C.muted, gap:12 }}>
                   <div style={{ fontSize:48 }}>💬</div>
                   <div style={{ fontSize:16, fontWeight:700, color:C.text }}>Select a conversation</div>
@@ -6480,6 +6509,7 @@ export default function Lendie() {
         onCancelRequest={handleCancelRequest}
         onOwnerCancel={handleOwnerCancelBooking}
         onAcceptOffer={handleAcceptOffer}
+        onDeclineOffer={handleDeclineOffer}
         allItems={allItems}
       />}
       <OwnerProfileModal
