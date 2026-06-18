@@ -272,10 +272,11 @@ function reqWhen(dateStr, prefix = ' on ') {
   return prefix + dateStr;
 }
 
-// Noun for a transaction in user-facing copy: service / purchase / rental.
+// Noun for a transaction in user-facing copy: service / offer / purchase / rental.
 function txNoun(req) {
   if (req?.item?.listingType === 'service') return 'service';
   if (req?.dateStr === 'Purchase') return 'purchase';
+  if (req?.dateStr === 'Offer' || req?.dateStr?.startsWith('Offer')) return 'offer';
   return 'rental';
 }
 
@@ -4434,9 +4435,14 @@ export default function Lendie() {
       );
       // Renter's bell entry is derived from the booking status — no insert needed
       // Always send a decline message in chat — find existing convo or create one
+      const isOfferReq = req.dateStr === 'Offer' || req.dateStr?.startsWith('Offer');
       const declineText = req.dateStr === 'Purchase'
         ? `Unfortunately I'm unable to accept your purchase request for "${req.item.title}". Sorry about that!`
-        : `Unfortunately I'm unable to accept your ${txNoun(req)} request for "${req.item.title}"${reqWhen(req.dateStr)}. The dates may already be taken — feel free to try different dates!`;
+        : isOfferReq
+        ? `Unfortunately I can't accept your offer for "${req.item.title}". Sorry about that!`
+        : req.item?.listingType === 'service'
+        ? `Unfortunately I'm unable to take your service request for "${req.item.title}"${reqWhen(req.dateStr)}. Sorry about that!`
+        : `Unfortunately I'm unable to accept your rental request for "${req.item.title}"${reqWhen(req.dateStr)}. The dates may already be taken — feel free to try different dates!`;
       const convo = messages.find(m => (m.otherUserId === req.renterId || m.fromId === req.renterId) && m.item === req.item.title);
       const convId = convo?.conversation_id || `conv_req_${req.dbId || req.id}`;
       const createdAt = new Date().toISOString();
