@@ -5053,8 +5053,8 @@ export default function Lendie() {
                 setTab('messages');
                 setShowNotifs(false);
               }}
-              style={{ display:"flex", gap:12, padding:"12px 0", borderBottom:`1px solid ${C.borderFaint}`, alignItems:"flex-start", cursor:"pointer", borderRadius:8 }}>
-              <div style={{ width:42, height:42, borderRadius:"50%", background: n.unread?"#E8FBF6":C.borderFaint, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{n.icon}</div>
+              style={{ display:"flex", gap:11, padding:"11px 12px", borderBottom:`1px solid ${C.borderFaint}`, alignItems:"flex-start", cursor:"pointer", background: n.unread ? (darkMode ? "rgba(0,184,148,0.15)" : "rgba(0,184,148,0.09)") : "transparent" }}>
+              <div style={{ width:34, height:34, borderRadius:"50%", background:C.borderFaint, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{n.icon}</div>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:n.unread?700:500, color:C.text }}>{n.text}</div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{n.sub}</div>
