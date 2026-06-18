@@ -38,7 +38,10 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
       for (const w of wins) {
-        if ('focus' in w) return w.focus();
+        if ('focus' in w) {
+          w.postMessage({ type: 'navigate', url });
+          return w.focus();
+        }
       }
       return clients.openWindow(url);
     })

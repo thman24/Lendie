@@ -28,3 +28,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Supabase CLI local state (project ref, pooler url, versions)
+supabase/.temp

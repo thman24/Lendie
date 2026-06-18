@@ -2,16 +2,22 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from './supabase';
 
 const ADMIN_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
-const G = '#00B894';
+const G  = '#00B894';
+const BG = '#000';
+const S1 = '#111';
+const BD = '#222';
+const TX = '#fff';
+const MU = '#888';
 
 export default function AdminPage() {
-  const [authed, setAuthed]     = useState(null); // null=loading, false=denied, true=ok
-  const [section, setSection]   = useState('overview');
-  const [stats, setStats]       = useState({ users:0, listings:0, bookings:0, messages:0, reviews:0 });
+  const [authed, setAuthed]     = useState(null);
+  const [openSections, setOpenSections] = useState({ overview: true });
+  const [stats, setStats]       = useState({ users:0, listings:0, bookings:0, messages:0, reviews:0, reports:0 });
   const [users, setUsers]       = useState([]);
   const [listings, setListings] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [search, setSearch]     = useState('');
+  const [reports, setReports]   = useState([]);
+  const [searches, setSearches] = useState({});
   const [toast, setToast]       = useState(null);
   const [loading, setLoading]   = useState(false);
 
@@ -20,66 +26,62 @@ export default function AdminPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const isOpen = id => !!openSections[id];
+  const toggle = id => setOpenSections(p => ({ ...p, [id]: !p[id] }));
+  const getQ   = id => (searches[id] || '').toLowerCase().trim();
+  const setQ   = (id, v) => setSearches(p => ({ ...p, [id]: v }));
+
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [lRes, bRes, mRes, rRes] = await Promise.all([
+    const [lRes, bRes, mRes, rRes, rpRes] = await Promise.all([
       supabase.from('listings').select('*').order('created_at', { ascending: false }),
       supabase.from('booking_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('messages').select('id'),
       supabase.from('reviews').select('id'),
+      supabase.from('reports').select('*').order('created_at', { ascending: false }),
     ]);
 
     const listingsData = lRes.data || [];
     const bookingsData = bRes.data || [];
 
-    // Aggregate unique users from booking_requests (renter + owner sides)
     const usersMap = {};
     bookingsData.forEach(r => {
       if (r.renter_id) {
-        if (!usersMap[r.renter_id]) {
-          usersMap[r.renter_id] = { id: r.renter_id, name: r.renter_name || 'Unknown', listingCount: 0, bookingCount: 0, joinedAt: r.created_at };
-        }
+        if (!usersMap[r.renter_id]) usersMap[r.renter_id] = { id: r.renter_id, name: r.renter_name || 'Unknown', listingCount: 0, bookingCount: 0, joinedAt: r.created_at };
         usersMap[r.renter_id].bookingCount++;
       }
-      if (r.owner_id && !usersMap[r.owner_id]) {
-        usersMap[r.owner_id] = { id: r.owner_id, name: r.item_json?.owner || 'Unknown Owner', listingCount: 0, bookingCount: 0, joinedAt: r.created_at };
-      }
+      if (r.owner_id && !usersMap[r.owner_id]) usersMap[r.owner_id] = { id: r.owner_id, name: r.item_json?.owner || 'Unknown Owner', listingCount: 0, bookingCount: 0, joinedAt: r.created_at };
     });
     listingsData.forEach(l => {
       if (!l.user_id) return;
-      if (!usersMap[l.user_id]) {
-        usersMap[l.user_id] = { id: l.user_id, name: l.owner_name || 'Unknown', listingCount: 0, bookingCount: 0, joinedAt: l.created_at };
-      }
+      if (!usersMap[l.user_id]) usersMap[l.user_id] = { id: l.user_id, name: l.owner_name || 'Unknown', listingCount: 0, bookingCount: 0, joinedAt: l.created_at };
       usersMap[l.user_id].listingCount++;
     });
 
     const usersArr = Object.values(usersMap).sort((a, b) => a.name.localeCompare(b.name));
-
+    const reportsData = rpRes.data || [];
     setListings(listingsData);
     setBookings(bookingsData);
     setUsers(usersArr);
+    setReports(reportsData);
     setStats({
       users: usersArr.length,
       listings: listingsData.length,
       bookings: bookingsData.length,
       messages: (mRes.data || []).length,
       reviews: (rRes.data || []).length,
+      reports: reportsData.filter(r => r.status === 'pending').length,
     });
     setLoading(false);
   }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user || user.id !== ADMIN_ID) {
-        window.location.href = '/';
-        return;
-      }
+      if (!user || user.id !== ADMIN_ID) { window.location.href = '/'; return; }
       setAuthed(true);
       loadAll();
     });
   }, [loadAll]);
-
-  // ─── Actions ───────────────────────────────────────────────────────────────
 
   const deleteListing = async (id, title) => {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
@@ -109,187 +111,149 @@ export default function AdminPage() {
   const suspendUser = async (userId, name) => {
     if (!window.confirm(`Suspend ${name}? This will cancel all their pending requests.`)) return;
     const pending = bookings.filter(b => (b.renter_id === userId || b.owner_id === userId) && b.status === 'pending');
-    const promises = pending.map(b => supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', b.id));
-    const results = await Promise.all(promises);
+    const results = await Promise.all(pending.map(b => supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', b.id)));
     const failed = results.filter(r => r.error).length;
     if (failed > 0) { showToast(`${failed} cancel(s) failed`, 'error'); return; }
     setBookings(prev => prev.map(b =>
-      (b.renter_id === userId || b.owner_id === userId) && b.status === 'pending'
-        ? { ...b, status: 'cancelled' } : b
+      (b.renter_id === userId || b.owner_id === userId) && b.status === 'pending' ? { ...b, status: 'cancelled' } : b
     ));
     showToast(`${name} suspended — ${pending.length} pending request(s) cancelled`);
   };
 
   const deleteUser = () => showToast('User deletion requires the Supabase dashboard (auth.users is not accessible via anon key)', 'error');
 
-  // ─── Loading / auth guard ─────────────────────────────────────────────────
+  const updateReportStatus = async (id, status) => {
+    const { error } = await supabase.from('reports').update({ status }).eq('id', id);
+    if (error) { showToast('Update failed: ' + error.message, 'error'); return; }
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    if (status !== 'pending') setStats(s => ({ ...s, reports: Math.max(0, s.reports - 1) }));
+    showToast(status === 'reviewed' ? 'Marked as reviewed' : 'Report dismissed');
+  };
 
-  if (authed === null) {
-    return (
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontFamily:'system-ui, sans-serif', color:'#65676B', fontSize:14 }}>
-        Authenticating…
-      </div>
-    );
-  }
+  if (authed === null) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background: BG, color: MU, fontFamily:'system-ui, sans-serif', fontSize:14 }}>
+      Authenticating…
+    </div>
+  );
 
-  // ─── Shared sub-components (defined here so they close over state) ─────────
+  // ─── Shared components ────────────────────────────────────────────────────
 
-  const NAV = [
-    { id:'overview', label:'Overview' },
-    { id:'users',    label:'Users',    count: stats.users },
-    { id:'listings', label:'Listings', count: stats.listings },
-    { id:'bookings', label:'Bookings', count: stats.bookings },
-    { id:'reports',  label:'Reports' },
-  ];
-
-  const q = search.toLowerCase().trim();
-  const filteredUsers    = users.filter(u    => !q || u.name.toLowerCase().includes(q) || u.id.includes(q));
-  const filteredListings = listings.filter(l => !q || l.title?.toLowerCase().includes(q) || l.owner_name?.toLowerCase().includes(q) || l.category?.toLowerCase().includes(q));
-  const filteredBookings = bookings.filter(b => !q || b.renter_name?.toLowerCase().includes(q) || b.item_title?.toLowerCase().includes(q) || (b.item_json?.owner||'').toLowerCase().includes(q));
-
-  const STATUS_COLORS = { pending:'#E87722', accepted:'#31A24C', declined:'#FA3E3E', cancelled:'#8A8D91', completed:'#1C1E21' };
+  const STATUS_COLORS = { pending:'#E87722', accepted:'#00B894', declined:'#FA3E3E', cancelled:'#555', completed:'#888' };
 
   const StatusBadge = ({ status }) => (
-    <span style={{ background:(STATUS_COLORS[status]||'#8A8D91')+'1A', color: STATUS_COLORS[status]||'#8A8D91', borderRadius:20, padding:'3px 9px', fontSize:11, fontWeight:700, display:'inline-block' }}>
+    <span style={{ background:(STATUS_COLORS[status]||'#555')+'33', color: STATUS_COLORS[status]||'#888', borderRadius:20, padding:'3px 9px', fontSize:11, fontWeight:700, display:'inline-block' }}>
       {status}
     </span>
   );
 
   const ActionBtn = ({ label, variant='default', onClick }) => {
-    const styles = {
-      default: { color:'#1C1E21', border:'1px solid #E4E6EB', bg:'#fff' },
-      danger:  { color:'#FA3E3E', border:'1px solid #FA3E3E', bg:'#fff' },
-      warn:    { color:'#E87722', border:'1px solid #E87722', bg:'#fff' },
-    }[variant];
+    const c = variant === 'danger' ? '#FA3E3E' : variant === 'warn' ? '#E87722' : TX;
     return (
-      <button onClick={onClick} style={{ padding:'4px 11px', borderRadius:6, border: styles.border, background: styles.bg, color: styles.color, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
+      <button onClick={onClick} style={{ padding:'4px 11px', borderRadius:6, border:`1px solid ${c}33`, background: c+'18', color: c, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
         {label}
       </button>
     );
   };
 
   const TH = ({ children, w }) => (
-    <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:'#8A8D91', textTransform:'uppercase', letterSpacing:0.7, whiteSpace:'nowrap', background:'#FAFAFA', borderBottom:'1px solid #E4E6EB', width: w }}>
+    <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color: MU, textTransform:'uppercase', letterSpacing:0.7, whiteSpace:'nowrap', background: S1, borderBottom:`1px solid ${BD}`, width: w }}>
       {children}
     </th>
   );
 
   const TD = ({ children, muted, mono, style: sx }) => (
-    <td style={{ padding:'11px 14px', fontSize:13, color: muted ? '#8A8D91' : '#1C1E21', borderBottom:'1px solid #F5F5F5', verticalAlign:'middle', fontFamily: mono ? 'monospace' : 'inherit', ...sx }}>
+    <td style={{ padding:'11px 14px', fontSize:13, color: muted ? MU : TX, borderBottom:`1px solid ${BD}`, verticalAlign:'middle', fontFamily: mono ? 'monospace' : 'inherit', ...sx }}>
       {children}
     </td>
   );
 
-  const StatCard = ({ label, value, sub }) => (
-    <div style={{ flex:1, minWidth:140, background:'#fff', borderRadius:12, border:'1px solid #E4E6EB', padding:'18px 22px' }}>
-      <div style={{ fontSize:30, fontWeight:800, color: G, lineHeight:1 }}>{loading ? '…' : value}</div>
-      <div style={{ fontSize:12, fontWeight:600, color:'#65676B', marginTop:6 }}>{label}</div>
-      {sub && <div style={{ fontSize:11, color:'#8A8D91', marginTop:2 }}>{sub}</div>}
-    </div>
+  const Empty = ({ cols, msg }) => (
+    <tr><td colSpan={cols} style={{ padding:'40px 14px', textAlign:'center', color: MU, fontSize:13 }}>{msg}</td></tr>
   );
 
-  const EmptyRow = ({ cols, message }) => (
-    <tr><td colSpan={cols} style={{ padding:'40px 14px', textAlign:'center', color:'#8A8D91', fontSize:13 }}>{message}</td></tr>
+  const SearchInput = ({ sectionId, placeholder }) => (
+    <input
+      value={searches[sectionId] || ''}
+      onChange={e => setQ(sectionId, e.target.value)}
+      placeholder={placeholder}
+      style={{ width:'100%', padding:'10px 14px', background: S1, border:`1px solid ${BD}`, borderRadius:8, color: TX, fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+    />
   );
 
-  const tableStyle = { width:'100%', borderCollapse:'collapse' };
-  const tableWrap  = { background:'#fff', borderRadius:12, border:'1px solid #E4E6EB', overflow:'hidden' };
+  const SectionHeader = ({ id, label, badge }) => (
+    <button onClick={() => toggle(id)} style={{
+      width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
+      padding:'16px', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit',
+      borderBottom: isOpen(id) ? `1px solid ${BD}` : 'none',
+    }}>
+      <span style={{ fontWeight:700, fontSize:15, color: TX }}>{label}</span>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        {badge > 0 && <span style={{ background: G, color:'#fff', borderRadius:20, padding:'2px 8px', fontSize:11, fontWeight:800 }}>{badge}</span>}
+        <span style={{ color: MU, fontSize:20, lineHeight:1, display:'inline-block', transform: isOpen(id) ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.2s' }}>⌄</span>
+      </div>
+    </button>
+  );
+
+  const q_users    = getQ('users');
+  const q_listings = getQ('listings');
+  const q_bookings = getQ('bookings');
+  const q_reports  = searches.reports || '';
+
+  const filteredUsers    = users.filter(u => !q_users || u.name.toLowerCase().includes(q_users) || u.id.includes(q_users));
+  const filteredListings = listings.filter(l => !q_listings || l.title?.toLowerCase().includes(q_listings) || l.owner_name?.toLowerCase().includes(q_listings));
+  const filteredBookings = bookings.filter(b => {
+    if (!q_bookings) return true;
+    const statusFilter = ['pending','accepted','cancelled','declined','completed'];
+    if (statusFilter.includes(q_bookings)) return b.status === q_bookings;
+    return b.renter_name?.toLowerCase().includes(q_bookings) || b.item_title?.toLowerCase().includes(q_bookings);
+  });
+  const filteredReports = reports.filter(r => !q_reports || q_reports === 'all' || r.status === q_reports);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F7F8FA', fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif' }}>
+    <div style={{ background: BG, minHeight:'100vh', fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', color: TX }}>
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside style={{ width:210, background:'#fff', borderRight:'1px solid #E4E6EB', display:'flex', flexDirection:'column', flexShrink:0, position:'sticky', top:0, height:'100vh' }}>
-        <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid #E4E6EB' }}>
-          <a href="/" style={{ textDecoration:'none', display:'block' }}>
-            <div style={{ fontSize:20, fontWeight:900, color:G, letterSpacing:-0.5 }}>Lendie</div>
-            <div style={{ fontSize:10, color:'#8A8D91', marginTop:2, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Admin Dashboard</div>
-          </a>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position:'fixed', top:20, right:20, background: toast.type === 'error' ? '#FA3E3E' : G, color:'#fff', padding:'11px 18px', borderRadius:10, fontSize:13, fontWeight:600, zIndex:9999, boxShadow:'0 4px 20px rgba(0,0,0,0.5)' }}>
+          {toast.msg}
         </div>
+      )}
 
-        <nav style={{ padding:'10px 10px', flex:1 }}>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => { setSection(n.id); setSearch(''); }} style={{
-              width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'9px 12px', borderRadius:8, border:'none', textAlign:'left', marginBottom:2,
-              background: section === n.id ? G + '18' : 'transparent',
-              color:      section === n.id ? G : '#65676B',
-              fontWeight: section === n.id ? 700 : 500,
-              fontSize:14, cursor:'pointer', fontFamily:'inherit', transition:'background 0.12s',
-            }}>
-              <span>{n.label}</span>
-              {n.count > 0 && (
-                <span style={{
-                  background: section === n.id ? G : '#E4E6EB',
-                  color:      section === n.id ? '#fff' : '#8A8D91',
-                  borderRadius:20, padding:'1px 7px', fontSize:11, fontWeight:700, minWidth:22, textAlign:'center',
-                }}>
-                  {n.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div style={{ position:'sticky', top:0, zIndex:40, background: BG, borderBottom:`1px solid ${BD}`, padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <a href="/" style={{ fontSize:18, fontWeight:900, color: G, textDecoration:'none', letterSpacing:-0.5 }}>← Lendie</a>
+        <span style={{ fontSize:12, fontWeight:700, color: MU, textTransform:'uppercase', letterSpacing:1 }}>Admin</span>
+        <button onClick={loadAll} disabled={loading} style={{ padding:'7px 14px', borderRadius:8, border:`1px solid ${BD}`, background: S1, color: TX, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+          {loading ? '…' : '↺ Refresh'}
+        </button>
+      </div>
 
-        <div style={{ padding:'14px 20px', borderTop:'1px solid #E4E6EB' }}>
-          <div style={{ fontSize:11, color:'#8A8D91', marginBottom:2 }}>Signed in as</div>
-          <div style={{ fontSize:12, fontWeight:700, color:'#1C1E21' }}>Thomas Haman</div>
-          <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')}
-            style={{ marginTop:10, width:'100%', padding:'7px 0', borderRadius:8, border:'1px solid #E4E6EB', background:'#fff', color:'#FA3E3E', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main content ────────────────────────────────────────────────── */}
-      <main style={{ flex:1, padding:'28px 32px', overflowX:'auto', minWidth:0 }}>
-
-        {/* Header row */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
-          <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:'#1C1E21', textTransform:'capitalize' }}>
-            {section}
-          </h1>
-          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-            {section !== 'overview' && section !== 'reports' && (
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={`Search ${section}…`}
-                style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #E4E6EB', fontSize:13, outline:'none', width:220, fontFamily:'inherit', background:'#fff' }}
-              />
-            )}
-            <button onClick={loadAll} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #E4E6EB', background:'#fff', color:'#65676B', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-              ↺ Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* Toast */}
-        {toast && (
-          <div style={{ position:'fixed', top:20, right:24, background: toast.type === 'error' ? '#FA3E3E' : G, color:'#fff', padding:'11px 18px', borderRadius:10, fontSize:13, fontWeight:600, zIndex:9999, boxShadow:'0 4px 20px rgba(0,0,0,0.18)', maxWidth:400 }}>
-            {toast.msg}
-          </div>
-        )}
-
-        {/* ── OVERVIEW ────────────────────────────────────────────────── */}
-        {section === 'overview' && (
-          <div>
-            <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:28 }}>
-              <StatCard label="Users"            value={stats.users}    sub="unique from bookings & listings"/>
-              <StatCard label="Listings"         value={stats.listings} sub="in database"/>
-              <StatCard label="Booking Requests" value={stats.bookings} sub="all time"/>
-              <StatCard label="Messages"         value={stats.messages} sub="in database"/>
-              <StatCard label="Reviews"          value={stats.reviews}  sub="submitted"/>
+      {/* ── OVERVIEW ────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="overview" label="Overview" badge={null} />
+        {isOpen('overview') && (
+          <div style={{ padding:'0 0 16px' }}>
+            <div style={{ display:'flex', overflowX:'auto', gap:0 }}>
+              {[
+                ['Users', stats.users],
+                ['Listings', stats.listings],
+                ['Bookings', stats.bookings],
+                ['Messages', stats.messages],
+                ['Reviews', stats.reviews],
+                ['Pending Reports', stats.reports],
+              ].map(([label, value]) => (
+                <div key={label} style={{ flex:'0 0 auto', minWidth:130, padding:'18px 20px', borderRight:`1px solid ${BD}` }}>
+                  <div style={{ fontSize:28, fontWeight:800, color: G, lineHeight:1 }}>{loading ? '…' : value}</div>
+                  <div style={{ fontSize:12, color: MU, marginTop:6, fontWeight:600 }}>{label}</div>
+                </div>
+              ))}
             </div>
 
-            <div style={tableWrap}>
-              <div style={{ padding:'16px 20px', borderBottom:'1px solid #E4E6EB', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <div style={{ fontWeight:700, fontSize:14, color:'#1C1E21' }}>Recent Booking Requests</div>
-                <button onClick={() => setSection('bookings')} style={{ background:'none', border:'none', color:G, fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>View all →</button>
-              </div>
-              <table style={tableStyle}>
+            <div style={{ margin:'16px', overflowX:'auto' }}>
+              <div style={{ fontWeight:700, fontSize:13, color: MU, textTransform:'uppercase', letterSpacing:0.7, marginBottom:10 }}>Recent Bookings</div>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead><tr>
                   <TH>Item</TH><TH>Renter</TH><TH>Owner</TH><TH>Dates</TH><TH>Status</TH>
                 </tr></thead>
@@ -303,125 +267,134 @@ export default function AdminPage() {
                       <TD><StatusBadge status={b.status}/></TD>
                     </tr>
                   ))}
-                  {bookings.length === 0 && <EmptyRow cols={5} message="No booking requests yet"/>}
+                  {bookings.length === 0 && <Empty cols={5} msg="No booking requests yet" />}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+      </div>
 
-        {/* ── USERS ───────────────────────────────────────────────────── */}
-        {section === 'users' && (
-          <div style={tableWrap}>
-            <table style={tableStyle}>
-              <thead><tr>
-                <TH w="25%">Name</TH>
-                <TH w="35%">User ID</TH>
-                <TH>Listings</TH>
-                <TH>Bookings</TH>
-                <TH>First Seen</TH>
-                <TH>Actions</TH>
-              </tr></thead>
-              <tbody>
-                {filteredUsers.map(u => (
-                  <tr key={u.id} style={{ background: u.id === ADMIN_ID ? G + '08' : 'transparent' }}>
-                    <TD>
-                      <div style={{ fontWeight:600 }}>{u.name}
-                        {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'18', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
-                      </div>
-                    </TD>
-                    <TD mono muted style={{ fontSize:11 }}>{u.id}</TD>
-                    <TD>{u.listingCount}</TD>
-                    <TD>{u.bookingCount}</TD>
-                    <TD muted style={{ fontSize:11 }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '—'}</TD>
-                    <TD>
-                      {u.id !== ADMIN_ID && (
-                        <div style={{ display:'flex', gap:6 }}>
-                          <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>
-                          <ActionBtn label="Delete"  variant="danger" onClick={deleteUser}/>
-                        </div>
-                      )}
-                    </TD>
-                  </tr>
-                ))}
-                {filteredUsers.length === 0 && <EmptyRow cols={6} message={q ? `No users matching "${q}"` : 'No users found — booking_requests table may be empty'}/>}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ── LISTINGS ────────────────────────────────────────────────── */}
-        {section === 'listings' && (
-          <div style={tableWrap}>
-            <table style={tableStyle}>
-              <thead><tr>
-                <TH w="22%">Title</TH>
-                <TH>Owner</TH>
-                <TH>Category</TH>
-                <TH>Price</TH>
-                <TH>Status</TH>
-                <TH>Created</TH>
-                <TH>Actions</TH>
-              </tr></thead>
-              <tbody>
-                {filteredListings.map(l => (
-                  <tr key={l.id}>
-                    <TD><span style={{ fontWeight:600 }}>{l.title}</span></TD>
-                    <TD muted>{l.owner_name || '—'}</TD>
-                    <TD style={{ textTransform:'capitalize', color:'#65676B', fontSize:12 }}>{l.category}</TD>
-                    <TD style={{ fontWeight:600 }}>${l.price}<span style={{ fontWeight:400, color:'#8A8D91', fontSize:11 }}>/{l.price_unit||'day'}</span></TD>
-                    <TD>
-                      {l.available
-                        ? <span style={{ color:'#31A24C', fontWeight:700, fontSize:12 }}>● Active</span>
-                        : <span style={{ color:'#FA3E3E', fontWeight:700, fontSize:12 }}>● Hidden</span>}
-                    </TD>
-                    <TD muted style={{ fontSize:11 }}>{l.created_at ? new Date(l.created_at).toLocaleDateString() : '—'}</TD>
-                    <TD>
-                      <div style={{ display:'flex', gap:6 }}>
-                        <ActionBtn
-                          label={l.available ? 'Hide' : 'Unhide'}
-                          variant={l.available ? 'warn' : 'default'}
-                          onClick={() => toggleListingVisibility(l.id, l.available)}
-                        />
-                        <ActionBtn label="Delete" variant="danger" onClick={() => deleteListing(l.id, l.title)}/>
-                      </div>
-                    </TD>
-                  </tr>
-                ))}
-                {filteredListings.length === 0 && (
-                  <EmptyRow cols={7} message={
-                    q ? `No listings matching "${q}"`
-                      : 'No listings in the database. Listings created through the app will appear here.'
-                  }/>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ── BOOKINGS ────────────────────────────────────────────────── */}
-        {section === 'bookings' && (
+      {/* ── USERS ───────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="users" label="Users" badge={stats.users} />
+        {isOpen('users') && (
           <div>
-            {/* Status filter pills */}
-            <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+            <div style={{ padding:'12px 16px' }}>
+              <SearchInput sectionId="users" placeholder="Search users…" />
+            </div>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                <thead><tr>
+                  <TH w="22%">Name</TH>
+                  <TH w="32%">User ID</TH>
+                  <TH>Listings</TH>
+                  <TH>Bookings</TH>
+                  <TH>First Seen</TH>
+                  <TH>Actions</TH>
+                </tr></thead>
+                <tbody>
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} style={{ background: u.id === ADMIN_ID ? G+'0A' : 'transparent' }}>
+                      <TD>
+                        <div style={{ fontWeight:600 }}>{u.name}
+                          {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
+                        </div>
+                      </TD>
+                      <TD mono muted style={{ fontSize:11 }}>{u.id}</TD>
+                      <TD>{u.listingCount}</TD>
+                      <TD>{u.bookingCount}</TD>
+                      <TD muted style={{ fontSize:11 }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '—'}</TD>
+                      <TD>
+                        {u.id !== ADMIN_ID && (
+                          <div style={{ display:'flex', gap:6 }}>
+                            <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>
+                            <ActionBtn label="Delete"  variant="danger" onClick={deleteUser}/>
+                          </div>
+                        )}
+                      </TD>
+                    </tr>
+                  ))}
+                  {filteredUsers.length === 0 && <Empty cols={6} msg={q_users ? `No users matching "${q_users}"` : 'No users found'} />}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── LISTINGS ────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="listings" label="Listings" badge={stats.listings} />
+        {isOpen('listings') && (
+          <div>
+            <div style={{ padding:'12px 16px' }}>
+              <SearchInput sectionId="listings" placeholder="Search listings…" />
+            </div>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                <thead><tr>
+                  <TH w="22%">Title</TH>
+                  <TH>Owner</TH>
+                  <TH>Category</TH>
+                  <TH>Price</TH>
+                  <TH>Status</TH>
+                  <TH>Created</TH>
+                  <TH>Actions</TH>
+                </tr></thead>
+                <tbody>
+                  {filteredListings.map(l => (
+                    <tr key={l.id}>
+                      <TD><span style={{ fontWeight:600 }}>{l.title}</span></TD>
+                      <TD muted>{l.owner_name || '—'}</TD>
+                      <TD style={{ textTransform:'capitalize', color: MU, fontSize:12 }}>{l.category}</TD>
+                      <TD style={{ fontWeight:600 }}>${l.price}<span style={{ fontWeight:400, color: MU, fontSize:11 }}>/{l.price_unit||'day'}</span></TD>
+                      <TD>
+                        {l.available
+                          ? <span style={{ color:'#00B894', fontWeight:700, fontSize:12 }}>● Active</span>
+                          : <span style={{ color:'#FA3E3E', fontWeight:700, fontSize:12 }}>● Hidden</span>}
+                      </TD>
+                      <TD muted style={{ fontSize:11 }}>{l.created_at ? new Date(l.created_at).toLocaleDateString() : '—'}</TD>
+                      <TD>
+                        <div style={{ display:'flex', gap:6 }}>
+                          <ActionBtn label={l.available ? 'Hide' : 'Unhide'} variant={l.available ? 'warn' : 'default'} onClick={() => toggleListingVisibility(l.id, l.available)}/>
+                          <ActionBtn label="Delete" variant="danger" onClick={() => deleteListing(l.id, l.title)}/>
+                        </div>
+                      </TD>
+                    </tr>
+                  ))}
+                  {filteredListings.length === 0 && <Empty cols={7} msg={q_listings ? `No listings matching "${q_listings}"` : 'No listings found'} />}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── BOOKINGS ────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="bookings" label="Bookings" badge={stats.bookings} />
+        {isOpen('bookings') && (
+          <div>
+            <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap' }}>
               {['all','pending','accepted','cancelled','declined'].map(s => {
                 const count = s === 'all' ? bookings.length : bookings.filter(b => b.status === s).length;
+                const active = (s === 'all' && !searches.bookings) || searches.bookings === s;
                 return (
-                  <button key={s} onClick={() => setSearch(s === 'all' ? '' : s)} style={{
-                    padding:'5px 12px', borderRadius:20, border:'1px solid #E4E6EB', cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:600,
-                    background: (q === s || (s === 'all' && !q)) ? G : '#fff',
-                    color:      (q === s || (s === 'all' && !q)) ? '#fff' : '#65676B',
+                  <button key={s} onClick={() => setQ('bookings', s === 'all' ? '' : s)} style={{
+                    padding:'5px 12px', borderRadius:20, border:`1px solid ${active ? G : BD}`,
+                    background: active ? G : S1, color: active ? '#fff' : MU,
+                    fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
                   }}>
                     {s.charAt(0).toUpperCase()+s.slice(1)} ({count})
                   </button>
                 );
               })}
             </div>
-
-            <div style={tableWrap}>
-              <table style={tableStyle}>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead><tr>
-                  <TH w="20%">Item</TH>
+                  <TH w="18%">Item</TH>
                   <TH>Renter</TH>
                   <TH>Owner</TH>
                   <TH>Dates</TH>
@@ -445,39 +418,82 @@ export default function AdminPage() {
                       </TD>
                     </tr>
                   ))}
-                  {filteredBookings.length === 0 && <EmptyRow cols={7} message={q ? `No bookings matching "${q}"` : 'No booking requests found'}/>}
+                  {filteredBookings.length === 0 && <Empty cols={7} msg="No bookings found" />}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+      </div>
 
-        {/* ── REPORTS ─────────────────────────────────────────────────── */}
-        {section === 'reports' && (
+      {/* ── REPORTS ─────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="reports" label="Reports" badge={stats.reports} />
+        {isOpen('reports') && (
           <div>
-            <div style={{ background:'#FFF7ED', border:'1px solid #FFE0B2', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'#E87722', fontWeight:600 }}>
-              Reports feature not yet built. This table is ready to populate when users can submit reports.
+            <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap' }}>
+              {['all','pending','reviewed','dismissed'].map(f => {
+                const active = (f === 'all' && !q_reports) || q_reports === f;
+                return (
+                  <button key={f} onClick={() => setQ('reports', f === 'all' ? '' : f)} style={{
+                    padding:'5px 12px', borderRadius:20, border:`1px solid ${active ? G : BD}`,
+                    background: active ? G : S1, color: active ? '#fff' : MU,
+                    fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', textTransform:'capitalize',
+                  }}>{f}</button>
+                );
+              })}
             </div>
-            <div style={tableWrap}>
-              <table style={tableStyle}>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead><tr>
                   <TH>Reporter</TH>
-                  <TH>Reported User</TH>
-                  <TH>Reported Listing</TH>
+                  <TH>Reported</TH>
+                  <TH>Context</TH>
                   <TH>Reason</TH>
+                  <TH>Details</TH>
                   <TH>Date</TH>
                   <TH>Status</TH>
                   <TH>Actions</TH>
                 </tr></thead>
                 <tbody>
-                  <EmptyRow cols={7} message="No reports submitted yet."/>
+                  {filteredReports.map(r => (
+                    <tr key={r.id}>
+                      <TD mono muted style={{ fontSize:11 }}>{r.reporter_id?.slice(0,8)}…</TD>
+                      <TD mono muted style={{ fontSize:11 }}>{r.reported_user_id ? r.reported_user_id.slice(0,8)+'…' : '—'}</TD>
+                      <TD><span style={{ background: G+'22', color: G, borderRadius:20, padding:'2px 8px', fontSize:11, fontWeight:700 }}>{r.context}</span></TD>
+                      <TD><span style={{ fontWeight:600 }}>{r.reason}</span></TD>
+                      <TD muted style={{ maxWidth:180 }}><span style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{r.details || '—'}</span></TD>
+                      <TD muted style={{ fontSize:11 }}>{new Date(r.created_at).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</TD>
+                      <TD>
+                        <span style={{ background:(r.status==='pending'?'#E87722':r.status==='reviewed'?'#00B894':'#555')+'33', color:r.status==='pending'?'#E87722':r.status==='reviewed'?'#00B894':'#888', borderRadius:20, padding:'3px 9px', fontSize:11, fontWeight:700 }}>
+                          {r.status}
+                        </span>
+                      </TD>
+                      <TD>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                          {r.status === 'pending' && <ActionBtn label="Reviewed" onClick={() => updateReportStatus(r.id,'reviewed')}/>}
+                          {r.status !== 'dismissed' && <ActionBtn label="Dismiss" variant="warn" onClick={() => updateReportStatus(r.id,'dismissed')}/>}
+                          {r.reported_user_id && <ActionBtn label="View Listings" onClick={() => { setQ('listings', r.reported_user_id); setOpenSections(p => ({ ...p, listings: true, reports: false })); }}/>}
+                        </div>
+                      </TD>
+                    </tr>
+                  ))}
+                  {reports.length === 0 && <Empty cols={8} msg="No reports submitted yet" />}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+      </div>
 
-      </main>
+      {/* Sign out footer */}
+      <div style={{ padding:'20px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ fontSize:12, color: MU }}>Signed in as <span style={{ color: TX, fontWeight:700 }}>Thomas Haman</span></div>
+        <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')}
+          style={{ padding:'7px 16px', borderRadius:8, border:'1px solid #FA3E3E33', background:'#FA3E3E18', color:'#FA3E3E', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+          Sign Out
+        </button>
+      </div>
     </div>
   );
 }

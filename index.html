@@ -29,6 +29,15 @@
     <title>Lendie — Rent anything from neighbors</title>
   </head>
   <body>
+    <script>
+      try {
+        var dark = localStorage.getItem('lendie_dark') === 'true';
+        if (dark) {
+          document.documentElement.style.background = '#000000';
+          document.body.style.background = '#000000';
+        }
+      } catch(e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
