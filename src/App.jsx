@@ -4218,22 +4218,31 @@ export default function Lendie() {
 
   const handleAcceptOffer = async (offerAmount) => {
     // Works for both sides: seller accepting buyer's offer, or buyer accepting seller's counter
+    if (!activeConvo || !offerAmount) return;
+    const newDateStr = `Offer:${offerAmount}`;
+    // Reuse ANY live offer record for this conversation (pending or a prior
+    // counter/accept) so re-accepting never creates duplicates.
     let req = bookingRequests?.find(r =>
-      r.dateStr === "Offer" && r.status === "pending" &&
+      (r.dateStr === "Offer" || r.dateStr?.startsWith("Offer:")) &&
+      r.status !== "declined" && r.status !== "cancelled" &&
       r.item?.title === activeConvo?.item &&
       (r.ownerId === user?.id || r.renterId === user?.id) &&
       (r.ownerId === activeConvo?.otherUserId || r.renterId === activeConvo?.otherUserId)
     );
-    const newDateStr = `Offer:${offerAmount}`;
-    if (!req) {
-      // A negotiation started in chat (not from the listing) has no booking_request
-      // yet — create one now so the accepted offer can be tracked and paid.
-      const listing = allItems?.find(l => l.title === activeConvo?.item);
-      if (!listing) { showToast('Could not find this listing', 'error'); return; }
-      const ownerId = listing.ownerId;
-      const renterId = (user?.id === ownerId) ? activeConvo?.otherUserId : user?.id;
-      if (!ownerId || !renterId) { showToast('Failed to accept offer', 'error'); return; }
-      const renterName = (renterId === user?.id) ? (user?.user_metadata?.name || 'Buyer') : (activeConvo?.from || 'Buyer');
+    // Resolve listing + parties from the existing record first (works even if the
+    // listing was paused and dropped from the public list), else the public listing.
+    const listing = req?.item || allItems?.find(l => l.title === activeConvo?.item);
+    if (!listing) { showToast('Could not find this listing', 'error'); return; }
+    const ownerId = req?.ownerId || listing.ownerId;
+    const renterId = req?.renterId || ((user?.id === ownerId) ? activeConvo?.otherUserId : user?.id);
+    const renterName = req?.renterName || ((renterId === user?.id) ? (user?.user_metadata?.name || 'Buyer') : (activeConvo?.from || 'Buyer'));
+    if (!ownerId || !renterId) { showToast('Failed to accept offer', 'error'); return; }
+    if (req?.dbId) {
+      const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr }).eq('id', req.dbId);
+      if (error) { showToast('Failed to accept offer', 'error'); return; }
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr } : r));
+      req = { ...req, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr };
+    } else {
       const { data, error } = await supabase.from('booking_requests').insert({
         renter_id: renterId, owner_id: ownerId, item_title: listing.title, item_json: listing,
         date_str: newDateStr, start_date: null, end_date: null,
@@ -4242,12 +4251,6 @@ export default function Lendie() {
       if (error || !data) { console.error('[AcceptOffer] create failed:', error?.message); showToast('Failed to accept offer', 'error'); return; }
       req = { id: data.id, dbId: data.id, item: listing, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
       setBookingRequests(prev => [...prev, req]);
-    } else {
-      if (req.dbId) {
-        const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr }).eq('id', req.dbId);
-        if (error) { showToast('Failed to accept offer', 'error'); return; }
-      }
-      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr } : r));
     }
     const isOwner = req.ownerId === user?.id;
     // Seller accepting an offer takes the item off the market

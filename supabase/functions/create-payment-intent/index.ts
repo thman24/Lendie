@@ -57,22 +57,30 @@ Deno.serve(async (req) => {
       ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / msPerDay) + 1)
       : 1;
 
-    // Services charge the provider's agreed flat quote (stored on the booking when
-    // they accepted), falling back to the listing's starting price — never a
-    // date multiplier, and no delivery. Everything else prices by unit × duration.
+    // Read the booking once (when paying an existing one) for the service quote
+    // or an accepted offer amount, both of which override the list price.
+    let bookingRow: { quoted_cents: number | null; date_str: string | null } | null = null;
+    if (existingBookingId) {
+      const { data } = await supabaseAdmin
+        .from('booking_requests')
+        .select('quoted_cents, date_str')
+        .eq('id', existingBookingId)
+        .single();
+      bookingRow = data;
+    }
+    // Accepted offer/counter — date_str is "Offer:<amount>".
+    const offerMatch = bookingRow?.date_str?.match(/^Offer:(\d+(?:\.\d+)?)$/);
+
+    // Services charge the provider's agreed flat quote; accepted offers charge the
+    // agreed offer amount; both are flat (no date multiplier, no delivery).
+    // Everything else prices by unit × duration.
     let rentalTotal: number;
     let deliveryTotal: number;
     if (isService) {
-      let serviceQuoteCents: number | null = null;
-      if (existingBookingId) {
-        const { data: q } = await supabaseAdmin
-          .from('booking_requests')
-          .select('quoted_cents')
-          .eq('id', existingBookingId)
-          .single();
-        serviceQuoteCents = q?.quoted_cents ?? null;
-      }
-      rentalTotal = serviceQuoteCents != null ? serviceQuoteCents / 100 : Number(listing.price);
+      rentalTotal = bookingRow?.quoted_cents != null ? bookingRow.quoted_cents / 100 : Number(listing.price);
+      deliveryTotal = 0;
+    } else if (offerMatch) {
+      rentalTotal = Number(offerMatch[1]);
       deliveryTotal = 0;
     } else {
       const unitMultiplier: Record<string, number> = { hour: 1, day: days, night: days, week: Math.ceil(days / 7) };
