@@ -1833,7 +1833,7 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
   );
 }
 
-function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onAcceptOffer, allItems }) {
+function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onOwnerCancel, onAcceptOffer, allItems }) {
   if (!activeConvo) return null;
   const [showMenu, setShowMenu] = useState(false);
   const bg        = darkMode ? "#000000" : "#ffffff";
@@ -1957,6 +1957,13 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
     r.renterId === user?.id &&
     r.item?.title === activeConvo.item &&
     r.ownerId === activeConvo.otherUserId
+  );
+  // Owner side of an accepted booking — lets the provider cancel after accepting/quoting.
+  const ownerAcceptedReq = bookingRequests?.find(r =>
+    r.status === 'accepted' &&
+    r.ownerId === user?.id &&
+    r.renterId === activeConvo.otherUserId &&
+    r.item?.title === activeConvo.item
   );
 
   // Offer state — detect from thread content (always reliable, no booking request dependency)
@@ -2106,6 +2113,19 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       </div>
 
       {/* Checkout card — visible to renter after owner accepts */}
+      {ownerAcceptedReq && !pendingReq && (
+        <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          <span style={{ fontSize:10.5, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>✅ Accepted</span>
+          <span style={{ flex:1, fontSize:13, color:textPrimary, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {ownerAcceptedReq.item?.title}
+            {ownerAcceptedReq.dateStr && ownerAcceptedReq.dateStr!=="Purchase" && !ownerAcceptedReq.dateStr?.startsWith("Offer") && <span style={{ color:textMuted, fontWeight:400 }}> · {ownerAcceptedReq.dateStr}</span>}
+          </span>
+          <button onClick={()=>{ const paid = ownerAcceptedReq.payment_status==='paid'; if(window.confirm(`Cancel this ${ownerAcceptedReq.item?.listingType==='service'?'service':'booking'}? The customer will be notified${paid?' and refunded':''}.`)) onOwnerCancel&&onOwnerCancel(ownerAcceptedReq); }} style={{ padding:"6px 12px", borderRadius:9, border:"1px solid #FA3E3E", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+            Cancel
+          </button>
+        </div>
+      )}
+
       {acceptedReq && !pendingReq && (
         <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"baseline", gap:7, marginBottom:7, flexWrap:"wrap" }}>
@@ -2138,40 +2158,16 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               const serviceFee = Math.round(rental * 0.08 * 100) / 100;
               const allIn = Math.round((total + serviceFee) * 100) / 100;
               const cardAvailable = !!STRIPE_KEY;
+              const baseLabel = isService ? "Agreed" : offerPrice ? "Offer" : isPurchase ? "Price" : `${nights} ${unit}${nights>1?'s':''}`;
               return (
                 <>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:textMuted, marginBottom:4 }}>
-                    {isService
-                      ? <span>Agreed price</span>
-                      : offerPrice
-                      ? <span>Accepted offer</span>
-                      : isPurchase
-                      ? <span>Sale price</span>
-                      : <span>${rate}/{unit} × {nights} {unit}{nights>1?'s':''}</span>}
-                    <span style={{ color:textPrimary }}>${rental}</span>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:textPrimary }}>Total</span>
+                    <span style={{ fontSize:16, fontWeight:800, color:textPrimary }}>${(cardAvailable ? allIn : total).toFixed(2)}</span>
                   </div>
-                  {delivery > 0 && (
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:textMuted, marginBottom:4 }}>
-                      <span>📦 Delivery</span>
-                      <span style={{ color:textPrimary }}>${delivery}</span>
-                    </div>
-                  )}
-                  {cardAvailable && (
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:textMuted, marginBottom:4 }}>
-                      <span>Service fee (8%)</span>
-                      <span style={{ color:textPrimary }}>${serviceFee.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div style={{ height:"0.5px", background:border, margin:"6px 0" }}/>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, fontWeight:700, color:textPrimary }}>
-                    <span>Total</span>
-                    <span>${(cardAvailable ? allIn : total).toFixed(2)}</span>
+                  <div style={{ fontSize:11, color:textMuted, marginTop:2 }}>
+                    {baseLabel} ${rental.toFixed(2)}{delivery > 0 ? ` + $${delivery.toFixed(2)} delivery` : ""}{cardAvailable ? ` + 8% fee $${serviceFee.toFixed(2)} · cash $${total.toFixed(2)}` : ""}
                   </div>
-                  {cardAvailable && (
-                    <div style={{ fontSize:11, color:textMuted, marginTop:5, textAlign:"right" }}>
-                      Card total. Cash is ${total.toFixed(2)} (no service fee).
-                    </div>
-                  )}
                 </>
               );
             })()}
@@ -5730,7 +5726,7 @@ export default function Lendie() {
           {/* Desktop chat panel (right) */}
           <div style={{ flex:1, minWidth:0 }}>
             {activeConvo
-              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onAcceptOffer={handleAcceptOffer} allItems={allItems}/>
+              ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onOwnerCancel={handleOwnerCancelBooking} onAcceptOffer={handleAcceptOffer} allItems={allItems}/>
               : <div style={{ height:"calc(100vh - 64px)", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:C.muted, gap:12 }}>
                   <div style={{ fontSize:48 }}>💬</div>
                   <div style={{ fontSize:16, fontWeight:700, color:C.text }}>Select a conversation</div>
@@ -6431,6 +6427,7 @@ export default function Lendie() {
         onDecline={handleDeclineRequest}
         onCheckout={handleChatCheckout}
         onCancelRequest={handleCancelRequest}
+        onOwnerCancel={handleOwnerCancelBooking}
         onAcceptOffer={handleAcceptOffer}
         allItems={allItems}
       />}
