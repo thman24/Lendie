@@ -2180,61 +2180,58 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
 
       {/* Pending booking request card — visible to owner only */}
       {pendingReq && (
-        <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"12px 16px", flexShrink:0 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#00B894", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>
-            {pendingReq.dateStr==="Purchase" ? "🛒 Purchase Request" : pendingReq.dateStr==="Offer" ? "💸 Offer Negotiation" : "📬 Pending Rental Request"}
+        <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", flexShrink:0 }}>
+          {/* Compact header + title + date on one line */}
+          <div style={{ display:"flex", alignItems:"baseline", gap:7, marginBottom:8, flexWrap:"wrap" }}>
+            <span style={{ fontSize:10.5, fontWeight:700, color: pendingReq.item?.listingType==="service" ? "#7B61FF" : "#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>
+              {pendingReq.dateStr==="Purchase" ? "🛒 Purchase" : pendingReq.dateStr==="Offer" ? "💸 Offer" : pendingReq.item?.listingType==="service" ? "🧰 Service" : "📬 Rental"}
+            </span>
+            <span style={{ fontSize:13, color:textPrimary, fontWeight:600 }}>
+              {pendingReq.item?.title}
+              {pendingReq.dateStr && pendingReq.dateStr!=="Offer" && pendingReq.dateStr!=="Purchase" && <span style={{ color:textMuted, fontWeight:400 }}> · {pendingReq.dateStr}</span>}
+              {pendingReq.dateStr==="Purchase" && <span style={{ color:textMuted, fontWeight:400 }}> · ${pendingReq.item?.salePrice || pendingReq.item?.price}</span>}
+            </span>
           </div>
-          <div style={{ fontSize:14, color:textPrimary, fontWeight:600, marginBottom:2 }}>{pendingReq.item?.title}</div>
-          {pendingReq.dateStr==="Offer" && <div style={{ fontSize:13, color:textMuted, marginBottom:4 }}>Use the buttons below to counter or accept</div>}
-          {pendingReq.dateStr!=="Offer" && pendingReq.dateStr!=="Purchase" && pendingReq.dateStr && <div style={{ fontSize:13, color:textMuted, marginBottom:4 }}>📅 {pendingReq.dateStr}</div>}
-          {pendingReq.dateStr==="Purchase" && <div style={{ fontSize:13, color:textMuted, marginBottom:4 }}>💰 ${pendingReq.item?.salePrice || pendingReq.item?.price}</div>}
-          {pendingReq.wantsDelivery && (
-            <button onClick={()=>setIncludeDelivery(v=>!v)} style={{ display:"flex", alignItems:"center", gap:8, background:"none", border:"none", cursor:"pointer", padding:"4px 0", marginBottom:6 }}>
-              <div style={{ width:36, height:20, borderRadius:10, background:includeDelivery?"#00B894": darkMode?"#3A3A3C":"#C7C7CC", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
-                <div style={{ position:"absolute", top:2, left:includeDelivery?18:2, width:16, height:16, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }}/>
+          {pendingReq.wantsDelivery && pendingReq.dateStr!=="Offer" && pendingReq.item?.listingType!=="service" && (
+            <button onClick={()=>setIncludeDelivery(v=>!v)} style={{ display:"flex", alignItems:"center", gap:8, background:"none", border:"none", cursor:"pointer", padding:"2px 0", marginBottom:6 }}>
+              <div style={{ width:34, height:19, borderRadius:10, background:includeDelivery?"#00B894": darkMode?"#3A3A3C":"#C7C7CC", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                <div style={{ position:"absolute", top:2, left:includeDelivery?17:2, width:15, height:15, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }}/>
               </div>
-              <span style={{ fontSize:13, color:textMuted }}>
-                📦 Include delivery{pendingReq.deliveryAddress ? ` to ${pendingReq.deliveryAddress}` : ""}
-                {pendingReq.deliveryFee ? ` (+$${pendingReq.deliveryFee})` : ""}
+              <span style={{ fontSize:12, color:textMuted }}>
+                📦 Include delivery{pendingReq.deliveryFee ? ` (+$${pendingReq.deliveryFee})` : ""}
               </span>
             </button>
           )}
           {pendingReq.dateStr === "Offer" ? (
-            <div style={{ display:"flex", gap:8, marginTop:4 }}>
-              <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"9px 0", borderRadius:10, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 💸 Counter
               </button>
               {latestReceivedAmt && (
-                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1, padding:"9px 0", borderRadius:10, border:"none", background:"#E87722", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background:"#E87722", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                   Accept ${latestReceivedAmt}
                 </button>
               )}
             </div>
           ) : pendingReq.item?.listingType === "service" ? (
-            <div style={{ marginTop:6 }}>
-              <div style={{ fontSize:12, color:textMuted, marginBottom:6 }}>Confirm the final price for this job</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                <div style={{ display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:`1.5px solid ${border}`, borderRadius:10, padding:"9px 12px", flex:1 }}>
-                  <span style={{ color:"#7B61FF", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
-                  <input value={quotePrice} onChange={e=>setQuotePrice(e.target.value.replace(/[^0-9.]/g,""))} placeholder={String(pendingReq.item?.price||"")} type="number" style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:textPrimary, fontWeight:700 }}/>
-                </div>
-                <span style={{ fontSize:12, color:textMuted }}>total</span>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:`1.5px solid ${border}`, borderRadius:9, padding:"7px 9px", width:84, flexShrink:0 }}>
+                <span style={{ color:"#7B61FF", fontWeight:700, marginRight:2, fontSize:15 }}>$</span>
+                <input value={quotePrice} onChange={e=>setQuotePrice(e.target.value.replace(/[^0-9.]/g,""))} placeholder={String(pendingReq.item?.price||"")} type="number" style={{ width:"100%", minWidth:0, background:"none", border:"none", outline:"none", fontSize:15, fontFamily:"inherit", color:textPrimary, fontWeight:700 }}/>
               </div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"9px 0", borderRadius:10, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:14, fontWeight:600, cursor:"pointer" }}>
-                  Decline
-                </button>
-                <button onClick={()=>{ const amt = parseFloat(quotePrice || pendingReq.item?.price || 0); if(!amt) return; onAccept&&onAccept({...pendingReq, quotedAmount: amt}); }} style={{ flex:1.4, padding:"9px 0", borderRadius:10, border:"none", background:"#7B61FF", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
-                  Accept & send price
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display:"flex", gap:8, marginTop:8 }}>
-              <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"9px 0", borderRadius:10, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:14, fontWeight:600, cursor:"pointer" }}>
+              <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 Decline
               </button>
-              <button onClick={()=>onAccept&&onAccept({...pendingReq, wantsDelivery: includeDelivery})} style={{ flex:1, padding:"9px 0", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+              <button onClick={()=>{ const amt = parseFloat(quotePrice || pendingReq.item?.price || 0); if(!amt) return; onAccept&&onAccept({...pendingReq, quotedAmount: amt}); }} style={{ flex:1.5, padding:"8px 0", borderRadius:9, border:"none", background:"#7B61FF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                Send ${quotePrice || pendingReq.item?.price || ""}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>onDecline&&onDecline(pendingReq)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                Decline
+              </button>
+              <button onClick={()=>onAccept&&onAccept({...pendingReq, wantsDelivery: includeDelivery})} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 Accept
               </button>
             </div>
