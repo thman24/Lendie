@@ -2133,14 +2133,14 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                       <img src={m.image} alt="" style={{ maxWidth:"100%", maxHeight:260, borderRadius:14, objectFit:"cover", display:"block", border:`1px solid ${border}` }}/>
                     </a>
                     {m.text && m.text !== "📷 Photo" && (
-                      <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word" }}>
-                        {m.text}
+                      <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word", whiteSpace:"pre-wrap" }}>
+                        {linkify(m.text, m.mine ? "#EAF7F2" : "#00B894")}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word" }}>
-                    {m.text}
+                  <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word", whiteSpace:"pre-wrap" }}>
+                    {linkify(m.text, m.mine ? "#EAF7F2" : "#00B894")}
                   </div>
                 )}
                 {groupLast && <div style={{ fontSize:11, color:textMuted, marginTop:3 }}>{m.time}</div>}
