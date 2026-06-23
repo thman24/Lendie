@@ -272,6 +272,24 @@ function reqWhen(dateStr, prefix = ' on ') {
   return prefix + dateStr;
 }
 
+// Turn http(s) URLs in free text into tappable links (keeps surrounding text).
+function linkify(text, linkColor = "#00B894") {
+  if (!text) return text;
+  return String(text).split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      // Trailing sentence punctuation usually isn't part of the URL.
+      const trail = (part.match(/[.,;:!?)\]]+$/) || [''])[0];
+      const url = trail ? part.slice(0, -trail.length) : part;
+      return (
+        <span key={i}>
+          <a href={url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{ color:linkColor, textDecoration:"underline", overflowWrap:"anywhere", wordBreak:"break-word" }}>{url}</a>{trail}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 // Noun for a transaction in user-facing copy: service / offer / purchase / rental.
 function txNoun(req) {
   if (req?.item?.listingType === 'service') return 'service';
@@ -973,7 +991,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
           </div>
         )}
 
-        {item.description && <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:14, overflowWrap:"anywhere", wordBreak:"break-word" }}>{item.description}</div>}
+        {item.description && <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:14, overflowWrap:"anywhere", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{linkify(item.description)}</div>}
 
         {item.amenities && item.amenities.length > 0 && (
           <div style={{ marginBottom:14 }}>
