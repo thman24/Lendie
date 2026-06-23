@@ -24,10 +24,13 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const { data: { user }, error: authErr } = await authClient.auth.getUser();
-    if (authErr || !user || user.id !== ADMIN_ID) return json({ error: 'Forbidden — admin only' }, 403);
+    if (authErr || !user) return json({ error: 'Unauthorized' }, 401);
+
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const isAdmin = user.id === ADMIN_ID || !!(await admin.from('admins').select('user_id').eq('user_id', user.id).maybeSingle()).data;
+    if (!isAdmin) return json({ error: 'Forbidden — admin only' }, 403);
 
     const { action, userId, durationHours } = await req.json();
-    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     // List currently-suspended users (so the admin UI can show badges on load).
     if (action === 'list') {

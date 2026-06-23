@@ -23,7 +23,18 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const { data: { user }, error: authErr } = await authClient.auth.getUser();
-    if (authErr || !user || user.id !== ADMIN_ID) {
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Caller must be the owner or a granted admin.
+    const isAdmin = user.id === ADMIN_ID || !!(await admin.from('admins').select('user_id').eq('user_id', user.id).maybeSingle()).data;
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden — admin only' }), { status: 403, headers: corsHeaders });
     }
 
@@ -32,13 +43,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing userId' }), { status: 400, headers: corsHeaders });
     }
     if (userId === ADMIN_ID) {
-      return new Response(JSON.stringify({ error: "You can't delete the admin account" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "You can't delete the owner account" }), { status: 400, headers: corsHeaders });
     }
-
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     // Fully scrub their footprint. The admin "users" list is DERIVED from
     // listings + bookings, so these rows must be deleted (not just cancelled) or

@@ -3,6 +3,7 @@ import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Build
 import { supabase } from './supabase';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+const OWNER_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 
 function CatIcon({ id, size=14, strokeWidth=1.75 }) {
@@ -2839,6 +2840,12 @@ export default function Lendie() {
   const [payMethod, setPayMethod] = useState("card");
   const [ownerProfileId, setOwnerProfileId] = useState(null);
   const [ownerProfileName, setOwnerProfileName] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    if (user.id === OWNER_ID) { setIsAdmin(true); return; }
+    supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle().then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
   const [photoBrowser, setPhotoBrowser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
@@ -6043,7 +6050,7 @@ export default function Lendie() {
             <div style={{ fontSize:22, fontWeight:900, color:"#00B894", paddingBottom:12 }}>Profile</div>
             {user && (
               <div style={{ display:"flex", gap:0 }}>
-                {[["profile","Profile"],["settings","Settings"],...(user.id==="8f7af82b-b44e-436f-995a-530eb24925e8"?[["admin","⚙️ Admin"]]:[])]
+                {[["profile","Profile"],["settings","Settings"],...(isAdmin?[["admin","⚙️ Admin"]]:[])]
                   .map(([key,label])=>(
                   <button key={key} onClick={()=>setProfileSubTab(key)} style={{ flex:1, padding:"8px 0", background:"none", border:"none", fontFamily:"inherit", fontWeight:700, fontSize:13, cursor:"pointer", color:profileSubTab===key?"#00B894":C.muted, borderBottom:profileSubTab===key?"2.5px solid #00B894":"2.5px solid transparent", transition:"all 0.15s" }}>
                     {label}
@@ -6317,7 +6324,7 @@ export default function Lendie() {
               </div>
             </>
           )}
-          {user && profileSubTab === "admin" && user.id === "8f7af82b-b44e-436f-995a-530eb24925e8" && (()=>{
+          {user && profileSubTab === "admin" && isAdmin && (()=>{
             const totalListings = allItems.length;
             const activeListings = allItems.filter(x=>!x.hidden).length;
             const pendingReqs = bookingRequests.filter(r=>r.status==="pending").length;

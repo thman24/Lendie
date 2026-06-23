@@ -28,6 +28,8 @@ export default function AdminPage() {
   const [searches, setSearches] = useState({});
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [suspended, setSuspended] = useState({}); // userId -> banned_until ISO (or 'indefinite')
+  const [isOwner, setIsOwner] = useState(false);
+  const [adminsList, setAdminsList] = useState([]);
   const [toast, setToast]       = useState(null);
   const [loading, setLoading]   = useState(false);
 
@@ -86,8 +88,12 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user || user.id !== ADMIN_ID) { window.location.href = '/'; return; }
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { window.location.href = '/'; return; }
+      let ok = user.id === ADMIN_ID;
+      if (!ok) { const { data } = await supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle(); ok = !!data; }
+      if (!ok) { window.location.href = '/'; return; }
+      setIsOwner(user.id === ADMIN_ID);
       setAuthed(true);
       loadAll();
     });
@@ -174,6 +180,29 @@ export default function AdminPage() {
   };
 
   useEffect(() => { if (authed) loadSuspended(); }, [authed, loadSuspended]);
+
+  const loadAdmins = useCallback(async () => {
+    try { const { admins } = await callAdmin('admin-access', 'list'); setAdminsList(admins || []); } catch (e) { console.error('[loadAdmins]', e); }
+  }, []);
+  useEffect(() => { if (authed && isOwner) loadAdmins(); }, [authed, isOwner, loadAdmins]);
+
+  const addAdmin = async () => {
+    const email = window.prompt("Grant admin access to which email?\n\nThey must already have a Lendie account.");
+    if (!email || !email.trim()) return;
+    try {
+      const { admin: a } = await callAdmin('admin-access', 'add', { email: email.trim() });
+      setAdminsList(prev => prev.some(x => x.user_id === a.user_id) ? prev : [...prev, { ...a, added_at: new Date().toISOString() }]);
+      showToast(`${a.email} is now an admin`);
+    } catch (e) { showToast(e.message || 'Failed to add admin', 'error'); }
+  };
+  const removeAdmin = async (a) => {
+    if (!window.confirm(`Remove admin access from ${a.email || a.user_id}?`)) return;
+    try {
+      await callAdmin('admin-access', 'remove', { userId: a.user_id });
+      setAdminsList(prev => prev.filter(x => x.user_id !== a.user_id));
+      showToast('Admin access removed');
+    } catch (e) { showToast(e.message || 'Failed to remove', 'error'); }
+  };
 
   const deleteUser = async (u) => {
     if (!window.confirm(`Permanently delete ${u.name}? This removes their account and all their listings, and cancels their pending bookings. This cannot be undone.`)) return;
@@ -606,6 +635,34 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* ── ACCESS (owner only) ─────────────────────────────────────────────── */}
+      {isOwner && (
+        <div style={{ borderBottom:`1px solid ${BD}` }}>
+          <SectionHeader id="access" label="Admin Access" badge={adminsList.length + 1} />
+          {isOpen('access') && (
+            <div style={{ padding:'12px 16px 18px', display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ fontSize:12, color:MU }}>People who can open this admin page. Add someone by the email on their Lendie account.</div>
+              {/* Owner */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:S1, border:`1px solid ${BD}`, borderRadius:10 }}>
+                <div style={{ fontSize:13, color:TX, fontWeight:600 }}>You (owner)</div>
+                <span style={{ fontSize:11, fontWeight:700, color:G, background:G+'22', borderRadius:5, padding:'2px 8px' }}>Owner · permanent</span>
+              </div>
+              {/* Granted admins */}
+              {adminsList.map(a => (
+                <div key={a.user_id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 12px', background:S1, border:`1px solid ${BD}`, borderRadius:10 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13, color:TX, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.email || a.user_id}</div>
+                    <div style={{ fontSize:11, color:MU }}>Admin · added {a.added_at ? new Date(a.added_at).toLocaleDateString() : ''}</div>
+                  </div>
+                  <ActionBtn label="Remove" variant="danger" onClick={() => removeAdmin(a)}/>
+                </div>
+              ))}
+              <div><ActionBtn label="+ Add admin" variant="primary" solid onClick={addAdmin}/></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sign out footer */}
       <div style={{ padding:'20px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
