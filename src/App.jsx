@@ -947,7 +947,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             </span>
           )}
           {(item.listingType==="sale"||item.listingType==="both") && (
-            <span style={{ fontSize:11, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:6, padding:"2px 7px", border:"1px solid #FFE0B2" }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>
               For Sale
             </span>
           )}
@@ -1028,7 +1028,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             {!isService && item.listingType === "sale" && (
               <>
                 <div style={{ fontSize:10, color:C.faint, marginBottom:3 }}>Sale price</div>
-                <div style={{ fontSize:24, fontWeight:800, color:"#E87722" }}>
+                <div style={{ fontSize:24, fontWeight:800, color:"#00B894" }}>
                   ${item.price}
                 </div>
               </>
@@ -1036,7 +1036,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             {item.listingType === "both" && item.salePrice && (
               <div style={{ marginTop:6, paddingTop:6, borderTop:`1px solid ${C.border}` }}>
                 <div style={{ fontSize:10, color:C.faint, marginBottom:2 }}>Or buy outright</div>
-                <div style={{ fontSize:16, fontWeight:700, color:"#E87722" }}>${item.salePrice}</div>
+                <div style={{ fontSize:16, fontWeight:700, color:"#00B894" }}>${item.salePrice}</div>
               </div>
             )}
           </div>
@@ -1090,22 +1090,22 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10 }}>✅ Confirmed — complete payment in Messages</div>
             : <>
                 <div style={{ display:"flex", gap:8, marginBottom:showOfferEntry?8:10 }}>
-                  <button style={{ flex:1, padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#E87722", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
+                  <button style={{ flex:1, padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
                     Buy — ${item.price}
                   </button>
-                  <button style={{ flex:1, padding:"14px", borderRadius:8, border:"1.5px solid #E87722", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:showOfferEntry?"#E87722":"transparent", color:showOfferEntry?"#fff":"#E87722" }} onClick={()=>setShowOfferEntry(v=>!v)}>
+                  <button style={{ flex:1, padding:"14px", borderRadius:8, border:"1.5px solid #00B894", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:showOfferEntry?"#00B894":"transparent", color:showOfferEntry?"#fff":"#00B894" }} onClick={()=>setShowOfferEntry(v=>!v)}>
                     Make Offer
                   </button>
                 </div>
                 {showOfferEntry && (
-                  <div style={{ background:"#FFF5E6", border:"1.5px solid #E87722", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:"#E87722", marginBottom:8 }}>Your offer for "{item.title}"</div>
+                  <div style={{ background:"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:"#00B894", marginBottom:8 }}>Your offer for "{item.title}"</div>
                     <div style={{ display:"flex", gap:8 }}>
                       <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
-                        <span style={{ color:"#E87722", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
+                        <span style={{ color:"#00B894", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
                         <input value={offerEntry} onChange={e=>setOfferEntry(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>{ if(e.key==="Enter"&&offerEntry) { onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry)); }}} placeholder="Enter amount" type="number" autoFocus style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:C.text, fontWeight:700 }}/>
                       </div>
-                      <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#E87722":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
+                      <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
                         Send
                       </button>
                     </div>
@@ -1168,22 +1168,22 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         {!isMine && item.available && item.listingType==="both" && item.salePrice && (
           <>
             <div style={{ display:"flex", gap:8, marginTop:8, marginBottom:showOfferEntry?8:0 }}>
-              <button style={{ flex:1, padding:"12px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:"#E87722", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
+              <button style={{ flex:1, padding:"12px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:"#00B894", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
                 Buy — ${item.salePrice}
               </button>
-              <button style={{ flex:1, padding:"12px", borderRadius:8, border:"1.5px solid #E87722", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:showOfferEntry?"#E87722":"transparent", color:showOfferEntry?"#fff":"#E87722" }} onClick={()=>setShowOfferEntry(v=>!v)}>
+              <button style={{ flex:1, padding:"12px", borderRadius:8, border:"1.5px solid #00B894", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer", background:showOfferEntry?"#00B894":"transparent", color:showOfferEntry?"#fff":"#00B894" }} onClick={()=>setShowOfferEntry(v=>!v)}>
                 Make Offer
               </button>
             </div>
             {showOfferEntry && (
-              <div style={{ background:"#FFF5E6", border:"1.5px solid #E87722", borderRadius:10, padding:"12px 14px", marginTop:0 }}>
+              <div style={{ background:"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginTop:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:"#E87722", marginBottom:8 }}>Your offer for "{item.title}"</div>
                 <div style={{ display:"flex", gap:8 }}>
                   <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
-                    <span style={{ color:"#E87722", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
+                    <span style={{ color:"#00B894", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
                     <input value={offerEntry} onChange={e=>setOfferEntry(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>{ if(e.key==="Enter"&&offerEntry) { onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry)); }}} placeholder="Enter amount" type="number" autoFocus style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:C.text, fontWeight:700 }}/>
                   </div>
-                  <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#E87722":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
+                  <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
                     Send
                   </button>
                 </div>
@@ -5018,7 +5018,7 @@ export default function Lendie() {
                 ? [{ label:"Service", bg:"#7B61FF" }]
                 : [
                     ...(item.listingType==="rent"||item.listingType==="both" ? [{ label:"Rent", bg:"#00B894" }] : []),
-                    ...(item.listingType==="sale"||item.listingType==="both" ? [{ label:"For Sale", bg:"#E87722" }] : []),
+                    ...(item.listingType==="sale"||item.listingType==="both" ? [{ label:"For Sale", bg:"#00B894" }] : []),
                   ]
               ).map(b=>(
                 <div key={b.label} style={{ background:b.bg, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700, color:"#fff", letterSpacing:0.2 }}>
