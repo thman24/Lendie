@@ -1098,7 +1098,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
                   </button>
                 </div>
                 {showOfferEntry && (
-                  <div style={{ background:"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
+                  <div style={{ background: darkMode?"#0D2E26":"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:"#00B894", marginBottom:8 }}>Your offer for "{item.title}"</div>
                     <div style={{ display:"flex", gap:8 }}>
                       <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
@@ -1176,7 +1176,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
               </button>
             </div>
             {showOfferEntry && (
-              <div style={{ background:"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginTop:0 }}>
+              <div style={{ background: darkMode?"#0D2E26":"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginTop:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:"#E87722", marginBottom:8 }}>Your offer for "{item.title}"</div>
                 <div style={{ display:"flex", gap:8 }}>
                   <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
