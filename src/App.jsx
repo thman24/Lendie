@@ -38,7 +38,7 @@ function NotifIcon({ emoji, type, dark }) {
 
 function CatIcon({ id, size=14, strokeWidth=1.75 }) {
   const map = { all:LayoutGrid, tools:Wrench, trailers:Truck, construction:Hammer, kitchen:Utensils, garden:Leaf, outdoors:Compass, venues:Building2, party:Sparkles, tech:Monitor, other:Package,
-    svc_lawn:Leaf, svc_clean:Sparkles, svc_move:Truck, svc_handy:Hammer, svc_tech:Monitor, svc_other:Package };
+    svc_lawn:Leaf, svc_clean:Sparkles, svc_move:Truck, svc_handy:Hammer, svc_tech:Monitor, svc_venue:Building2, svc_other:Package };
   const Icon = map[id] || Tag;
   return <Icon size={size} strokeWidth={strokeWidth}/>;
 }
@@ -52,9 +52,10 @@ const SERVICE_CATS = [
   { id:"svc_move",  label:"Moving & Labor",emoji:"📦", icon:Truck },
   { id:"svc_handy", label:"Handyman",      emoji:"🛠️", icon:Hammer },
   { id:"svc_tech",  label:"Tech Help",     emoji:"💻", icon:Monitor },
+  { id:"svc_venue", label:"Venues",        emoji:"🏛️", icon:Building2 },
   { id:"svc_other", label:"Other",         emoji:"🧰", icon:Package },
 ];
-const SERVICE_CAT_LABELS = { svc_lawn:"Lawn & Yard", svc_clean:"Cleaning", svc_move:"Moving & Labor", svc_handy:"Handyman", svc_tech:"Tech Help", svc_other:"Other" };
+const SERVICE_CAT_LABELS = { svc_lawn:"Lawn & Yard", svc_clean:"Cleaning", svc_move:"Moving & Labor", svc_handy:"Handyman", svc_tech:"Tech Help", svc_venue:"Venues", svc_other:"Other" };
 // How a service's price unit reads on cards/detail.
 const SERVICE_UNIT_LABEL = { hour:"hr", visit:"visit", job:"job" };
 
@@ -258,7 +259,6 @@ const ALL_CATEGORIES = [
   { id:"kitchen",      label:"Kitchen",      emoji:"🍳" },
   { id:"garden",       label:"Garden",       emoji:"🌱" },
   { id:"outdoors",     label:"Outdoors",     emoji:"🏕️" },
-  { id:"venues",       label:"Venues",       emoji:"🏛️" },
   { id:"party",        label:"Party",        emoji:"🎉" },
   { id:"tech",         label:"Tech",         emoji:"💻" },
 ];
@@ -5019,20 +5019,20 @@ export default function Lendie() {
 
   const TABS = [
     ["all","For you"],["everything","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],
-    ["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],
+    ["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],
     ["party","Party"],["tech","Tech"],["other","Other"]
   ];
   const ALL_CATS = [
     {id:"tools",label:"Tools",emoji:"🔧",icon:Wrench},{id:"trailers",label:"Trailers",emoji:"🚛",icon:Truck},
     {id:"construction",label:"Equipment",emoji:"🏗️",icon:Hammer},{id:"kitchen",label:"Kitchen",emoji:"🍳",icon:Utensils},
     {id:"garden",label:"Garden",emoji:"🌱",icon:Leaf},{id:"outdoors",label:"Outdoors",emoji:"🏕️",icon:Compass},
-    {id:"venues",label:"Venues",emoji:"🏛️",icon:Building2},{id:"party",label:"Party",emoji:"🎉",icon:Sparkles},
+    {id:"party",label:"Party",emoji:"🎉",icon:Sparkles},
     {id:"tech",label:"Tech",emoji:"💻",icon:Monitor},{id:"other",label:"Other",emoji:"📦",icon:Package}
   ];
 
   // Category pills swap between item and service taxonomies based on the active tab.
-  const ITEM_PILLS = [["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["venues","Venues"],["party","Party"],["tech","Tech"],["other","Other"]];
-  const SERVICE_PILLS = [["all","All"],["svc_lawn","Lawn & Yard"],["svc_clean","Cleaning"],["svc_move","Moving"],["svc_handy","Handyman"],["svc_tech","Tech Help"],["svc_other","Other"]];
+  const ITEM_PILLS = [["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["party","Party"],["tech","Tech"],["other","Other"]];
+  const SERVICE_PILLS = [["all","All"],["svc_lawn","Lawn & Yard"],["svc_clean","Cleaning"],["svc_move","Moving"],["svc_handy","Handyman"],["svc_tech","Tech Help"],["svc_venue","Venues"],["svc_other","Other"]];
   const catPills = listingTypeFilter === "services" ? SERVICE_PILLS : ITEM_PILLS;
 
   const TypeFilterBar = () => (
