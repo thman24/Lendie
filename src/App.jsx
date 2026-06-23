@@ -947,8 +947,8 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             </span>
           )}
           {(item.listingType==="sale"||item.listingType==="both") && (
-            <span style={{ fontSize:11, fontWeight:700, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>
-              For Sale
+            <span style={{ fontSize:11, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:6, padding:"2px 7px", border:"1px solid #FFE0B2" }}>
+              Sale
             </span>
           )}
           {hasDelivery && !isService && <span style={{ fontSize:11, fontWeight:600, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>Delivery avail.</span>}
@@ -5018,7 +5018,7 @@ export default function Lendie() {
                 ? [{ label:"Service", bg:"#7B61FF" }]
                 : [
                     ...(item.listingType==="rent"||item.listingType==="both" ? [{ label:"Rent", bg:"#00B894" }] : []),
-                    ...(item.listingType==="sale"||item.listingType==="both" ? [{ label:"For Sale", bg:"#00B894" }] : []),
+                    ...(item.listingType==="sale"||item.listingType==="both" ? [{ label:"Sale", bg:"#E87722" }] : []),
                   ]
               ).map(b=>(
                 <div key={b.label} style={{ background:b.bg, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700, color:"#fff", letterSpacing:0.2 }}>
