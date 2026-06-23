@@ -5261,7 +5261,7 @@ export default function Lendie() {
             <nav style={{ display:"flex", gap:2, flex:1 }}>
               {[{id:"browse",label:"Browse"},{id:"listings",label:"My Items"},{id:"messages",label:"Inbox",badge:unreadMsgs},{id:"map",label:"Map"}].map(n=>(
                 <button key={n.id} className="lnav-btn" onClick={()=>{ setTab(n.id); if(activeConvo&&n.id!=="messages") setActiveConvo(null); }}
-                  style={{ position:"relative", background:tab===n.id?"#E8FBF6":"transparent", border:"none", borderRadius:8, padding:"8px 18px", cursor:"pointer", color:tab===n.id?"#00B894":"#65676B", fontWeight:tab===n.id?700:500, fontSize:14, fontFamily:"inherit", transition:"all 0.15s" }}>
+                  style={{ position:"relative", background:tab===n.id?(darkMode?"#00B894":"#E8FBF6"):"transparent", border:"none", borderRadius:8, padding:"8px 18px", cursor:"pointer", color:tab===n.id?(darkMode?"#fff":"#00B894"):"#8A8D91", fontWeight:tab===n.id?700:500, fontSize:14, fontFamily:"inherit", transition:"all 0.15s" }}>
                   {n.label}
                   {n.badge>0 && <span style={{ position:"absolute", top:4, right:6, background:"#FA3E3E", borderRadius:"50%", width:16, height:16, fontSize:9, display:"inline-flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff" }}>{n.badge}</span>}
                 </button>
@@ -5891,7 +5891,7 @@ export default function Lendie() {
                 onMouseEnter={()=>setConvoDeleteId(m.id)}
                 onMouseLeave={()=>setConvoDeleteId(null)}
                 onClick={()=>{ setActiveConvo(m); markConvoRead(m); }}
-                style={{ padding:"12px 16px", borderBottom:`1px solid ${C.borderFaint}`, display:"flex", gap:10, cursor:"pointer", alignItems:"center", background:activeConvo?.id===m.id?"#E8FBF6":C.card, position:"relative" }}>
+                style={{ padding:"12px 16px", borderBottom:`1px solid ${C.borderFaint}`, display:"flex", gap:10, cursor:"pointer", alignItems:"center", background:activeConvo?.id===m.id?(darkMode?"#0D2E26":"#E8FBF6"):C.card, position:"relative" }}>
                 <div style={{ width:44, height:44, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
                   {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:44, height:44, objectFit:"cover" }}/> : "👽"}
                 </div>
