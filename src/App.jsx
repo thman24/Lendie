@@ -2152,6 +2152,17 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             </div>
           );
         })}
+        {otherTyping && (
+          <div style={{ display:"flex", alignItems:"flex-end", gap:6, marginBottom:10 }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0, overflow:"hidden" }}>
+              {activeConvo.avatarUrl ? <img src={activeConvo.avatarUrl} alt="" style={{width:28,height:28,objectFit:"cover"}}/> : "👽"}
+            </div>
+            <div style={{ background:receivedBg, borderRadius:"18px 18px 18px 5px", padding:"10px 14px", display:"flex", gap:5, alignItems:"center" }}>
+              {[0,1,2].map(i=>(<div key={i} style={{ width:7, height:7, borderRadius:"50%", background:textMuted, animation:"typingDot 1.2s infinite", animationDelay:`${i*0.2}s` }}/>))}
+            </div>
+            <style>{`@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}`}</style>
+          </div>
+        )}
         <div ref={msgEndRef}/>
       </div>
 
@@ -2290,20 +2301,6 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
         </div>
       )}
 
-      {/* Typing indicator */}
-      {otherTyping && (
-        <div style={{ padding:"6px 16px 2px", display:"flex", alignItems:"center", gap:6, background:bg }}>
-          <div style={{ width:28, height:28, borderRadius:"50%", background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0, overflow:"hidden" }}>
-            {activeConvo.avatarUrl ? <img src={activeConvo.avatarUrl} alt="" style={{width:28,height:28,objectFit:"cover"}}/> : "👽"}
-          </div>
-          <div style={{ background:receivedBg, borderRadius:"18px 18px 18px 5px", padding:"10px 14px", display:"flex", gap:5, alignItems:"center" }}>
-            {[0,1,2].map(i=>(
-              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background:textMuted, animation:"typingDot 1.2s infinite", animationDelay:`${i*0.2}s` }}/>
-            ))}
-          </div>
-          <style>{`@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}`}</style>
-        </div>
-      )}
 
       {/* Offer input panel */}
       {showOfferInput && (
