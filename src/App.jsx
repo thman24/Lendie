@@ -6370,6 +6370,7 @@ export default function Lendie() {
               {/* Sign out */}
               <div style={{ display:"flex", flexDirection:"column", paddingBottom:40 }}>
                 <button onClick={async()=>{ await supabase.auth.signOut(); }} style={{ width:"100%", padding:"16px", border:"none", borderBottom:`1px solid ${C.border}`, fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:C.bg, color:"#FA3E3E" }}>Sign Out</button>
+                <button onClick={()=>{ const subject=encodeURIComponent('Lendie Feedback'); const body=encodeURIComponent(`\n\n— Sent from ${user?.email||'Lendie'} · v${typeof __BUILD_TS__ !== 'undefined' ? __BUILD_TS__ : 'dev'}`); window.location.href=`mailto:support@lendie.app?subject=${subject}&body=${body}`; }} style={{ width:"100%", padding:"16px", border:"none", borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:C.bg, color:"#00B894" }}>Give Feedback</button>
                 <button onClick={()=>setShowDeleteAccountModal(true)} style={{ width:"100%", padding:"14px", border:"none", fontFamily:"inherit", fontWeight:600, fontSize:13, cursor:"pointer", background:C.bg, color:"#8A8D91" }}>Delete Account</button>
                 <div style={{ display:"flex", justifyContent:"center", gap:16, paddingTop:12 }}>
                   <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.muted, textDecoration:"none" }}>Privacy Policy</a>
