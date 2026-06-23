@@ -2841,11 +2841,6 @@ export default function Lendie() {
   const [ownerProfileId, setOwnerProfileId] = useState(null);
   const [ownerProfileName, setOwnerProfileName] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
-    if (user.id === OWNER_ID) { setIsAdmin(true); return; }
-    supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle().then(({ data }) => setIsAdmin(!!data));
-  }, [user]);
   const [photoBrowser, setPhotoBrowser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
@@ -2905,6 +2900,11 @@ export default function Lendie() {
   const toastTimer = useRef(null);
   const msgEndRef = useRef(null);
   const [user, setUser] = useState(null);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    if (user.id === OWNER_ID) { setIsAdmin(true); return; }
+    supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle().then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
