@@ -923,7 +923,9 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
               const url = `${window.location.origin}/?item=${item.id}`;
               if (navigator.share) { navigator.share({ title: item.title, text: `Check out this listing on Lendie: ${item.title}`, url }); }
               else { navigator.clipboard?.writeText(url); }
-            }} style={{ background:"none", border:"none", fontSize:18, cursor:"pointer", padding:"0 2px", lineHeight:1 }} title="Share listing">🔗</button>
+            }} style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 5px", lineHeight:1, display:"flex", alignItems:"center" }} title="Share listing">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+            </button>
             <button onClick={()=>toggleFav(item.id)} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer" }}>{favorites.includes(item.id)?"❤️":"🤍"}</button>
           </div>
         </div>
