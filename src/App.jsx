@@ -3749,6 +3749,14 @@ export default function Lendie() {
   };
 
   const visibleMessages = useMemo(() => messages.filter(m => (!m.otherUserId || !blocks.includes(m.otherUserId)) && !(m.conversation_id && hiddenConvoIds.has(m.conversation_id))), [messages, blocks, hiddenConvoIds]);
+  // Most-recent-activity timestamp for a conversation — used to sort the inbox so
+  // the newest message is always at the top.
+  const convoTs = (m) => {
+    const last = m.thread?.length ? m.thread[m.thread.length - 1] : null;
+    const t = last?.created_at || m.time;
+    const parsed = t ? new Date(t).getTime() : NaN;
+    return isNaN(parsed) ? (m.id || 0) : parsed;
+  };
 
   // Incoming requests on my listings, surfaced in the inbox
   const ownerPendingReqs = bookingRequests.filter(r=>r.ownerId===user?.id && r.status==="pending" && r.dateStr!=="Offer");
@@ -5801,13 +5809,7 @@ export default function Lendie() {
                 <span style={{ fontSize:10, fontWeight:700, color:"#E87722", background:"#FFF4E6", borderRadius:6, padding:"1px 6px", flexShrink:0 }}>Request</span>
               </div>
             ))}
-            {user && [...visibleMessages].sort((a,b)=>{
-              if(a.unread!==b.unread) return (b.unread?1:0)-(a.unread?1:0);
-              const aNew=a.id>=1000,bNew=b.id>=1000;
-              if(aNew&&bNew) return b.id-a.id;
-              if(!aNew&&!bNew) return a.id-b.id;
-              return aNew?-1:1;
-            }).map(m=>(
+            {user && [...visibleMessages].sort((a,b)=>convoTs(b)-convoTs(a)).map(m=>(
               <div key={m.id}
                 onMouseEnter={()=>setConvoDeleteId(m.id)}
                 onMouseLeave={()=>setConvoDeleteId(null)}
@@ -5898,13 +5900,7 @@ export default function Lendie() {
                   </div>
                 </div>
               ))}
-              {[...visibleMessages].sort((a,b)=>{
-                if(a.unread!==b.unread) return (b.unread?1:0)-(a.unread?1:0);
-                const aNew=a.id>=1000,bNew=b.id>=1000;
-                if(aNew&&bNew) return b.id-a.id;
-                if(!aNew&&!bNew) return a.id-b.id;
-                return aNew?-1:1;
-              }).map((m,idx,arr)=>{
+              {[...visibleMessages].sort((a,b)=>convoTs(b)-convoTs(a)).map((m,idx,arr)=>{
                 const timeStr = typeof m.time==="string"&&m.time.includes("T")
                   ? new Date(m.time).toLocaleDateString([],{month:"short",day:"numeric"})
                   : m.time;
