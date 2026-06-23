@@ -155,10 +155,11 @@ export default function AdminPage() {
     </span>
   );
 
-  const ActionBtn = ({ label, variant='default', onClick }) => {
-    const c = variant === 'danger' ? '#FA3E3E' : variant === 'warn' ? '#E87722' : TX;
+  const ActionBtn = ({ label, variant='default', color, onClick, solid }) => {
+    // Note: colors must be 6-digit hex so the +alpha suffix stays valid.
+    const c = color || (variant === 'danger' ? '#FA3E3E' : variant === 'warn' ? '#E87722' : variant === 'primary' ? '#00B894' : '#9AA0A6');
     return (
-      <button onClick={onClick} style={{ padding:'4px 11px', borderRadius:6, border:`1px solid ${c}33`, background: c+'18', color: c, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
+      <button onClick={onClick} style={{ padding:'5px 12px', borderRadius:8, border:`1px solid ${c}55`, background: solid ? c : c+'1F', color: solid ? '#fff' : c, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
         {label}
       </button>
     );
@@ -476,9 +477,9 @@ export default function AdminPage() {
                     )}
                     {/* Actions */}
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      {r.status !== 'reviewed' && <ActionBtn label="✓ Mark Reviewed" onClick={() => updateReportStatus(r.id,'reviewed')}/>}
-                      {r.status !== 'dismissed' && <ActionBtn label="Dismiss" variant="warn" onClick={() => updateReportStatus(r.id,'dismissed')}/>}
-                      {r.reported_user_id && <ActionBtn label="View their listings" onClick={() => { setQ('listings', r.reported_user_id); setOpenSections(p => ({ ...p, listings: true, reports: false })); }}/>}
+                      {r.status !== 'reviewed' && <ActionBtn label="✓ Mark Reviewed" variant="primary" solid onClick={() => updateReportStatus(r.id,'reviewed')}/>}
+                      {r.reported_user_id && <ActionBtn label="View their listings" variant="primary" onClick={() => { setQ('listings', r.reported_user_id); setOpenSections(p => ({ ...p, listings: true, reports: false })); }}/>}
+                      {r.status !== 'dismissed' && <ActionBtn label="Dismiss" onClick={() => updateReportStatus(r.id,'dismissed')}/>}
                       {r.status !== 'pending' && <ActionBtn label="Reopen" onClick={() => updateReportStatus(r.id,'pending')}/>}
                     </div>
                   </div>
