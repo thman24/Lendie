@@ -9,6 +9,14 @@ const BD = '#222';
 const TX = '#fff';
 const MU = '#888';
 
+// Module-level so it isn't recreated on every render (which would drop input focus per keystroke).
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <input value={value} onChange={onChange} placeholder={placeholder}
+      style={{ width:'100%', padding:'10px 14px', background:S1, border:`1px solid ${BD}`, borderRadius:8, color:TX, fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}/>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed]     = useState(null);
   const [openSections, setOpenSections] = useState({ overview: true });
@@ -172,15 +180,6 @@ export default function AdminPage() {
     <tr><td colSpan={cols} style={{ padding:'40px 14px', textAlign:'center', color: MU, fontSize:13 }}>{msg}</td></tr>
   );
 
-  const SearchInput = ({ sectionId, placeholder }) => (
-    <input
-      value={searches[sectionId] || ''}
-      onChange={e => setQ(sectionId, e.target.value)}
-      placeholder={placeholder}
-      style={{ width:'100%', padding:'10px 14px', background: S1, border:`1px solid ${BD}`, borderRadius:8, color: TX, fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
-    />
-  );
-
   const SectionHeader = ({ id, label, badge }) => (
     <button onClick={() => toggle(id)} style={{
       width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -210,6 +209,8 @@ export default function AdminPage() {
   });
   const filteredReports = reports.filter(r => !q_reports || q_reports === 'all' || r.status === q_reports);
   const userName = (id) => (users.find(u => u.id === id)?.name) || (id ? id.slice(0, 8) + '…' : '—');
+  // Open a user's public profile in the main app (new tab so admin stays open).
+  const openUser = (id, name) => { if (id) window.open(`/?owner=${encodeURIComponent(id)}&oname=${encodeURIComponent(name || '')}`, '_blank', 'noopener'); };
   const reportStatusMeta = (s) => s === 'pending' ? { c:'#FA3E3E', l:'Pending' } : s === 'reviewed' ? { c:'#00B894', l:'Reviewed' } : { c:'#8A8D91', l: s === 'dismissed' ? 'Dismissed' : (s || 'Unknown') };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -284,7 +285,7 @@ export default function AdminPage() {
         {isOpen('users') && (
           <div>
             <div style={{ padding:'12px 16px' }}>
-              <SearchInput sectionId="users" placeholder="Search users…" />
+              <SearchInput value={searches.users || ""} onChange={e => setQ("users", e.target.value)} placeholder="Search users…" />
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -300,11 +301,12 @@ export default function AdminPage() {
                   {filteredUsers.map(u => (
                     <tr key={u.id} style={{ background: u.id === ADMIN_ID ? G+'0A' : 'transparent' }}>
                       <TD>
-                        <div style={{ fontWeight:600 }}>{u.name}
+                        <div style={{ fontWeight:600 }}>
+                          <span onClick={() => openUser(u.id, u.name)} style={{ color:G, cursor:'pointer', textDecoration:'underline', textDecorationColor:G+'66' }} title="Open profile">{u.name}</span>
                           {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
                         </div>
                       </TD>
-                      <TD mono muted style={{ fontSize:11 }}>{u.id}</TD>
+                      <TD mono muted style={{ fontSize:11 }}><span onClick={() => openUser(u.id, u.name)} style={{ cursor:'pointer', textDecoration:'underline', textDecorationColor:'#555' }} title="Open profile">{u.id}</span></TD>
                       <TD>{u.listingCount}</TD>
                       <TD>{u.bookingCount}</TD>
                       <TD muted style={{ fontSize:11 }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '—'}</TD>
@@ -332,7 +334,7 @@ export default function AdminPage() {
         {isOpen('listings') && (
           <div>
             <div style={{ padding:'12px 16px' }}>
-              <SearchInput sectionId="listings" placeholder="Search listings…" />
+              <SearchInput value={searches.listings || ""} onChange={e => setQ("listings", e.target.value)} placeholder="Search listings…" />
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -464,9 +466,9 @@ export default function AdminPage() {
                     </div>
                     {/* Who reported whom */}
                     <div style={{ fontSize:13, color:TX, marginBottom:8, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                      <span style={{ fontWeight:600 }}>{userName(r.reporter_id)}</span>
+                      <span onClick={() => openUser(r.reporter_id, userName(r.reporter_id))} style={{ fontWeight:600, color:G, cursor:'pointer', textDecoration:'underline', textDecorationColor:G+'66' }}>{userName(r.reporter_id)}</span>
                       <span style={{ color:MU }}>reported</span>
-                      <span style={{ fontWeight:600 }}>{userName(r.reported_user_id)}</span>
+                      <span onClick={() => openUser(r.reported_user_id, userName(r.reported_user_id))} style={{ fontWeight:600, color: r.reported_user_id ? G : MU, cursor: r.reported_user_id ? 'pointer' : 'default', textDecoration: r.reported_user_id ? 'underline' : 'none', textDecorationColor:G+'66' }}>{userName(r.reported_user_id)}</span>
                     </div>
                     {/* Full details */}
                     {r.details && (

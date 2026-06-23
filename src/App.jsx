@@ -656,16 +656,15 @@ function ReportModal({ target, user, onClose, darkMode }) {
 }
 
 // OwnerProfileModal
-function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage, user, onReport, isBlocked, onBlock, onUnblock, darkMode }) {
+function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage, user, onReport, isBlocked, onBlock, onUnblock, darkMode, fallbackName }) {
   const C = darkMode ? { bg:'#000000', card:'#1C1C1E', border:'#2C2C2E', borderFaint:'#242426', text:'#F2F2F7', muted:'#AEAEB2', faint:'#8E8E93', inputBg:'#2C2C2E' } : { bg:'#fff', card:'#fff', border:'#E4E6EB', borderFaint:'#F0F2F5', text:'#1C1E21', muted:'#65676B', faint:'#8A8D91', inputBg:'#fff' };
   if (!ownerId) return null;
   const owned = allItems.filter(i => i.ownerId === ownerId);
-  if (!owned.length) return null;
   const first = owned[0];
-  const ownerName = first.owner || 'Neighbor';
+  const ownerName = first?.owner || fallbackName || 'Neighbor';
   const firstName = ownerName.split(" ")[0];
-  const ownerAvatar = first.ownerAvatar || '👽';
-  const ownerAvatarUrl = first.ownerAvatarUrl || null;
+  const ownerAvatar = first?.ownerAvatar || '👽';
+  const ownerAvatarUrl = first?.ownerAvatarUrl || null;
   const totalReviews = owned.reduce((s, i) => s + (i.reviews || 0), 0);
   const avgRating = totalReviews > 0
     ? Math.round(owned.reduce((s, i) => s + (i.rating || 0) * (i.reviews || 0), 0) / totalReviews * 10) / 10
@@ -730,6 +729,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
         {/* Listings */}
         <div style={{ padding:"16px 16px 8px" }}>
           <div style={{ fontSize:13, fontWeight:600, color:C.faint, textTransform:"uppercase", letterSpacing:0.5, marginBottom:10 }}>{firstName}'s Listings</div>
+          {owned.length === 0 && <div style={{ padding:"16px", textAlign:"center", color:C.faint, fontSize:13 }}>No public listings yet</div>}
           {owned.map((item, idx) => (
             <div key={item.id} onClick={()=>{ onSelectItem(item); onClose(); }}
               style={{ display:"flex", gap:12, alignItems:"center", padding:"12px 14px", cursor:"pointer", background:C.card, borderRadius:14, marginBottom:8, boxShadow: darkMode?"0 1px 6px rgba(0,0,0,0.3)":"0 1px 6px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)" }}>
@@ -2838,6 +2838,7 @@ export default function Lendie() {
   const [cardName, setCardName] = useState("");
   const [payMethod, setPayMethod] = useState("card");
   const [ownerProfileId, setOwnerProfileId] = useState(null);
+  const [ownerProfileName, setOwnerProfileName] = useState(null);
   const [photoBrowser, setPhotoBrowser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
@@ -2968,6 +2969,15 @@ export default function Lendie() {
     if (tabParam && ["browse","listings","messages","map","profile"].includes(tabParam)) {
       setTab(tabParam);
       params.delete('tab');
+      window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params.toString() : ''));
+    }
+    // ?owner=<id>&oname=<name> — opens a user's profile (used by the admin page).
+    const ownerParam = params.get('owner');
+    if (ownerParam) {
+      setOwnerProfileId(ownerParam);
+      const oname = params.get('oname');
+      if (oname) { try { setOwnerProfileName(decodeURIComponent(oname)); } catch { setOwnerProfileName(oname); } }
+      params.delete('owner'); params.delete('oname');
       window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params.toString() : ''));
     }
     // Notification taps while the app is already open arrive as SW messages
@@ -6583,8 +6593,9 @@ export default function Lendie() {
       <OwnerProfileModal
         ownerId={ownerProfileId}
         allItems={allItems}
-        onClose={()=>setOwnerProfileId(null)}
-        onSelectItem={item=>{ setSelectedItem(item); setOwnerProfileId(null); }}
+        fallbackName={ownerProfileName}
+        onClose={()=>{ setOwnerProfileId(null); setOwnerProfileName(null); }}
+        onSelectItem={item=>{ setSelectedItem(item); setOwnerProfileId(null); setOwnerProfileName(null); }}
         user={user}
         onReport={()=>{ const owned=allItems.filter(i=>i.ownerId===ownerProfileId); const name=owned[0]?.owner||'Unknown'; openReport(ownerProfileId?.startsWith('anon-')?null:ownerProfileId, name, 'profile'); }}
         isBlocked={blocks.includes(ownerProfileId)}
