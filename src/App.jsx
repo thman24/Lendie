@@ -843,8 +843,8 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
   const hasDelivery = !!deliveryAmenity;
 
   const sheetStyle = isDesktop
-    ? { background:C.card, borderRadius:16, padding:"28px 28px 36px", width:"100%", maxWidth:620, maxHeight:"90vh", overflowY:"auto", overscrollBehavior:"contain", position:"relative", boxShadow:"0 8px 40px rgba(0,0,0,0.22)" }
-    : { background:C.card, borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", borderTop:`1px solid ${C.border}`, overscrollBehavior:"contain",
+    ? { background:C.card, borderRadius:16, padding:"28px 28px 36px", width:"100%", maxWidth:620, maxHeight:"90vh", overflowY:"auto", overflowX:"hidden", overscrollBehavior:"contain", position:"relative", boxShadow:"0 8px 40px rgba(0,0,0,0.22)" }
+    : { background:C.card, borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxHeight:"90dvh", overflowY:"auto", overflowX:"hidden", borderTop:`1px solid ${C.border}`, overscrollBehavior:"contain",
         transform: "translateY("+dragY+"px) translateX("+(dragX*0.35)+"px)",
         transition: dragging?"none":"transform 0.32s cubic-bezier(0.32,0.72,0,1), opacity 0.2s",
         animation: dragY===0&&dragX===0?"slideUp 0.32s cubic-bezier(0.32,0.72,0,1)":"none",
@@ -973,7 +973,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
           </div>
         )}
 
-        {item.description && <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:14 }}>{item.description}</div>}
+        {item.description && <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:14, overflowWrap:"anywhere", wordBreak:"break-word" }}>{item.description}</div>}
 
         {item.amenities && item.amenities.length > 0 && (
           <div style={{ marginBottom:14 }}>
