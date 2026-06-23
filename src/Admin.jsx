@@ -125,9 +125,10 @@ export default function AdminPage() {
   const updateReportStatus = async (id, status) => {
     const { error } = await supabase.from('reports').update({ status }).eq('id', id);
     if (error) { showToast('Update failed: ' + error.message, 'error'); return; }
-    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    if (status !== 'pending') setStats(s => ({ ...s, reports: Math.max(0, s.reports - 1) }));
-    showToast(status === 'reviewed' ? 'Marked as reviewed' : 'Report dismissed');
+    const next = reports.map(r => r.id === id ? { ...r, status } : r);
+    setReports(next);
+    setStats(s => ({ ...s, reports: next.filter(r => r.status === 'pending').length }));
+    showToast(status === 'reviewed' ? 'Marked as reviewed' : status === 'dismissed' ? 'Report dismissed' : 'Report reopened');
   };
 
   if (authed === null) return (
@@ -208,6 +209,8 @@ export default function AdminPage() {
     return b.renter_name?.toLowerCase().includes(q_bookings) || b.item_title?.toLowerCase().includes(q_bookings);
   });
   const filteredReports = reports.filter(r => !q_reports || q_reports === 'all' || r.status === q_reports);
+  const userName = (id) => (users.find(u => u.id === id)?.name) || (id ? id.slice(0, 8) + '…' : '—');
+  const reportStatusMeta = (s) => s === 'pending' ? { c:'#FA3E3E', l:'Pending' } : s === 'reviewed' ? { c:'#00B894', l:'Reviewed' } : { c:'#8A8D91', l: s === 'dismissed' ? 'Dismissed' : (s || 'Unknown') };
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -443,44 +446,43 @@ export default function AdminPage() {
                 );
               })}
             </div>
-            <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse' }}>
-                <thead><tr>
-                  <TH>Reporter</TH>
-                  <TH>Reported</TH>
-                  <TH>Context</TH>
-                  <TH>Reason</TH>
-                  <TH>Details</TH>
-                  <TH>Date</TH>
-                  <TH>Status</TH>
-                  <TH>Actions</TH>
-                </tr></thead>
-                <tbody>
-                  {filteredReports.map(r => (
-                    <tr key={r.id}>
-                      <TD mono muted style={{ fontSize:11 }}>{r.reporter_id?.slice(0,8)}…</TD>
-                      <TD mono muted style={{ fontSize:11 }}>{r.reported_user_id ? r.reported_user_id.slice(0,8)+'…' : '—'}</TD>
-                      <TD><span style={{ background: G+'22', color: G, borderRadius:20, padding:'2px 8px', fontSize:11, fontWeight:700 }}>{r.context}</span></TD>
-                      <TD><span style={{ fontWeight:600 }}>{r.reason}</span></TD>
-                      <TD muted style={{ maxWidth:180 }}><span style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{r.details || '—'}</span></TD>
-                      <TD muted style={{ fontSize:11 }}>{new Date(r.created_at).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</TD>
-                      <TD>
-                        <span style={{ background:(r.status==='pending'?'#E87722':r.status==='reviewed'?'#00B894':'#555')+'33', color:r.status==='pending'?'#E87722':r.status==='reviewed'?'#00B894':'#888', borderRadius:20, padding:'3px 9px', fontSize:11, fontWeight:700 }}>
-                          {r.status}
-                        </span>
-                      </TD>
-                      <TD>
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                          {r.status === 'pending' && <ActionBtn label="Reviewed" onClick={() => updateReportStatus(r.id,'reviewed')}/>}
-                          {r.status !== 'dismissed' && <ActionBtn label="Dismiss" variant="warn" onClick={() => updateReportStatus(r.id,'dismissed')}/>}
-                          {r.reported_user_id && <ActionBtn label="View Listings" onClick={() => { setQ('listings', r.reported_user_id); setOpenSections(p => ({ ...p, listings: true, reports: false })); }}/>}
+            <div style={{ padding:'0 16px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+              {filteredReports.map(r => {
+                const sm = reportStatusMeta(r.status);
+                return (
+                  <div key={r.id} style={{ background:S1, border:`1px solid ${r.status==='pending' ? '#FA3E3E55' : BD}`, borderRadius:12, padding:'14px 16px' }}>
+                    {/* Top: reason + status */}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:8 }}>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:700, color:TX }}>{r.reason || 'Report'}</div>
+                        <div style={{ fontSize:12, color:MU, marginTop:2, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                          <span style={{ background:G+'22', color:G, borderRadius:5, padding:'1px 7px', fontSize:11, fontWeight:700, textTransform:'capitalize' }}>{r.context}</span>
+                          <span>{new Date(r.created_at).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</span>
                         </div>
-                      </TD>
-                    </tr>
-                  ))}
-                  {reports.length === 0 && <Empty cols={8} msg="No reports submitted yet" />}
-                </tbody>
-              </table>
+                      </div>
+                      <span style={{ background:sm.c+'22', color:sm.c, borderRadius:20, padding:'4px 11px', fontSize:11, fontWeight:800, whiteSpace:'nowrap', flexShrink:0 }}>{sm.l}</span>
+                    </div>
+                    {/* Who reported whom */}
+                    <div style={{ fontSize:13, color:TX, marginBottom:8, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                      <span style={{ fontWeight:600 }}>{userName(r.reporter_id)}</span>
+                      <span style={{ color:MU }}>reported</span>
+                      <span style={{ fontWeight:600 }}>{userName(r.reported_user_id)}</span>
+                    </div>
+                    {/* Full details */}
+                    {r.details && (
+                      <div style={{ background:BG, border:`1px solid ${BD}`, borderRadius:8, padding:'10px 12px', fontSize:13, color:'#D1D1D6', lineHeight:1.5, marginBottom:12, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{r.details}</div>
+                    )}
+                    {/* Actions */}
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {r.status !== 'reviewed' && <ActionBtn label="✓ Mark Reviewed" onClick={() => updateReportStatus(r.id,'reviewed')}/>}
+                      {r.status !== 'dismissed' && <ActionBtn label="Dismiss" variant="warn" onClick={() => updateReportStatus(r.id,'dismissed')}/>}
+                      {r.reported_user_id && <ActionBtn label="View their listings" onClick={() => { setQ('listings', r.reported_user_id); setOpenSections(p => ({ ...p, listings: true, reports: false })); }}/>}
+                      {r.status !== 'pending' && <ActionBtn label="Reopen" onClick={() => updateReportStatus(r.id,'pending')}/>}
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredReports.length === 0 && <div style={{ padding:'24px 16px', textAlign:'center', color:MU, fontSize:13 }}>{reports.length === 0 ? 'No reports submitted yet' : 'No reports in this filter'}</div>}
             </div>
           </div>
         )}
