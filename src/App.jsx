@@ -2083,23 +2083,23 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:m.mine?"flex-end":"flex-start", maxWidth:"75%" }}>
                 {isOfferMsg ? (
-                  <div style={{ background: m.mine ? "#FFF0E6" : darkMode?"#2C2416":"#FFF5E6", border:"1.5px solid #E87722", borderRadius:14, padding:"12px 14px", minWidth:180 }}>
-                    <div style={{ fontSize:11, fontWeight:700, color:"#E87722", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>💸 Offer</div>
-                    <div style={{ fontSize:22, fontWeight:800, color:"#E87722", marginBottom:4 }}>${offerAmt}</div>
+                  <div style={{ background: darkMode ? "#1F1F21" : "#F6FBF9", border:`1px solid ${darkMode ? "#2E4A40" : "#CDEFE2"}`, borderRadius:16, padding:"11px 13px", minWidth:200 }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:2 }}>Offer</div>
+                    <div style={{ fontSize:24, fontWeight:800, color:textPrimary, marginBottom: m.mine ? 2 : 9 }}>${offerAmt}</div>
                     {!m.mine && (
-                      <div style={{ display:"flex", gap:5, marginTop:6 }}>
-                        <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:`1px solid ${border}`, background:"transparent", color:textMuted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                           Decline
                         </button>
-                        <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"7px 0", borderRadius:8, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                        <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid #00B894", background:"transparent", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                           Counter
                         </button>
-                        <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1.2, padding:"7px 0", borderRadius:8, border:"none", background:"#E87722", color:"#fff", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                          Accept ${offerAmt}
+                        <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1.1, padding:"8px 0", borderRadius:9, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                          Accept
                         </button>
                       </div>
                     )}
-                    {m.mine && <div style={{ fontSize:12, color:"#E87722", marginTop:4, opacity:0.8 }}>Awaiting response…</div>}
+                    {m.mine && <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>Awaiting response…</div>}
                   </div>
                 ) : m.image ? (
                   <div style={{ display:"flex", flexDirection:"column", alignItems:m.mine?"flex-end":"flex-start", gap: (m.text && m.text !== "📷 Photo") ? 4 : 0 }}>
@@ -2202,7 +2202,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           {/* Compact header + title + date on one line */}
           <div style={{ display:"flex", alignItems:"baseline", gap:7, marginBottom:8, flexWrap:"wrap" }}>
             <span style={{ fontSize:10.5, fontWeight:700, color: pendingReq.item?.listingType==="service" ? "#7B61FF" : "#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>
-              {pendingReq.dateStr==="Purchase" ? "🛒 Purchase" : pendingReq.dateStr==="Offer" ? "💸 Offer" : pendingReq.item?.listingType==="service" ? "🧰 Service" : "📬 Rental"}
+              {pendingReq.dateStr==="Purchase" ? "Purchase" : pendingReq.dateStr==="Offer" ? "Offer" : pendingReq.item?.listingType==="service" ? "Service" : "Rental"}
             </span>
             <span style={{ fontSize:13, color:textPrimary, fontWeight:600 }}>
               {pendingReq.item?.title}
@@ -2225,11 +2225,11 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"none", background: darkMode?"#3A3A3C":"#E4E6EB", color:textPrimary, fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 Decline
               </button>
-              <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                💸 Counter
+              <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid #00B894", background:"transparent", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                Counter
               </button>
               {latestReceivedAmt && (
-                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1.2, padding:"8px 0", borderRadius:9, border:"none", background:"#E87722", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                <button onClick={()=>onAcceptOffer&&onAcceptOffer(latestReceivedAmt)} style={{ flex:1.2, padding:"8px 0", borderRadius:9, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                   Accept ${latestReceivedAmt}
                 </button>
               )}
@@ -2277,11 +2277,11 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
 
       {/* Offer input panel */}
       {showOfferInput && (
-        <div style={{ background: darkMode?"#1C1C1E":"#FFF5E6", borderTop:`1px solid #E87722`, padding:"10px 14px", flexShrink:0 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#E87722", marginBottom:8 }}>💸 Submit an offer</div>
+        <div style={{ background: darkMode?"#1C1C1E":"#F6FBF9", borderTop:`1px solid ${darkMode ? "#2E4A40" : "#CDEFE2"}`, padding:"10px 14px", flexShrink:0 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#00B894", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>{latestReceivedAmt ? "Counter offer" : "Submit an offer"}</div>
           <div style={{ display:"flex", gap:8 }}>
-            <div style={{ flex:1, display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:"1.5px solid #E87722", borderRadius:22, padding:"8px 14px" }}>
-              <span style={{ color:"#E87722", fontWeight:700, marginRight:4 }}>$</span>
+            <div style={{ flex:1, display:"flex", alignItems:"center", background: darkMode?"#2C2C2E":"#fff", border:"1.5px solid #00B894", borderRadius:22, padding:"8px 14px" }}>
+              <span style={{ color:"#00B894", fontWeight:700, marginRight:4 }}>$</span>
               <input
                 value={offerInputAmt}
                 onChange={e=>setOfferInputAmt(e.target.value.replace(/[^0-9.]/g,""))}
@@ -2292,7 +2292,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                 style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:textPrimary, fontWeight:700 }}
               />
             </div>
-            <button onClick={sendOffer} disabled={!offerInputAmt} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerInputAmt?"#E87722":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerInputAmt?"pointer":"default", fontFamily:"inherit" }}>
+            <button onClick={sendOffer} disabled={!offerInputAmt} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerInputAmt?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerInputAmt?"pointer":"default", fontFamily:"inherit" }}>
               Send
             </button>
             <button onClick={()=>setShowOfferInput(false)} style={{ padding:"0 12px", borderRadius:22, border:`1px solid ${border}`, background:"none", color:textMuted, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
@@ -2311,8 +2311,8 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
         </button>
         {!showOfferInput && offerable && (
-          <button onClick={()=>setShowOfferInput(true)} style={{ height:34, padding:"0 12px", borderRadius:22, border:"1.5px solid #E87722", background:"transparent", color:"#E87722", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0, marginBottom:3, fontFamily:"inherit", whiteSpace:"nowrap" }}>
-            💸 {latestReceivedAmt ? "Counter" : "Offer"}
+          <button onClick={()=>setShowOfferInput(true)} style={{ height:34, padding:"0 14px", borderRadius:22, border:"1.5px solid #00B894", background:"transparent", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0, marginBottom:3, fontFamily:"inherit", whiteSpace:"nowrap" }}>
+            {latestReceivedAmt ? "Counter" : "Offer"}
           </button>
         )}
         <div style={{ flex:1, background:inputBg, border:"1.5px solid #00B894", borderRadius:22, padding:"9px 14px", display:"flex", alignItems:"center", minHeight:40 }}>
