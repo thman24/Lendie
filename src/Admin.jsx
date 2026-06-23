@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState([]);
   const [reports, setReports]   = useState([]);
   const [searches, setSearches] = useState({});
+  const [expandedUserId, setExpandedUserId] = useState(null);
   const [toast, setToast]       = useState(null);
   const [loading, setLoading]   = useState(false);
 
@@ -299,28 +300,75 @@ export default function AdminPage() {
                   <TH>Actions</TH>
                 </tr></thead>
                 <tbody>
-                  {filteredUsers.map(u => (
-                    <tr key={u.id} style={{ background: u.id === ADMIN_ID ? G+'0A' : 'transparent' }}>
-                      <TD>
-                        <div style={{ fontWeight:600 }}>
-                          <span onClick={() => openUser(u.id, u.name)} style={{ color:G, cursor:'pointer', textDecoration:'underline', textDecorationColor:G+'66' }} title="Open profile">{u.name}</span>
-                          {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
-                        </div>
-                      </TD>
-                      <TD mono muted style={{ fontSize:11 }}><span onClick={() => openUser(u.id, u.name)} style={{ cursor:'pointer', textDecoration:'underline', textDecorationColor:'#555' }} title="Open profile">{u.id}</span></TD>
-                      <TD>{u.listingCount}</TD>
-                      <TD>{u.bookingCount}</TD>
-                      <TD muted style={{ fontSize:11 }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '—'}</TD>
-                      <TD>
-                        {u.id !== ADMIN_ID && (
-                          <div style={{ display:'flex', gap:6 }}>
-                            <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>
-                            <ActionBtn label="Delete"  variant="danger" onClick={deleteUser}/>
+                  {filteredUsers.map(u => {
+                    const expanded = expandedUserId === u.id;
+                    const uListings   = listings.filter(l => l.user_id === u.id);
+                    const asRenter    = bookings.filter(b => b.renter_id === u.id);
+                    const asOwner     = bookings.filter(b => b.owner_id === u.id);
+                    const allBookings = [...asRenter.map(b=>({...b,_role:'renter'})), ...asOwner.map(b=>({...b,_role:'owner'}))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+                    const repAgainst  = reports.filter(r => r.reported_user_id === u.id);
+                    const repBy       = reports.filter(r => r.reporter_id === u.id);
+                    const Block = ({ title, count, children }) => (
+                      <div>
+                        <div style={{ fontSize:11, fontWeight:700, color:MU, textTransform:'uppercase', letterSpacing:0.6, marginBottom:6 }}>{title}{count!=null?` (${count})`:''}</div>
+                        {children}
+                      </div>
+                    );
+                    const Line = ({ left, right }) => (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'7px 10px', background:S1, border:`1px solid ${BD}`, borderRadius:8, marginBottom:6, fontSize:13 }}>
+                        <span style={{ color:TX, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{left}</span>
+                        <span style={{ color:MU, fontSize:12, whiteSpace:'nowrap', flexShrink:0 }}>{right}</span>
+                      </div>
+                    );
+                    const None = () => <div style={{ fontSize:12, color:MU, padding:'2px 0 4px' }}>None</div>;
+                    return [
+                      <tr key={u.id} style={{ background: expanded ? G+'12' : (u.id === ADMIN_ID ? G+'0A' : 'transparent') }}>
+                        <TD>
+                          <div style={{ fontWeight:600 }}>
+                            <span onClick={() => openUser(u.id, u.name)} style={{ color:G, cursor:'pointer', textDecoration:'underline', textDecorationColor:G+'66' }} title="Open profile">{u.name}</span>
+                            {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
                           </div>
-                        )}
-                      </TD>
-                    </tr>
-                  ))}
+                        </TD>
+                        <TD mono muted style={{ fontSize:11 }}><span onClick={() => openUser(u.id, u.name)} style={{ cursor:'pointer', textDecoration:'underline', textDecorationColor:'#555' }} title="Open profile">{u.id}</span></TD>
+                        <TD>{u.listingCount}</TD>
+                        <TD>{u.bookingCount}</TD>
+                        <TD muted style={{ fontSize:11 }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '—'}</TD>
+                        <TD>
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                            <ActionBtn label={expanded ? 'Hide' : 'Details'} variant="primary" solid={expanded} onClick={() => setExpandedUserId(expanded ? null : u.id)}/>
+                            {u.id !== ADMIN_ID && <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>}
+                            {u.id !== ADMIN_ID && <ActionBtn label="Delete"  variant="danger" onClick={deleteUser}/>}
+                          </div>
+                        </TD>
+                      </tr>,
+                      expanded ? (
+                        <tr key={u.id + '_d'}>
+                          <td colSpan={6} style={{ padding:0, background:BG, borderBottom:`2px solid ${G}44` }}>
+                            <div style={{ padding:'12px 16px 18px', display:'flex', flexDirection:'column', gap:16 }}>
+                              {repAgainst.length > 0 && <div style={{ fontSize:12, fontWeight:700, color:'#FA3E3E', background:'#FA3E3E18', border:'1px solid #FA3E3E44', borderRadius:8, padding:'7px 11px' }}>⚠️ {repAgainst.length} report{repAgainst.length>1?'s':''} filed against this user</div>}
+                              <Block title="Listings" count={uListings.length}>
+                                {uListings.length === 0 ? <None/> : uListings.map(l => (
+                                  <Line key={l.id} left={l.title} right={`$${l.price}${l.listing_type!=='sale'?`/${l.price_unit||'day'}`:''} · ${l.available?'Live':'Hidden'}`}/>
+                                ))}
+                              </Block>
+                              <Block title="Bookings" count={allBookings.length}>
+                                {allBookings.length === 0 ? <None/> : allBookings.slice(0,10).map(b => (
+                                  <Line key={b.id+b._role} left={b.item_title || 'Booking'} right={`as ${b._role} · ${b.date_str || '—'} · ${b.status}`}/>
+                                ))}
+                                {allBookings.length > 10 && <div style={{ fontSize:12, color:MU }}>+{allBookings.length-10} more</div>}
+                              </Block>
+                              <Block title="Reports" count={`${repAgainst.length} against · ${repBy.length} by`}>
+                                {repAgainst.length === 0 && repBy.length === 0 ? <None/> : <>
+                                  {repAgainst.map(r => <Line key={'a'+r.id} left={`${r.reason} (against)`} right={`by ${userName(r.reporter_id)} · ${r.status}`}/>)}
+                                  {repBy.map(r => <Line key={'b'+r.id} left={`${r.reason} (filed by them)`} right={`vs ${userName(r.reported_user_id)} · ${r.status}`}/>)}
+                                </>}
+                              </Block>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null,
+                    ];
+                  })}
                   {filteredUsers.length === 0 && <Empty cols={6} msg={q_users ? `No users matching "${q_users}"` : 'No users found'} />}
                 </tbody>
               </table>
