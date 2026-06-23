@@ -2950,19 +2950,7 @@ export default function Lendie() {
   }, [dismissedBanner]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      // If the account was suspended, refreshing the session fails (403) — kick
-      // them out even if they reload while their old token is still valid.
-      if (session) {
-        const { error } = await supabase.auth.refreshSession();
-        if (error && (error.status === 403 || /ban|suspend/i.test(error.message || ''))) {
-          await supabase.auth.signOut();
-          setUser(null);
-          setAuthLoading(false);
-          alert('Your Lendie account has been suspended. Please contact support if you think this is a mistake.');
-          return;
-        }
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
       // Detect email confirmation landing (token_hash in URL)
