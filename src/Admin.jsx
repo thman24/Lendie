@@ -129,7 +129,26 @@ export default function AdminPage() {
     showToast(`${name} suspended — ${pending.length} pending request(s) cancelled`);
   };
 
-  const deleteUser = () => showToast('User deletion requires the Supabase dashboard (auth.users is not accessible via anon key)', 'error');
+  const deleteUser = async (u) => {
+    if (!window.confirm(`Permanently delete ${u.name}? This removes their account and all their listings, and cancels their pending bookings. This cannot be undone.`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showToast('Not signed in', 'error'); return; }
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-delete-user`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setUsers(prev => prev.filter(x => x.id !== u.id));
+      setListings(prev => prev.filter(l => l.user_id !== u.id));
+      setStats(s => ({ ...s, users: Math.max(0, s.users - 1) }));
+      showToast(`${u.name} deleted`);
+    } catch (e) {
+      showToast(e.message || 'Delete failed', 'error');
+    }
+  };
 
   const updateReportStatus = async (id, status) => {
     const { error } = await supabase.from('reports').update({ status }).eq('id', id);
@@ -337,7 +356,7 @@ export default function AdminPage() {
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                             <ActionBtn label={expanded ? 'Hide' : 'Details'} variant="primary" solid={expanded} onClick={() => setExpandedUserId(expanded ? null : u.id)}/>
                             {u.id !== ADMIN_ID && <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>}
-                            {u.id !== ADMIN_ID && <ActionBtn label="Delete"  variant="danger" onClick={deleteUser}/>}
+                            {u.id !== ADMIN_ID && <ActionBtn label="Delete"  variant="danger" onClick={() => deleteUser(u)}/>}
                           </div>
                         </TD>
                       </tr>,
