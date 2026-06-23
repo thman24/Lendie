@@ -1854,7 +1854,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
   const textPrimary = darkMode ? "#F2F2F7" : "#1C1E21";
   const textMuted   = darkMode ? "#AEAEB2" : "#65676B";
   const receivedBg  = darkMode ? "#2C2C2E" : "#E9E9EB";
-  const sentBg      = "#007AFF";
+  const sentBg      = "#00B894";
   // The message field pill sits one shade above the input bar.
   const inputBg     = darkMode ? "#2C2C2E" : "#FFFFFF";
   const inputBorder = darkMode ? "#3A3A3C" : "#E4E6EB";
@@ -2031,8 +2031,8 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       <div style={{ background:headerBg, backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`0.5px solid ${border}`, display:"flex", flexDirection:"column", alignItems:"center", padding:"10px 0 8px", position:"relative", flexShrink:0 }}>
         {/* Back button */}
         {!isDesktop && (
-          <button onClick={()=>setActiveConvo(null)} style={{ position:"absolute", left:8, bottom:10, display:"flex", alignItems:"center", gap:2, background:"none", border:"none", color:"#007AFF", fontSize:16, fontWeight:400, cursor:"pointer", padding:"4px 8px" }}>
-            <svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M8 1L1 8l7 7" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <button onClick={()=>setActiveConvo(null)} style={{ position:"absolute", left:8, bottom:10, display:"flex", alignItems:"center", gap:2, background:"none", border:"none", color:"#00B894", fontSize:16, fontWeight:400, cursor:"pointer", padding:"4px 8px" }}>
+            <svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M8 1L1 8l7 7" stroke="#00B894" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Back
           </button>
         )}
@@ -2328,7 +2328,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:15, fontFamily:"inherit", color:textPrimary }}
           />
         </div>
-        <button onClick={sendMsg} disabled={!chatMsg.trim()} style={{ width:34, height:34, borderRadius:"50%", border:"none", background:chatMsg.trim()?"#007AFF":"transparent", color:chatMsg.trim()?"#fff":textMuted, cursor:chatMsg.trim()?"pointer":"default", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s", marginBottom:3 }}>
+        <button onClick={sendMsg} disabled={!chatMsg.trim()} style={{ width:34, height:34, borderRadius:"50%", border:"none", background:chatMsg.trim()?"#00B894":"transparent", color:chatMsg.trim()?"#fff":textMuted, cursor:chatMsg.trim()?"pointer":"default", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s", marginBottom:3 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
         </button>
       </div>
