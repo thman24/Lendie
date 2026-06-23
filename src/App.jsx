@@ -1,10 +1,40 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle } from "lucide-react";
+import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper } from "lucide-react";
 import { supabase } from './supabase';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
 const OWNER_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+
+// Maps a notification's legacy emoji (and falls back on its type) to a clean
+// Lucide icon + brand color, so the bell panel looks native instead of using
+// the OS emoji glyphs.
+const NOTIF_ICON_MAP = {
+  "✅": { Icon: CheckCircle2, color: "#00B894" },
+  "🎉": { Icon: PartyPopper,  color: "#00B894" },
+  "💰": { Icon: DollarSign,   color: "#00B894" },
+  "💸": { Icon: DollarSign,   color: "#00B894" },
+  "❌": { Icon: XCircle,      color: "#FA3E3E" },
+  "↩️": { Icon: RotateCcw,    color: "#007AFF" },
+  "⏳": { Icon: Clock,        color: "#E87722" },
+  "🛒": { Icon: ShoppingCart, color: "#E87722" },
+  "🧰": { Icon: Wrench,       color: "#7B61FF" },
+  "📬": { Icon: Inbox,        color: "#007AFF" },
+};
+function NotifIcon({ emoji, type, dark }) {
+  let m = NOTIF_ICON_MAP[emoji];
+  if (!m) {
+    if (type === 'declined' || type === 'cancel') m = { Icon: XCircle, color: "#FA3E3E" };
+    else if (type === 'request') m = { Icon: Bell, color: "#E87722" };
+    else m = { Icon: CheckCircle2, color: "#00B894" };
+  }
+  const I = m.Icon;
+  return (
+    <div style={{ width:34, height:34, borderRadius:"50%", background: m.color + (dark ? "26" : "1F"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      <I size={18} strokeWidth={2} color={m.color} />
+    </div>
+  );
+}
 
 function CatIcon({ id, size=14, strokeWidth=1.75 }) {
   const map = { all:LayoutGrid, tools:Wrench, trailers:Truck, construction:Hammer, kitchen:Utensils, garden:Leaf, outdoors:Compass, venues:Building2, party:Sparkles, tech:Monitor, other:Package,
@@ -4162,7 +4192,7 @@ export default function Lendie() {
       let initialText;
       if (paymentModal?.existingBookingId) {
         // Already in conversation — just confirm payment
-        initialText = `✅ Payment confirmed!${dateStr ? ` See you on ${dateStr}.` : ' Looking forward to it.'}`;
+        initialText = `✅ Payment confirmed!`;
       } else if (stripeData?.bookingDbId) {
         initialText = `Hi! I've paid and would like to rent "${item.title}"`;
         if (dateStr) initialText += ` for ${dateStr}`;
@@ -5205,7 +5235,7 @@ export default function Lendie() {
                 setShowNotifs(false);
               }}
               style={{ display:"flex", gap:11, padding:"11px 12px", borderBottom:`1px solid ${C.borderFaint}`, alignItems:"flex-start", cursor:"pointer", background: n.unread ? (darkMode ? "rgba(0,184,148,0.15)" : "rgba(0,184,148,0.09)") : "transparent" }}>
-              <div style={{ width:34, height:34, borderRadius:"50%", background:C.borderFaint, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{n.icon}</div>
+              <NotifIcon emoji={n.icon} type={n.type} dark={darkMode} />
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:n.unread?700:500, color:C.text }}>{n.text}</div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{n.sub}</div>
