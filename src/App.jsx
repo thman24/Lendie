@@ -1847,13 +1847,16 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
   if (!activeConvo) return null;
   const [showMenu, setShowMenu] = useState(false);
   const bg        = darkMode ? "#000000" : "#ffffff";
-  const headerBg  = darkMode ? "rgba(0,0,0,0.95)"  : "rgba(255,255,255,0.95)";
+  // Header + input bar sit one shade above the conversation area so they read as
+  // distinct layers instead of blending into the message background.
+  const headerBg  = darkMode ? "#1A1A1C" : "#F2F3F5";
   const border    = darkMode ? "#2C2C2E" : "#E4E6EB";
   const textPrimary = darkMode ? "#F2F2F7" : "#1C1E21";
   const textMuted   = darkMode ? "#AEAEB2" : "#65676B";
   const receivedBg  = darkMode ? "#2C2C2E" : "#E9E9EB";
   const sentBg      = "#007AFF";
-  const inputBg     = darkMode ? "#1C1C1E" : "#F2F2F7";
+  // The message field pill sits one shade above the input bar.
+  const inputBg     = darkMode ? "#2C2C2E" : "#FFFFFF";
   const inputBorder = darkMode ? "#3A3A3C" : "#E4E6EB";
 
   // Typing indicator state
