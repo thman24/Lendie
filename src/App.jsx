@@ -5984,7 +5984,7 @@ export default function Lendie() {
             {activeConvo
               ? <ChatView activeConvo={activeConvo} setActiveConvo={setActiveConvo} chatMsg={chatMsg} setChatMsg={setChatMsg} messages={messages} setMessages={setMessages} msgEndRef={msgEndRef} user={user} onSend={handleSendMessage} isDesktop={true} profilePhotoUrl={profilePhotoUrl} onReport={()=>openReport(activeConvo?.otherUserId, activeConvo?.from, 'message')} isBlocked={blocks.includes(activeConvo?.otherUserId)} onBlock={()=>blockUser(activeConvo?.otherUserId)} onUnblock={()=>unblockUser(activeConvo?.otherUserId)} darkMode={darkMode} bookingRequests={bookingRequests} onAccept={handleAcceptRequest} onDecline={handleDeclineRequest} onCheckout={handleChatCheckout} onCancelRequest={handleCancelRequest} onOwnerCancel={handleOwnerCancelBooking} onAcceptOffer={handleAcceptOffer} onDeclineOffer={handleDeclineOffer} allItems={allItems}/>
               : <div style={{ height:"calc(100vh - 64px)", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:C.muted, gap:12 }}>
-                  <div style={{ fontSize:48 }}>💬</div>
+                  <MessageCircle size={52} strokeWidth={1.5} color={C.faint}/>
                   <div style={{ fontSize:16, fontWeight:700, color:C.text }}>Select a conversation</div>
                   <div style={{ fontSize:13 }}>Choose from your messages on the left</div>
                 </div>
