@@ -4538,7 +4538,7 @@ export default function Lendie() {
 
     const requesterName = user?.user_metadata?.name || 'Someone';
     const whenText = start ? ` for ${dateStr}` : '';
-    const initialText = `Hi! I'd like to book your "${item.title}" service ($${item.price}/${unit})${whenText}. Are you available? Here's what I need: `;
+    const initialText = `Hi! I'd like to book your "${item.title}" service ($${item.price}/${unit})${whenText}. Are you available?`;
     sendItemMessage(item.ownerId, item.owner || "Provider", item.ownerAvatarUrl, item.title, "Service", initialText);
     sendPushToUser(item.ownerId, { title: 'New service request', body: `${requesterName} wants to book ${item.title}${whenText}`, url: '/?tab=messages', tag: `svc-req-${data?.id || reqId}` });
     sendEmail(item.ownerId, `New service request — ${item.title}`,
