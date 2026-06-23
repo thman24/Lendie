@@ -5725,7 +5725,7 @@ export default function Lendie() {
                               </div>
                             </div>
                           ))}
-                          <div onClick={openNewListing} style={{ background:"#E8FBF6", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, height:220, cursor:"pointer", color:"#00B894", border:"2px dashed #00B89440" }}>
+                          <div onClick={openNewListing} style={{ background:"transparent", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, height:220, cursor:"pointer", color:"#00B894", border:"2px dashed #00B89440" }}>
                             <div style={{ width:48, height:48, borderRadius:"50%", background:"#00B89420", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:26, lineHeight:1 }}>+</span></div>
                             <span style={{ fontSize:13, fontWeight:700 }}>New Listing</span>
                           </div>
