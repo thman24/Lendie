@@ -5273,7 +5273,7 @@ export default function Lendie() {
                 <>
                   <button style={{ background:"transparent", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} onClick={()=>setShowFavOnly(f=>!f)} title={showFavOnly?"Show all":"Favorites only"}><Heart size={18} strokeWidth={1.75} color={showFavOnly?"#FA3E3E":C.muted} fill={showFavOnly?"#FA3E3E":"none"}/></button>
                   <button style={{ position:"relative", background:"transparent", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} onClick={()=>setShowNotifs(true)}>
-                    <Bell size={18} strokeWidth={1.75} color="#1C1E21"/>
+                    <Bell size={18} strokeWidth={1.75} color={C.text}/>
                     {unreadNotifs>0&&<div style={{ position:"absolute", top:-1, right:-1, background:"#FA3E3E", borderRadius:"50%", minWidth:16, height:16, padding:"0 4px", fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, border:"2px solid #fff", boxSizing:"border-box" }}>{unreadNotifs}</div>}
                   </button>
                   <div onClick={()=>setTab("profile")} style={{ width:36, height:36, borderRadius:"50%", background:"#00B894", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#fff", fontWeight:800, cursor:"pointer", overflow:"hidden", flexShrink:0 }}>
