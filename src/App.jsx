@@ -6382,8 +6382,8 @@ export default function Lendie() {
                                 <div style={{ padding:"16px", background:C.bg }}>
                                   <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, marginBottom:14 }}>
                                     {connectStatus?.connected
-                                      ? "Complete your Stripe verification to start receiving rental payments directly to your bank or debit card."
-                                      : "Connect a bank account or debit card to receive rental payments. Stripe handles all verification and transfers."}
+                                      ? "Complete your Stripe verification to start receiving payments directly to your bank or debit card."
+                                      : "Connect a bank account or debit card to receive payments. Stripe handles all verification and transfers."}
                                   </div>
                                   <button onClick={setupStripeConnect} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer" }}>
                                     {connectStatus?.connected ? "Continue Setup" : "Set Up Payouts"}
