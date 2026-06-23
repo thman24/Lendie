@@ -153,6 +153,13 @@ export default function AdminPage() {
       const { bannedUntil } = await callAdmin('admin-suspend-user', 'suspend', { userId: u.id, durationHours: days ? days * 24 : null });
       setSuspended(prev => ({ ...prev, [u.id]: bannedUntil || 'indefinite' }));
       setListings(prev => prev.map(l => l.user_id === u.id ? { ...l, available: false } : l));
+      // Instant kick: if they're online, force-logout their open session now.
+      try {
+        const ch = supabase.channel(`account-${u.id}`);
+        await new Promise(resolve => { ch.subscribe(s => { if (s === 'SUBSCRIBED') resolve(); }); setTimeout(resolve, 2500); });
+        await ch.send({ type: 'broadcast', event: 'suspended', payload: {} });
+        setTimeout(() => supabase.removeChannel(ch), 1500);
+      } catch { /* best effort */ }
       showToast(`${u.name} suspended${days ? ` for ${days} day${days>1?'s':''}` : ' indefinitely'}`);
     } catch (e) { showToast(e.message || 'Suspend failed', 'error'); }
   };

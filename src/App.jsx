@@ -2943,7 +2943,19 @@ export default function Lendie() {
   }, [dismissedBanner]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // If the account was suspended, refreshing the session fails (403) — kick
+      // them out even if they reload while their old token is still valid.
+      if (session) {
+        const { error } = await supabase.auth.refreshSession();
+        if (error && (error.status === 403 || /ban|suspend/i.test(error.message || ''))) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setAuthLoading(false);
+          alert('Your Lendie account has been suspended. Please contact support if you think this is a mistake.');
+          return;
+        }
+      }
       setUser(session?.user ?? null);
       setAuthLoading(false);
       // Detect email confirmation landing (token_hash in URL)
@@ -2961,6 +2973,20 @@ export default function Lendie() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Instant force-logout: admin broadcasts on the user's account channel when suspended.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase.channel(`account-${user.id}`)
+      .on('broadcast', { event: 'suspended' }, async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+        alert('Your Lendie account has been suspended.');
+        window.location.reload();
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [user]);
 
   // Deep links: ?tab=messages (push notification taps) and ?item=<id> (shared listings)
   useEffect(() => {
