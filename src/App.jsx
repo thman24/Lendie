@@ -5185,8 +5185,17 @@ export default function Lendie() {
             </div>
             {/* Payment method */}
             <div style={{ fontWeight:700, fontSize:13, color:C.text, marginBottom:10 }}>Select payment method</div>
+            {STRIPE_KEY ? (
+              <button style={{ width:"100%", padding:"14px", borderRadius:10, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8 }} onClick={() => setShowStripeModal(true)}>
+                <CreditCard size={17} strokeWidth={2.25}/>Pay with Card · ${allIn.toFixed(2)}
+              </button>
+            ) : (
+              <button disabled style={{ width:"100%", padding:"14px", borderRadius:10, border:`1px dashed ${C.border}`, fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"default", background:C.card, color:C.faint, marginBottom:10, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <CreditCard size={17} strokeWidth={2.25}/>Credit/debit payments coming soon
+              </button>
+            )}
             <button
-              style={{ width:"100%", padding:"14px", borderRadius:10, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 }}
+              style={{ width:"100%", padding:"14px", borderRadius:10, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#007AFF", color:"#fff", marginBottom:10, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8 }}
               onClick={async () => {
                 dismiss();
                 const reqs = bookingRequests.filter(r => r.item?.title === item.title && r.renterId === user?.id && r.status === 'accepted');
@@ -5215,17 +5224,8 @@ export default function Lendie() {
                 }
               }}
             >
-              💵 Pay with Cash · ${total.toFixed(2)}
+              <DollarSign size={17} strokeWidth={2.25}/>Pay with Cash · ${total.toFixed(2)}
             </button>
-            {STRIPE_KEY ? (
-              <button style={{ width:"100%", padding:"14px", borderRadius:10, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#007AFF", color:"#fff", marginBottom:10 }} onClick={() => setShowStripeModal(true)}>
-                💳 Pay with Card · ${allIn.toFixed(2)}
-              </button>
-            ) : (
-              <button disabled style={{ width:"100%", padding:"14px", borderRadius:10, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"default", background:C.card, color:C.faint, marginBottom:10, border:`1px dashed ${C.border}` }}>
-                💳 Credit/debit payments coming soon
-              </button>
-            )}
             <button style={S.gBtn} onClick={dismiss}>Cancel</button>
           </div>
         </div>
