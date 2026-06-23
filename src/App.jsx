@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper } from "lucide-react";
+import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper, Ban } from "lucide-react";
 import { supabase } from './supabase';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
@@ -319,6 +319,40 @@ function linkify(text, linkColor = "#00B894") {
     }
     return <span key={i}>{part}</span>;
   });
+}
+
+// Known emoji that system/auto messages prefix their text with. In chat we
+// strip the leading glyph and render a matching inline Lucide icon instead, so
+// bubbles look native rather than showing OS emoji art.
+const CHAT_EMOJI = {
+  "✅": { Icon: CheckCircle2, color: "#00B894" },
+  "💸": { Icon: DollarSign,   color: "#00B894" },
+  "🎉": { Icon: PartyPopper,  color: "#00B894" },
+  "🧰": { Icon: Wrench,       color: "#7B61FF" },
+  "🛒": { Icon: ShoppingCart, color: "#E87722" },
+  "🚫": { Icon: Ban,          color: "#FA3E3E" },
+  "❌": { Icon: XCircle,      color: "#FA3E3E" },
+  "↩️": { Icon: RotateCcw,    color: "#007AFF" },
+};
+// Render a chat message: pull a leading known emoji into an inline Lucide icon,
+// then linkify the rest. `mine` tints the icon white so it stays visible on the
+// green sent bubble.
+function renderMsg(text, mine) {
+  if (!text) return text;
+  let str = String(text), lead = null;
+  for (const e of Object.keys(CHAT_EMOJI)) {
+    if (str.startsWith(e)) { lead = e; str = str.slice(e.length).replace(/^\s+/, ""); break; }
+  }
+  const meta = lead ? CHAT_EMOJI[lead] : null;
+  const linkColor = mine ? "#EAF7F2" : "#00B894";
+  const iconColor = mine ? "#EAF7F2" : meta?.color;
+  const I = meta?.Icon;
+  return (
+    <>
+      {I && <I size={15} strokeWidth={2.25} color={iconColor} style={{ display:"inline", verticalAlign:"-2.5px", marginRight:5 }} />}
+      {linkify(str, linkColor)}
+    </>
+  );
 }
 
 // Noun for a transaction in user-facing copy: service / offer / purchase / rental.
@@ -2168,13 +2202,13 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                     </a>
                     {m.text && m.text !== "📷 Photo" && (
                       <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word", whiteSpace:"pre-wrap" }}>
-                        {linkify(m.text, m.mine ? "#EAF7F2" : "#00B894")}
+                        {renderMsg(m.text, m.mine)}
                       </div>
                     )}
                   </div>
                 ) : (
                   <div style={{ background:m.mine?sentBg:receivedBg, color:m.mine?"#fff":textPrimary, borderRadius:br, padding:"9px 13px", fontSize:15, lineHeight:1.4, wordBreak:"break-word", whiteSpace:"pre-wrap" }}>
-                    {linkify(m.text, m.mine ? "#EAF7F2" : "#00B894")}
+                    {renderMsg(m.text, m.mine)}
                   </div>
                 )}
                 {groupLast && <div style={{ fontSize:11, color:textMuted, marginTop:3 }}>{m.time}</div>}
@@ -2199,7 +2233,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       {/* Checkout card — visible to renter after owner accepts */}
       {ownerAcceptedReq && !pendingReq && (
         <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <span style={{ fontSize:10.5, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>✅ Accepted</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}><CheckCircle2 size={13} strokeWidth={2.5} color="#00B894"/>Accepted</span>
           <span style={{ flex:1, fontSize:13, color:textPrimary, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
             {ownerAcceptedReq.item?.title}
             {ownerAcceptedReq.dateStr && ownerAcceptedReq.dateStr!=="Purchase" && !ownerAcceptedReq.dateStr?.startsWith("Offer") && <span style={{ color:textMuted, fontWeight:400 }}> · {ownerAcceptedReq.dateStr}</span>}
