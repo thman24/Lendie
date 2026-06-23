@@ -2756,11 +2756,15 @@ function PasswordResetModal({ show, onDone, darkMode }) {
 
 function SecurityModal({ show, user, onClose, darkMode }) {
   const _C = darkMode ? { card:'#1C1C1E', border:'#2C2C2E', text:'#F2F2F7', muted:'#AEAEB2', faint:'#8E8E93', inputBg:'#2C2C2E' } : { card:'#fff', border:'#E4E6EB', text:'#1C1E21', muted:'#65676B', faint:'#8A8D91', inputBg:'#fff' };
+  const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
+  const [busyName, setBusyName] = useState(false);
   const [busyEmail, setBusyEmail] = useState(false);
   const [busyPw, setBusyPw] = useState(false);
+  const [nameMsg, setNameMsg] = useState("");
+  const [nameErr, setNameErr] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
   const [emailErr, setEmailErr] = useState("");
   const [pwMsg, setPwMsg] = useState("");
@@ -2768,10 +2772,27 @@ function SecurityModal({ show, user, onClose, darkMode }) {
 
   // Start each open with a clean slate (component stays mounted between opens)
   useEffect(() => {
-    if (show) { setNewEmail(""); setPw(""); setPw2(""); setEmailMsg(""); setEmailErr(""); setPwMsg(""); setPwErr(""); }
+    if (show) { setNewName(user?.user_metadata?.name || ""); setNewEmail(""); setPw(""); setPw2(""); setNameMsg(""); setNameErr(""); setEmailMsg(""); setEmailErr(""); setPwMsg(""); setPwErr(""); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show]);
 
   if (!show) return null;
+
+  const updateName = async () => {
+    setNameErr(""); setNameMsg("");
+    const n = newName.trim();
+    if (n.length < 2) { setNameErr("Name must be at least 2 characters"); return; }
+    if (n === (user?.user_metadata?.name || "")) { setNameErr("That's already your display name"); return; }
+    setBusyName(true);
+    const { error } = await supabase.auth.updateUser({ data: { name: n } });
+    if (!error && user?.id) {
+      // Propagate to existing listings so they show the new name right away.
+      await supabase.from('listings').update({ owner_name: n }).eq('user_id', user.id);
+    }
+    setBusyName(false);
+    if (error) { setNameErr(error.message); return; }
+    setNameMsg("Display name updated.");
+  };
 
   const updateEmail = async () => {
     setEmailErr(""); setEmailMsg("");
@@ -2809,6 +2830,16 @@ function SecurityModal({ show, user, onClose, darkMode }) {
       <div style={{ background:_C.card, borderRadius:18, padding:24, maxWidth:400, width:"100%", maxHeight:"90dvh", overflowY:"auto", boxShadow:"0 8px 40px rgba(0,0,0,0.18)" }} onClick={e=>e.stopPropagation()}>
         <div style={{ fontSize:19, fontWeight:800, color:_C.text, textAlign:"center", marginBottom:4 }}>Login & Security</div>
         <div style={{ fontSize:12, color:_C.muted, textAlign:"center", marginBottom:20 }}>Signed in as {user?.email}</div>
+
+        {/* Display name */}
+        <div style={{ fontSize:13, fontWeight:800, color:_C.muted, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:10 }}>Display Name</div>
+        <label style={lbl}>The name shown on your listings and messages</label>
+        <input style={inp} type="text" placeholder="Your name" value={newName} onChange={e=>setNewName(e.target.value)} autoComplete="name" onKeyDown={e=>e.key==="Enter"&&updateName()}/>
+        {nameErr && <div style={errBox}>{nameErr}</div>}
+        {nameMsg && <div style={okBox}>{nameMsg}</div>}
+        <button onClick={updateName} disabled={busyName} style={btn(busyName)}>{busyName ? "Saving…" : "Update Name"}</button>
+
+        <div style={{ height:1, background:_C.border, margin:"22px 0" }}/>
 
         {/* Change email */}
         <div style={{ fontSize:13, fontWeight:800, color:_C.muted, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:10 }}>Change Email</div>
