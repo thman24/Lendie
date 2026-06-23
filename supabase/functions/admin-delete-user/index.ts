@@ -40,11 +40,17 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Remove their listings from the marketplace (no FK cascade on listings.user_id).
+    // Fully scrub their footprint. The admin "users" list is DERIVED from
+    // listings + bookings, so these rows must be deleted (not just cancelled) or
+    // the user reappears on refresh. Each is best-effort (ignore unknown-column
+    // errors across schema variations) — the auth delete below is the hard part.
     await admin.from('listings').delete().eq('user_id', userId);
-    // Cancel any of their still-pending bookings so the other party isn't left hanging.
-    await admin.from('booking_requests').update({ status: 'cancelled' })
-      .or(`renter_id.eq.${userId},owner_id.eq.${userId}`).eq('status', 'pending');
+    await admin.from('booking_requests').delete().or(`renter_id.eq.${userId},owner_id.eq.${userId}`);
+    await admin.from('messages').delete().or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`);
+    await admin.from('reports').delete().or(`reporter_id.eq.${userId},reported_user_id.eq.${userId}`);
+    await admin.from('blocks').delete().or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+    await admin.from('notifications').delete().eq('user_id', userId);
+    await admin.from('push_subscriptions').delete().eq('user_id', userId);
 
     // Delete the auth account (profiles cascade via FK). Ignore "not found" so a
     // listing-only / anon record still cleans up the marketplace side.
