@@ -4236,7 +4236,7 @@ export default function Lendie() {
       const priceStr = quotedCents != null ? `$${(quotedCents/100).toFixed(2)}` : `$${req.item?.price}`;
       autoText = `Quoted ${priceStr} for "${req.item?.title}"${req.dateStr && req.dateStr !== "Service" ? ` on ${req.dateStr}` : ""}. Go ahead and complete payment to lock it in!`;
     } else if (req.dateStr === "Purchase") {
-      autoText = `Sale confirmed! Go ahead and complete payment — I'll arrange handoff once it's received.`;
+      autoText = `Sale confirmed! Let's arrange payment and handoff.`;
     } else if (req.wantsDelivery) {
       const feeStr = req.deliveryFee ? ` (delivery fee: $${req.deliveryFee})` : "";
       autoText = `Approved! Delivery is all arranged${feeStr} — go ahead and complete payment and we'll see you then!`;
@@ -4349,7 +4349,7 @@ export default function Lendie() {
     const convId = activeConvo?.conversation_id;
     const createdAt = new Date().toISOString();
     const acceptText = isOwner
-      ? `Offer of $${offerAmount} accepted! Go ahead and complete payment — I'll arrange handoff once received.`
+      ? `Offer of $${offerAmount} accepted! Let's arrange payment and handoff.`
       : `Counter offer of $${offerAmount} accepted! I'll complete payment now.`;
     const acceptMsgObj = { mine: true, text: acceptText, time: 'Just now', created_at: createdAt };
     setMessages(prev => prev.map(m => m.conversation_id === convId ? { ...m, thread: [...(m.thread || []), acceptMsgObj] } : m));
