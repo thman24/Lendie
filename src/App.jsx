@@ -388,22 +388,24 @@ function PhotoBrowserModal({ data, onClose, darkMode }) {
   const all = imgs.length > 0 ? imgs : (data.photos||[]).map(p=>({ t:"emoji", s:p }));
   if (!all.length) return null;
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:900, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:card, borderRadius:16, overflow:"hidden", border:`1px solid ${border}`, maxWidth:380, width:"92%" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ height:280, display:"flex", alignItems:"center", justifyContent:"center", background:card, position:"relative" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:900, display:"flex", alignItems:"center", justifyContent:"center", padding:16, boxSizing:"border-box" }} onClick={onClose}>
+      {/* Close button — top right */}
+      <button onClick={onClose} style={{ position:"absolute", top:14, right:16, width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.5)", color:"#fff", fontSize:22, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>×</button>
+      <div style={{ background:card, borderRadius:16, overflow:"hidden", border:`1px solid ${border}`, width:"100%", maxWidth:1000, maxHeight:"94vh", display:"flex", flexDirection:"column" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ flex:1, minHeight:0, display:"flex", alignItems:"center", justifyContent:"center", background:"#000", position:"relative" }}>
           {all[idx].t==="img"
-            ? <img src={all[idx].s} alt="" style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
-            : <span style={{ fontSize:80 }}>{all[idx].s}</span>}
+            ? <img src={all[idx].s} alt="" style={{ maxWidth:"100%", maxHeight:"100%", width:"auto", height:"auto", objectFit:"contain", display:"block" }}/>
+            : <span style={{ fontSize:140 }}>{all[idx].s}</span>}
           {all.length > 1 && (
-            <div style={{ position:"absolute", bottom:10, left:0, right:0, display:"flex", justifyContent:"center", gap:6 }}>
-              {all.map((_,i) => <div key={i} onClick={e=>{e.stopPropagation();setIdx(i);}} style={{ width:i===idx?20:8, height:8, borderRadius:4, background:i===idx?"#00B894":"rgba(255,255,255,0.5)", cursor:"pointer", transition:"all 0.2s" }}/>)}
+            <div style={{ position:"absolute", bottom:12, left:0, right:0, display:"flex", justifyContent:"center", gap:6 }}>
+              {all.map((_,i) => <div key={i} onClick={e=>{e.stopPropagation();setIdx(i);}} style={{ width:i===idx?20:8, height:8, borderRadius:4, background:i===idx?"#00B894":"rgba(255,255,255,0.6)", cursor:"pointer", transition:"all 0.2s" }}/>)}
             </div>
           )}
         </div>
-        <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 16px", borderTop:`1px solid ${border}` }}>
-          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{ background:"none", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:text, opacity:idx===0?0.3:1 }} disabled={idx===0}>&larr;</button>
-          <span style={{ fontSize:12, color:muted, alignSelf:"center" }}>{idx+1} / {all.length}</span>
-          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(all.length-1,i+1));}} style={{ background:"none", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, color:text, opacity:idx===all.length-1?0.3:1 }} disabled={idx===all.length-1}>&rarr;</button>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderTop:`1px solid ${border}`, flexShrink:0 }}>
+          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{ background:"none", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:18, color:text, opacity:idx===0?0.3:1 }} disabled={idx===0}>&larr;</button>
+          <span style={{ fontSize:13, color:muted }}>{idx+1} / {all.length}</span>
+          <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(all.length-1,i+1));}} style={{ background:"none", border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:18, color:text, opacity:idx===all.length-1?0.3:1 }} disabled={idx===all.length-1}>&rarr;</button>
         </div>
       </div>
     </div>
