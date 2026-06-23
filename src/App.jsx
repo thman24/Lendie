@@ -5566,7 +5566,6 @@ export default function Lendie() {
                     <span style={{ fontSize:13, color:"#00B894" }}>· {radius}mi</span>
                     <span style={{ fontSize:11, color:"#65676B" }}>{showLocationPicker ? "▲" : "▼"}</span>
                   </div>
-                  {user && <button style={{ background:"#fff", border:"none", borderRadius:"50%", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }} onClick={()=>setShowFavOnly(f=>!f)}>{showFavOnly?"❤️":"🤍"}</button>}
                 </div>
               </div>
               {/* Search + radius + sort row */}
