@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper, Ban } from "lucide-react";
+import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper, Ban, CreditCard } from "lucide-react";
 import { supabase } from './supabase';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
@@ -2247,7 +2247,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       {acceptedReq && !pendingReq && (
         <div style={{ background: darkMode?"#1C1C1E":"#F2F2F7", borderTop:`0.5px solid ${border}`, padding:"8px 14px", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"baseline", gap:7, marginBottom:7, flexWrap:"wrap" }}>
-            <span style={{ fontSize:10.5, fontWeight:700, color:"#007AFF", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap" }}>💳 Payment</span>
+            <span style={{ fontSize:10.5, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}><CreditCard size={13} strokeWidth={2.25} color="#00B894"/>Payment</span>
             <span style={{ fontSize:13, fontWeight:600, color:textPrimary }}>
               {acceptedReq.item?.title}
               {acceptedReq.dateStr && acceptedReq.dateStr!=="Purchase" && !acceptedReq.dateStr?.startsWith("Offer") && <span style={{ color:textMuted, fontWeight:400 }}> · {acceptedReq.dateStr}</span>}
@@ -2290,7 +2290,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               );
             })()}
           </div>
-          <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"10px 0", borderRadius:10, border:"none", background:"#007AFF", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"10px 0", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
             Checkout →
           </button>
           {onCancelRequest && (
