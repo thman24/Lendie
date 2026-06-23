@@ -5766,7 +5766,7 @@ export default function Lendie() {
 
                 {/* Currently Renting */}
                 <div style={{ borderBottom:`1px solid ${C.border}` }}>
-                  <SecHeader id="active" label="Currently Renting" count={activeRentals.length} accent="#00B894"/>
+                  <SecHeader id="active" label="Current Transactions" count={activeRentals.length} accent="#00B894"/>
                   {isOpen("active") && <div>
                     {activeRentals.length===0
                       ? <div style={emptyStyle}>No active rentals</div>
