@@ -1574,7 +1574,7 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
         <div style={{ display:"flex", alignItems:"flex-start", gap:7, background: darkMode?"#1A1A1C":"#F2F3F5", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
           <DollarSign size={15} strokeWidth={2.25} color="#00B894" style={{ flexShrink:0, marginTop:1 }}/>
           <div style={{ fontSize:12, color:C.muted, lineHeight:1.45 }}>
-            On card payments, Lendie keeps a <strong style={{ color:C.text }}>4% service fee</strong> from your payout (the customer pays a separate 8%). <strong style={{ color:C.text }}>Cash payments are fee-free.</strong>
+On card payments, Lendie keeps a <strong style={{ color:C.text }}>4% service fee</strong> from your payout.
           </div>
         </div>
         <div style={S.fg}>
