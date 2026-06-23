@@ -919,9 +919,14 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
               Service
             </span>
           )}
+          {!isService && (item.listingType==="rent"||item.listingType==="both") && (
+            <span style={{ fontSize:11, fontWeight:700, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>
+              Rent
+            </span>
+          )}
           {(item.listingType==="sale"||item.listingType==="both") && (
             <span style={{ fontSize:11, fontWeight:700, color:"#E87722", background:"#FFF3E0", borderRadius:6, padding:"2px 7px", border:"1px solid #FFE0B2" }}>
-              {item.listingType==="sale"?"For Sale":"Rent or Buy"}
+              For Sale
             </span>
           )}
           {hasDelivery && !isService && <span style={{ fontSize:11, fontWeight:600, color:"#00B894", background:"#E8FBF6", borderRadius:6, padding:"2px 7px", border:"1px solid #B2EFE3" }}>Delivery avail.</span>}
@@ -4956,15 +4961,19 @@ export default function Lendie() {
             <button style={{ position:"absolute", top:8, right:8, background:"rgba(255,255,255,0.9)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }} onClick={e=>{e.stopPropagation();toggleFav(item.id);}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill={favorites.includes(item.id)?"#FF3B5C":"none"} stroke={favorites.includes(item.id)?"#FF3B5C":"#65676B"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
-            {item.listingType==="service" ? (
-              <div style={{ position:"absolute", bottom:8, left:8, background:"#7B61FF", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700, color:"#fff", letterSpacing:0.2 }}>
-                Service
-              </div>
-            ) : (item.listingType==="sale"||item.listingType==="both") && (
-              <div style={{ position:"absolute", bottom:8, left:8, background:"#E87722", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700, color:"#fff", letterSpacing:0.2 }}>
-                {item.listingType==="sale"?"For Sale":"Rent or Buy"}
-              </div>
-            )}
+            <div style={{ position:"absolute", bottom:8, left:8, display:"flex", gap:5 }}>
+              {(item.listingType==="service"
+                ? [{ label:"Service", bg:"#7B61FF" }]
+                : [
+                    ...(item.listingType==="rent"||item.listingType==="both" ? [{ label:"Rent", bg:"#00B894" }] : []),
+                    ...(item.listingType==="sale"||item.listingType==="both" ? [{ label:"For Sale", bg:"#E87722" }] : []),
+                  ]
+              ).map(b=>(
+                <div key={b.label} style={{ background:b.bg, borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700, color:"#fff", letterSpacing:0.2 }}>
+                  {b.label}
+                </div>
+              ))}
+            </div>
           </div>
           {/* Info */}
           <div style={{ padding:"10px 12px 12px" }}>
