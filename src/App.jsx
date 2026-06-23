@@ -3890,6 +3890,17 @@ export default function Lendie() {
   // Incoming requests on my listings, surfaced in the inbox
   const ownerPendingReqs = bookingRequests.filter(r=>r.ownerId===user?.id && r.status==="pending" && r.dateStr!=="Offer");
   const pendingReqForConvo = m => ownerPendingReqs.find(r=>r.renterId===m.otherUserId && r.item?.title===m.item);
+  // A conversation is about a listing — show that item's photo as the avatar so
+  // multiple threads with the same person stay distinguishable.
+  const convoThumb = (m) => {
+    if (!m?.item) return null;
+    const listing = allItems?.find(l => l.title === m.item)
+      || bookingRequests.find(r => r.item?.title === m.item)?.item;
+    if (!listing) return null;
+    const url = listing.uploadedImages?.[0]?.url || null;
+    const emoji = !url ? (listing.photos?.find(p => typeof p === 'string' && !p.startsWith('http')) || listing.emoji || null) : null;
+    return { url, emoji };
+  };
   const orphanOwnerReqs = ownerPendingReqs.filter(r=>!visibleMessages.some(m=>m.otherUserId===r.renterId && m.item===r.item?.title));
   // Badge counts inbox rows needing attention — a convo with a pending request is one row, not two
   const unreadMsgs = visibleMessages.filter(m => m.unread || pendingReqForConvo(m)).length + orphanOwnerReqs.length;
@@ -5948,11 +5959,16 @@ export default function Lendie() {
                 onMouseLeave={()=>setConvoDeleteId(null)}
                 onClick={()=>{ setActiveConvo(m); markConvoRead(m); }}
                 style={{ padding:"12px 16px", borderBottom:`1px solid ${C.borderFaint}`, display:"flex", gap:10, cursor:"pointer", alignItems:"center", background:activeConvo?.id===m.id?(darkMode?"#0D2E26":"#E8FBF6"):C.card, position:"relative" }}>
-                <div style={{ width:44, height:44, borderRadius:"50%", background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
-                  {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:44, height:44, objectFit:"cover" }}/> : "👽"}
+                {(() => { const t = convoThumb(m); return (
+                <div style={{ width:44, height:44, borderRadius:12, background:"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
+                  {t?.url ? <img src={t.url} alt="" style={{ width:44, height:44, objectFit:"cover" }}/>
+                    : t?.emoji ? t.emoji
+                    : m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover" }}/> : "👽"}
                 </div>
+                ); })()}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:m.unread?700:500, fontSize:13, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.from}</div>
+                  <div style={{ fontWeight:m.unread?700:600, fontSize:13.5, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.item || m.from}</div>
+                  {m.item && <div style={{ fontSize:11.5, color:C.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:1 }}>{m.from}</div>}
                 </div>
                 {convoDeleteId===m.id
                   ? <button onClick={e=>{ e.stopPropagation(); deleteConversation(m); }} style={{ background:"#FA3E3E", border:"none", borderRadius:6, padding:"4px 10px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>Delete</button>
@@ -6037,7 +6053,7 @@ export default function Lendie() {
                 const timeStr = typeof m.time==="string"&&m.time.includes("T")
                   ? new Date(m.time).toLocaleDateString([],{month:"short",day:"numeric"})
                   : m.time;
-                const lastText = m.thread?.[m.thread.length-1]?.text || m.item || "";
+                const lastText = m.thread?.[m.thread.length-1]?.text || m.from || "";
                 const isLast = idx===arr.length-1;
                 const hasPendingReq = !!pendingReqForConvo(m);
                 return (
@@ -6051,14 +6067,18 @@ export default function Lendie() {
                     <div style={{ width:20, flexShrink:0, display:"flex", justifyContent:"center" }}>
                       {(m.unread||hasPendingReq) && <div style={{ width:10, height:10, borderRadius:"50%", background:hasPendingReq?"#E87722":"#007AFF" }}/>}
                     </div>
-                    {/* Avatar */}
-                    <div style={{ width:52, height:52, borderRadius:"50%", background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, overflow:"hidden", marginRight:12 }}>
-                      {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:52, height:52, objectFit:"cover" }}/> : "👽"}
+                    {/* Avatar — item photo for listing threads */}
+                    {(() => { const t = convoThumb(m); return (
+                    <div style={{ width:52, height:52, borderRadius:14, background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, overflow:"hidden", marginRight:12 }}>
+                      {t?.url ? <img src={t.url} alt="" style={{ width:52, height:52, objectFit:"cover" }}/>
+                        : t?.emoji ? t.emoji
+                        : m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width:52, height:52, borderRadius:"50%", objectFit:"cover" }}/> : "👽"}
                     </div>
+                    ); })()}
                     {/* Text block — border starts here like iPhone */}
                     <div style={{ flex:1, minWidth:0, paddingTop:13, paddingBottom:13, borderBottom: isLast ? "none" : `0.5px solid ${C.borderFaint}` }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:3 }}>
-                        <div style={{ fontWeight:(m.unread||hasPendingReq)?600:400, fontSize:17, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, marginRight:8 }}>{m.from}</div>
+                        <div style={{ fontWeight:(m.unread||hasPendingReq)?600:400, fontSize:17, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, marginRight:8 }}>{m.item || m.from}</div>
                         <div style={{ display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>
                           {hasPendingReq && <span style={{ fontSize:11, fontWeight:700, color:"#E87722", background:"#FFF4E6", borderRadius:6, padding:"1px 6px" }}>Request</span>}
                           <span style={{ fontSize:13, color:C.faint }}>{timeStr}</span>
