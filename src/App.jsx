@@ -2756,6 +2756,22 @@ function SecurityModal({ show, user, onClose, darkMode }) {
 
 export default function Lendie() {
   const [tab, setTab] = useState("browse");
+  // Bottom nav hides on scroll-down, reappears on scroll-up (FB-style).
+  const [navHidden, setNavHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+  useEffect(() => { setNavHidden(false); }, [tab]);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const last = lastScrollYRef.current;
+      if (y < 24) setNavHidden(false);
+      else if (y > last + 6) setNavHidden(true);
+      else if (y < last - 6) setNavHidden(false);
+      lastScrollYRef.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("grid");
@@ -6704,7 +6720,7 @@ export default function Lendie() {
         </footer>
       )}
 
-      <nav style={S.nav}>
+      <nav style={{ ...S.nav, transform: navHidden ? "translate(-50%, 120%)" : "translateX(-50%)", transition:"transform 0.28s ease" }}>
         {[
           {id:"browse", label:"Browse", icon:(active)=><svg width="22" height="22" viewBox="0 0 24 24" fill={active?"#00B894":"none"} stroke={active?"#00B894":"#8A8D91"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>},
           {id:"listings", label:"My Items", icon:(active)=><Package size={22} strokeWidth={2} color={active?"#00B894":"#8A8D91"} fill={active?"#00B89420":"none"}/>},
