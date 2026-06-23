@@ -1038,17 +1038,6 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
                   : null;
                 return avgRating ? <StarRow rating={avgRating} count={totalReviews} size={12} darkMode={darkMode}/> : null;
               })()}
-              {(() => {
-                const ownerReqs = (bookingRequests||[]).filter(r=>r.ownerId===item.ownerId);
-                const responded = ownerReqs.filter(r=>r.status==='accepted'||r.status==='declined').length;
-                const total = ownerReqs.length;
-                const rate = total >= 3 ? Math.round(responded/total*100) : null;
-                return rate !== null ? (
-                  <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
-                    <span style={{ color: rate>=80?"#00B894":rate>=50?"#F7C948":"#E74C3C", fontWeight:600 }}>{rate}% response rate</span>
-                  </div>
-                ) : null;
-              })()}
               {allItems.filter(x=>x.ownerId===item.ownerId&&x.id!==item.id).length > 0 && (
                 <div style={{ fontSize:11, color:"#00B894", fontWeight:600, marginTop:2 }}>
                   +{allItems.filter(x=>x.ownerId===item.ownerId&&x.id!==item.id).length} other listings
