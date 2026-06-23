@@ -4268,7 +4268,7 @@ export default function Lendie() {
       const feeStr = req.deliveryFee ? ` (delivery fee: $${req.deliveryFee})` : "";
       autoText = `Approved! Delivery is all arranged${feeStr} — go ahead and complete payment and we'll see you then!`;
     } else {
-      autoText = `Approved! Go ahead and complete payment — see you soon!`;
+      autoText = `Approved! Let's arrange payment and handoff.`;
     }
     const firstMsg = { mine: true, text: autoText, time: "Just now", created_at: new Date().toISOString() };
     const ownerName = req.item.owner || "Owner";
