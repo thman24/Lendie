@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [reports, setReports]   = useState([]);
   const [searches, setSearches] = useState({});
   const [expandedUserId, setExpandedUserId] = useState(null);
+  const [suspended, setSuspended] = useState({}); // userId -> banned_until ISO (or 'indefinite')
   const [toast, setToast]       = useState(null);
   const [loading, setLoading]   = useState(false);
 
@@ -117,17 +118,55 @@ export default function AdminPage() {
     showToast('Booking cancelled');
   };
 
-  const suspendUser = async (userId, name) => {
-    if (!window.confirm(`Suspend ${name}? This will cancel all their pending requests.`)) return;
-    const pending = bookings.filter(b => (b.renter_id === userId || b.owner_id === userId) && b.status === 'pending');
-    const results = await Promise.all(pending.map(b => supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', b.id)));
-    const failed = results.filter(r => r.error).length;
-    if (failed > 0) { showToast(`${failed} cancel(s) failed`, 'error'); return; }
-    setBookings(prev => prev.map(b =>
-      (b.renter_id === userId || b.owner_id === userId) && b.status === 'pending' ? { ...b, status: 'cancelled' } : b
-    ));
-    showToast(`${name} suspended — ${pending.length} pending request(s) cancelled`);
+  const callAdmin = async (fn, action, body = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not signed in');
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...body }),
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return json;
   };
+
+  const loadSuspended = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-suspend-user`, {
+        method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }),
+      });
+      const json = await res.json();
+      if (json.suspended) setSuspended(json.suspended);
+    } catch (e) { console.error('[loadSuspended]', e); }
+  }, []);
+
+  const suspendUser = async (u) => {
+    const input = window.prompt(`Suspend ${u.name} for how many DAYS?\n\nLeave blank for indefinite (until you reinstate them).`, '');
+    if (input === null) return;
+    const trimmed = input.trim();
+    const days = trimmed === '' ? null : Number(trimmed);
+    if (trimmed !== '' && (!days || days <= 0)) { showToast('Enter a valid number of days', 'error'); return; }
+    try {
+      const { bannedUntil } = await callAdmin('admin-suspend-user', 'suspend', { userId: u.id, durationHours: days ? days * 24 : null });
+      setSuspended(prev => ({ ...prev, [u.id]: bannedUntil || 'indefinite' }));
+      setListings(prev => prev.map(l => l.user_id === u.id ? { ...l, available: false } : l));
+      showToast(`${u.name} suspended${days ? ` for ${days} day${days>1?'s':''}` : ' indefinitely'}`);
+    } catch (e) { showToast(e.message || 'Suspend failed', 'error'); }
+  };
+
+  const unsuspendUser = async (u) => {
+    try {
+      await callAdmin('admin-suspend-user', 'unsuspend', { userId: u.id });
+      setSuspended(prev => { const n = { ...prev }; delete n[u.id]; return n; });
+      setListings(prev => prev.map(l => l.user_id === u.id ? { ...l, available: true } : l));
+      showToast(`${u.name} reinstated`);
+    } catch (e) { showToast(e.message || 'Reinstate failed', 'error'); }
+  };
+
+  useEffect(() => { if (authed) loadSuspended(); }, [authed, loadSuspended]);
 
   const deleteUser = async (u) => {
     if (!window.confirm(`Permanently delete ${u.name}? This removes their account and all their listings, and cancels their pending bookings. This cannot be undone.`)) return;
@@ -343,9 +382,10 @@ export default function AdminPage() {
                     return [
                       <tr key={u.id} style={{ background: expanded ? G+'12' : (u.id === ADMIN_ID ? G+'0A' : 'transparent') }}>
                         <TD>
-                          <div style={{ fontWeight:600 }}>
+                          <div style={{ fontWeight:600, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                             <span onClick={() => openUser(u.id, u.name)} style={{ color:G, cursor:'pointer', textDecoration:'underline', textDecorationColor:G+'66' }} title="Open profile">{u.name}</span>
-                            {u.id === ADMIN_ID && <span style={{ marginLeft:6, fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
+                            {u.id === ADMIN_ID && <span style={{ fontSize:10, fontWeight:700, color:G, background: G+'22', borderRadius:4, padding:'1px 5px' }}>YOU</span>}
+                            {suspended[u.id] && <span style={{ fontSize:10, fontWeight:700, color:'#FA3E3E', background:'#FA3E3E22', borderRadius:4, padding:'1px 5px' }} title={suspended[u.id] !== 'indefinite' ? `Until ${new Date(suspended[u.id]).toLocaleString()}` : 'Until reinstated'}>SUSPENDED{suspended[u.id] !== 'indefinite' ? ` · til ${new Date(suspended[u.id]).toLocaleDateString()}` : ''}</span>}
                           </div>
                         </TD>
                         <TD mono muted style={{ fontSize:11 }}><span onClick={() => openUser(u.id, u.name)} style={{ cursor:'pointer', textDecoration:'underline', textDecorationColor:'#555' }} title="Open profile">{u.id}</span></TD>
@@ -355,7 +395,9 @@ export default function AdminPage() {
                         <TD>
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                             <ActionBtn label={expanded ? 'Hide' : 'Details'} variant="primary" solid={expanded} onClick={() => setExpandedUserId(expanded ? null : u.id)}/>
-                            {u.id !== ADMIN_ID && <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u.id, u.name)}/>}
+                            {u.id !== ADMIN_ID && (suspended[u.id]
+                              ? <ActionBtn label="Reinstate" variant="primary" onClick={() => unsuspendUser(u)}/>
+                              : <ActionBtn label="Suspend" variant="warn" onClick={() => suspendUser(u)}/>)}
                             {u.id !== ADMIN_ID && <ActionBtn label="Delete"  variant="danger" onClick={() => deleteUser(u)}/>}
                           </div>
                         </TD>
