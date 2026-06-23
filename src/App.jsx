@@ -1928,7 +1928,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
 
   const containerStyle = isDesktop
     ? { display:"flex", flexDirection:"column", height:"calc(100vh - 64px)", background:bg, overflow:"hidden" }
-    : { position:"fixed", inset:0, background:bg, zIndex:600, display:"flex", flexDirection:"column", maxWidth:430, margin:"0 auto", border:"2.5px solid #00B894", boxSizing:"border-box" };
+    : { position:"fixed", inset:0, background:bg, zIndex:600, display:"flex", flexDirection:"column", maxWidth:430, margin:"0 auto", boxSizing:"border-box" };
 
   const myAvatarUrl = profilePhotoUrl || user?.user_metadata?.avatar_url || null;
   const AvatarSmall = ({ mine }) => {
