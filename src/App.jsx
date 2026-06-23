@@ -5106,7 +5106,7 @@ export default function Lendie() {
                 ? <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span><span style={{ fontSize:11, fontWeight:700, color:"#E87722" }}> · Buy ${item.salePrice}</span></>
                 : <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span></>}
             </div>
-            <div style={{ fontSize:11, color:C.faint }}>{item.distance===0?"Just listed":`${item.distance} mi away`}</div>
+            {item.distance>0 && <div style={{ fontSize:11, color:C.faint }}>{item.distance} mi away</div>}
           </div>
         </div>
       ))}
