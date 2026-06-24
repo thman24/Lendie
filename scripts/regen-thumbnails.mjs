@@ -11,6 +11,24 @@ if (!SUPABASE_URL || !SERVICE_KEY) { console.error('Missing SUPABASE_URL / SERVI
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 const BUCKET = 'listing-images';
 
+// jimp ignores EXIF orientation and strips it on JPEG output, so phone photos
+// shot sideways come out rotated. Bake the rotation into the pixels ourselves.
+// (jimp rotate() is counter-clockwise; rotate(-90) = 90° clockwise.)
+function applyExifOrientation(image) {
+  const o = image._exif?.tags?.Orientation || 1;
+  switch (o) {
+    case 2: image.flip(true, false); break;
+    case 3: image.rotate(180); break;
+    case 4: image.flip(false, true); break;
+    case 5: image.flip(true, false).rotate(-90); break;
+    case 6: image.rotate(-90); break;
+    case 7: image.flip(true, false).rotate(90); break;
+    case 8: image.rotate(90); break;
+    default: break;
+  }
+  return image;
+}
+
 const { data: listings, error } = await sb
   .from('listings')
   .select('id, title, uploaded_images')
@@ -25,7 +43,8 @@ for (const l of listings) {
   let changed = false;
 
   for (const img of imgs) {
-    if (!img?.url || img.thumb) { if (img?.thumb) skipped++; continue; }
+    // Re-run note: process every image (upsert) so we can fix bad/rotated thumbs.
+    if (!img?.url) continue;
     const marker = `/${BUCKET}/`;
     const i = img.url.indexOf(marker);
     if (i === -1) { console.warn('  ! odd url, skipping:', img.url); continue; }
@@ -37,6 +56,7 @@ for (const l of listings) {
       if (!res.ok) { console.warn(`  ! download ${res.status}:`, objectPath); continue; }
       const buf = Buffer.from(await res.arrayBuffer());
       const image = await Jimp.read(buf);
+      applyExifOrientation(image);
       image.scaleToFit(400, 400).quality(70);
       const thumbBuf = await image.getBufferAsync(Jimp.MIME_JPEG);
 
@@ -44,7 +64,8 @@ for (const l of listings) {
         .upload(thumbPath, thumbBuf, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: true });
       if (upErr) { console.warn('  ! upload failed:', upErr.message); continue; }
 
-      img.thumb = sb.storage.from(BUCKET).getPublicUrl(thumbPath).data.publicUrl;
+      // ?v= busts any CDN/browser cache of an earlier (rotated) thumb at this path.
+      img.thumb = sb.storage.from(BUCKET).getPublicUrl(thumbPath).data.publicUrl + '?v=2';
       changed = true; madeThumbs++;
       console.log(`  ✓ ${l.title}: ${(thumbBuf.length/1024).toFixed(0)}KB thumb`);
     } catch (e) {
