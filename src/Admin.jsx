@@ -309,6 +309,29 @@ export default function AdminPage() {
   const openUser = (id, name) => { if (id) window.open(`/?owner=${encodeURIComponent(id)}&oname=${encodeURIComponent(name || '')}`, '_blank', 'noopener'); };
   const reportStatusMeta = (s) => s === 'pending' ? { c:'#FA3E3E', l:'Pending' } : s === 'reviewed' ? { c:'#00B894', l:'Reviewed' } : { c:'#8A8D91', l: s === 'dismissed' ? 'Dismissed' : (s || 'Unknown') };
 
+  // Marketplace performance metrics derived from bookings + listings.
+  const perf = (() => {
+    const paid       = bookings.filter(b => b.payment_status === 'paid' || b.payment_status === 'cash');
+    const cardPaid   = bookings.filter(b => b.payment_status === 'paid');
+    const accepted   = bookings.filter(b => ['accepted','confirmed','completed'].includes(b.status)).length;
+    const declined   = bookings.filter(b => b.status === 'declined').length;
+    const cancelled  = bookings.filter(b => b.status === 'cancelled').length;
+    // Card volume (GMV) = what renters were actually charged via Stripe.
+    const cardVolume = cardPaid.reduce((s,b) => s + (b.stripe_amount_cents || 0), 0) / 100;
+    // Platform fee = renter 8% + owner 4% = renterFee × 1.5 (owner fee is half the renter fee).
+    const platformFees = cardPaid.reduce((s,b) => s + (b.renter_fee_cents || 0) * 1.5, 0) / 100;
+    const decided    = accepted + declined;
+    const acceptRate = decided > 0 ? Math.round(accepted / decided * 100) : null;
+    const convRate   = bookings.length > 0 ? Math.round(paid.length / bookings.length * 100) : null;
+    const cancelRate = bookings.length > 0 ? Math.round(cancelled / bookings.length * 100) : null;
+    const avgValue   = cardPaid.length > 0 ? cardVolume / cardPaid.length : 0;
+    return {
+      activeListings: listings.filter(l => l.available).length,
+      paidCount: paid.length,
+      cardVolume, platformFees, acceptRate, convRate, cancelRate, avgValue,
+    };
+  })();
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -349,6 +372,28 @@ export default function AdminPage() {
                   <div style={{ fontSize:12, color: MU, marginTop:6, fontWeight:600 }}>{label}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ margin:'16px 16px 0' }}>
+              <div style={{ fontWeight:700, fontSize:13, color: MU, textTransform:'uppercase', letterSpacing:0.7, marginBottom:10 }}>Performance</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px,1fr))', gap:10 }}>
+                {[
+                  ['Active Listings', loading ? '…' : perf.activeListings, null],
+                  ['Paid Transactions', loading ? '…' : perf.paidCount, null],
+                  ['Card Volume', loading ? '…' : `$${perf.cardVolume.toFixed(2)}`, 'Total charged via Stripe'],
+                  ['Platform Fees', loading ? '…' : `$${perf.platformFees.toFixed(2)}`, 'Renter 8% + owner 4%'],
+                  ['Avg Order', loading ? '…' : `$${perf.avgValue.toFixed(2)}`, 'Per paid card order'],
+                  ['Accept Rate', loading ? '…' : (perf.acceptRate==null?'—':`${perf.acceptRate}%`), 'Accepted ÷ decided'],
+                  ['Conversion', loading ? '…' : (perf.convRate==null?'—':`${perf.convRate}%`), 'Paid ÷ all requests'],
+                  ['Cancel Rate', loading ? '…' : (perf.cancelRate==null?'—':`${perf.cancelRate}%`), 'Cancelled ÷ all requests'],
+                ].map(([label, value, hint]) => (
+                  <div key={label} style={{ border:`1px solid ${BD}`, borderRadius:10, padding:'12px 14px' }}>
+                    <div style={{ fontSize:22, fontWeight:800, color: G, lineHeight:1 }}>{value}</div>
+                    <div style={{ fontSize:12, color: MU, marginTop:5, fontWeight:600 }}>{label}</div>
+                    {hint && <div style={{ fontSize:10.5, color: MU, opacity:0.7, marginTop:2 }}>{hint}</div>}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{ margin:'16px', overflowX:'auto' }}>
