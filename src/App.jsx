@@ -1416,7 +1416,9 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
         const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('listing-images')
-          .upload(path, processed, { cacheControl: '3600', upsert: false, contentType: isJpeg ? 'image/jpeg' : file.type });
+          // 1-year cache — paths are unique per upload, so the image never changes.
+          // Keeps browsers from re-downloading on every visit (big egress saver).
+          .upload(path, processed, { cacheControl: '31536000', upsert: false, contentType: isJpeg ? 'image/jpeg' : file.type });
         if (upErr) {
           console.error('Storage upload error:', upErr);
           const msg = upErr.message?.toLowerCase() || '';
@@ -2001,7 +2003,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       const isJpeg = processed !== file;
       const ext = isJpeg ? 'jpg' : ((file.name.split('.').pop() || 'jpg').toLowerCase());
       const path = `${user.id}/chat-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('listing-images').upload(path, processed, { cacheControl: '3600', upsert: false, contentType: isJpeg ? 'image/jpeg' : file.type });
+      const { error: upErr } = await supabase.storage.from('listing-images').upload(path, processed, { cacheControl: '31536000', upsert: false, contentType: isJpeg ? 'image/jpeg' : file.type });
       if (upErr) throw upErr;
       const url = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
       const newMsg = { mine:true, text:'', image:url, time:"Now", created_at:new Date().toISOString() };
@@ -3842,7 +3844,7 @@ export default function Lendie() {
     const isJpeg = processed !== file;
     const ext = isJpeg ? 'jpg' : (file.type === 'image/png' ? 'png' : 'jpg');
     const path = `${user.id}/avatar.${ext}`;
-    const { error } = await supabase.storage.from('avatars').upload(path, processed, { upsert: true, contentType: isJpeg ? 'image/jpeg' : file.type });
+    const { error } = await supabase.storage.from('avatars').upload(path, processed, { upsert: true, cacheControl: '31536000', contentType: isJpeg ? 'image/jpeg' : file.type });
     if (error) { showToast("Upload failed: " + error.message, "error"); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     const url = `${data.publicUrl}?t=${Date.now()}`;
