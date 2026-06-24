@@ -133,6 +133,10 @@ async function downscaleImage(file, maxDim = 1600, quality = 0.82) {
   } catch { return file; }
 }
 
+// Small image for cards/lists; falls back to the full image for older listings
+// (uploaded before thumbnails existed) or when the thumb upload was skipped.
+const thumbSrc = (img) => img?.thumb || img?.url || null;
+
 const emailBtn = (label, url = 'https://www.lendie.app') =>
   `<a href="${url}" style="display:inline-block;background:#00B894;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">${label}</a>`;
 
@@ -801,7 +805,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
               {/* Thumbnail */}
               <div style={{ width:52, height:52, borderRadius:12, background:(item.color||"#00B894")+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, overflow:"hidden", flexShrink:0 }}>
                 {item.uploadedImages?.[0]?.url
-                  ? <img src={item.uploadedImages[0].url} alt="" style={{ width:52, height:52, objectFit:"cover" }}/>
+                  ? <img src={thumbSrc(item.uploadedImages[0])} alt="" style={{ width:52, height:52, objectFit:"cover" }}/>
                   : item.emoji}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -1413,7 +1417,8 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
         const isJpeg = processed !== file;
         const rawExt = file.name.split('.').pop() || 'jpg';
         const ext = isJpeg ? 'jpg' : (/^[a-z0-9]+$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg');
-        const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const base = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const path = `${base}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('listing-images')
           // 1-year cache — paths are unique per upload, so the image never changes.
@@ -1430,7 +1435,20 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
           throw upErr;
         }
         const { data } = supabase.storage.from('listing-images').getPublicUrl(path);
-        setAddImages(p => p.map(img => img.id === tempId ? { id: tempId, url: data.publicUrl } : img));
+        // Also upload a small (~400px) thumbnail for browse cards / list views, so
+        // the grid doesn't download the full-res image just to show it tiny. The
+        // full image still loads on tap/zoom. Best-effort — falls back to full url.
+        let thumbUrl;
+        try {
+          const thumbBlob = await downscaleImage(file, 400, 0.7);
+          if (thumbBlob && thumbBlob !== file) {
+            const tPath = `${base}-thumb.jpg`;
+            const { error: tErr } = await supabase.storage.from('listing-images')
+              .upload(tPath, thumbBlob, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
+            if (!tErr) thumbUrl = supabase.storage.from('listing-images').getPublicUrl(tPath).data.publicUrl;
+          }
+        } catch { /* thumbnail is optional */ }
+        setAddImages(p => p.map(img => img.id === tempId ? { id: tempId, url: data.publicUrl, thumb: thumbUrl } : img));
       } catch {
         setAddImages(p => p.filter(img => img.id !== tempId));
       }
@@ -2448,7 +2466,7 @@ function CardPhotoCarousel({ item }) {
         onScroll={e=>{ const w = e.currentTarget.clientWidth || 1; const i = Math.round(e.currentTarget.scrollLeft / w); if (i !== idx) setIdx(Math.min(imgs.length-1, Math.max(0, i))); }}
         style={{ position:"absolute", inset:0, display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch" }}>
         {imgs.map((im,i)=>(
-          <img key={i} src={im.url} alt="" draggable={false} style={{ width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", scrollSnapStop:"always", flexShrink:0 }}/>
+          <img key={i} src={thumbSrc(im)} alt="" draggable={false} style={{ width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", scrollSnapStop:"always", flexShrink:0 }}/>
         ))}
       </div>
       {imgs.length > 1 && (
@@ -3930,7 +3948,7 @@ export default function Lendie() {
     const listing = allItems?.find(l => l.title === m.item)
       || bookingRequests.find(r => r.item?.title === m.item)?.item;
     if (!listing) return null;
-    const url = listing.uploadedImages?.[0]?.url || null;
+    const url = thumbSrc(listing.uploadedImages?.[0]);
     const emoji = !url ? (listing.photos?.find(p => typeof p === 'string' && !p.startsWith('http')) || listing.emoji || null) : null;
     return { url, emoji };
   };
@@ -5674,7 +5692,7 @@ export default function Lendie() {
             const emptyStyle = { padding:"16px", fontSize:13, color:C.faint, textAlign:"center", background:C.bg };
             const Thumb = ({item:it}) => {
               const live = allItems.find(l=>l.id===it?.id);
-              const imgUrl = live?.uploadedImages?.[0]?.url || it?.uploadedImages?.[0]?.url;
+              const imgUrl = thumbSrc(live?.uploadedImages?.[0]) || thumbSrc(it?.uploadedImages?.[0]);
               return (
                 <div style={{ width:44, height:44, borderRadius:10, background:(it?.color||"#eee")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
                   {imgUrl ? <img src={imgUrl} alt="" style={{width:44,height:44,objectFit:"cover"}}/> : (live?.emoji||it?.emoji)}
@@ -5709,7 +5727,7 @@ export default function Lendie() {
                           {myListings.map(l=>(
                             <div key={l.id} style={{ background:C.card, borderRadius:14, overflow:"hidden", cursor:"pointer", boxShadow: darkMode?"0 1px 6px rgba(0,0,0,0.3)":"0 1px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04)" }} onClick={()=>setManagingListing(l)}>
                               <div style={{ background:(l.color||"#eee")+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, height:160, position:"relative", overflow:"hidden" }}>
-                                {l.uploadedImages?.[0] ? <img src={l.uploadedImages[0].url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span>{l.emoji}</span>}
+                                {l.uploadedImages?.[0] ? <img src={thumbSrc(l.uploadedImages[0])} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span>{l.emoji}</span>}
                                 <div style={{ position:"absolute", top:8, left:8, display:"flex", alignItems:"center", gap:4, background:"rgba(255,255,255,0.92)", backdropFilter:"blur(4px)", borderRadius:10, padding:"2px 8px" }}>
                                   <div style={{ width:6, height:6, borderRadius:"50%", background:l.available?"#31A24C":"#FA3E3E" }}/>
                                   <span style={{ fontSize:10, fontWeight:700, color:l.available?"#31A24C":"#FA3E3E" }}>{l.available?"Live":"Paused"}</span>
@@ -5883,7 +5901,7 @@ export default function Lendie() {
               <div style={{ display:"flex", flexDirection:"column", paddingBottom:20 }}>
                 {myListings.map(listing => {
                   const bookings = bookingsByTitle[listing.title] || [];
-                  const imgUrl = listing.uploadedImages?.[0]?.url;
+                  const imgUrl = thumbSrc(listing.uploadedImages?.[0]);
                   return (
                     <div key={listing.id} style={{ margin:"12px 16px 0", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", background:C.card }}>
                       {/* Item header */}
@@ -6466,7 +6484,7 @@ export default function Lendie() {
                   {recentListings.map(item=>(
                     <div key={item.id} style={{ padding:"12px 16px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:10 }}>
                       <div style={{ width:36, height:36, borderRadius:8, background:(item.color||"#888")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
-                        {item.uploadedImages?.[0]?.url ? <img src={item.uploadedImages[0].url} alt="" style={{ width:36, height:36, borderRadius:8, objectFit:"cover" }}/> : item.emoji}
+                        {item.uploadedImages?.[0]?.url ? <img src={thumbSrc(item.uploadedImages[0])} alt="" style={{ width:36, height:36, borderRadius:8, objectFit:"cover" }}/> : item.emoji}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontWeight:700, fontSize:13, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.title}</div>
@@ -6541,7 +6559,7 @@ export default function Lendie() {
       {/* Listing management sheet — opens when owner taps their own listing */}
       {managingListing && (()=>{
         const l = managingListing;
-        const imgUrl = l.uploadedImages?.[0]?.url;
+        const imgUrl = thumbSrc(l.uploadedImages?.[0]);
         const listingBookings = bookingRequests.filter(r => r.ownerId === user?.id && r.item?.title === l.title && r.status !== 'cancelled' && r.status !== 'declined' && r.status !== 'completed' && !(r.status === 'pending' && r.payment_status && r.payment_status !== 'paid'));
         const C2 = darkMode ? { bg:'#000', card:'#1C1C1E', border:'#2C2C2E', borderFaint:'#242426', text:'#F2F2F7', muted:'#AEAEB2', faint:'#8E8E93' } : { bg:'#fff', card:'#fff', border:'#E4E6EB', borderFaint:'#F0F2F5', text:'#1C1E21', muted:'#65676B', faint:'#8A8D91' };
         return (
