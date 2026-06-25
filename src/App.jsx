@@ -6376,9 +6376,16 @@ export default function Lendie() {
                       return (
                         <div style={{ borderBottom:`1px solid ${C.border}` }}>
                           <div onClick={()=>toggleSec("payouts")} style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", cursor:"pointer", userSelect:"none", background:C.bg }}>
-                            <span style={{ flex:1, fontWeight:700, fontSize:14, color:C.text }}>Payouts</span>
-                            <span style={{ background:connectBadge.bg, color:connectBadge.color, borderRadius:20, padding:"2px 9px", fontSize:12, fontWeight:700 }}>{connectBadge.label}</span>
-                            <ChevronDown size={16} color="#8A8D91" style={{ transform:isOpen("payouts")?"rotate(180deg)":"none", transition:"transform 0.2s" }}/>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontWeight:700, fontSize:14, color:C.text }}>Payouts</div>
+                              {pendingCents > 0 && (
+                                <div style={{ fontSize:11.5, color:"#E87722", fontWeight:600, marginTop:2 }}>
+                                  ${(pendingCents / 100).toFixed(2)} pending{nextRelease ? ` · releases ${new Date(nextRelease).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : ""}
+                                </div>
+                              )}
+                            </div>
+                            <span style={{ background:connectBadge.bg, color:connectBadge.color, borderRadius:20, padding:"2px 9px", fontSize:12, fontWeight:700, flexShrink:0 }}>{connectBadge.label}</span>
+                            <ChevronDown size={16} color="#8A8D91" style={{ transform:isOpen("payouts")?"rotate(180deg)":"none", transition:"transform 0.2s", flexShrink:0 }}/>
                           </div>
                           {isOpen("payouts") && (
                             <div>
@@ -6426,6 +6433,12 @@ export default function Lendie() {
                                 </>
                               ) : (
                                 <div style={{ padding:"16px", background:C.bg }}>
+                                  {pendingCents > 0 && (
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, background: darkMode?"#3A2A12":"#FFF4E6", border:`1px solid ${darkMode?"#5A3A12":"#FFE0B2"}`, borderRadius:10, padding:"11px 12px", marginBottom:14 }}>
+                                      <DollarSign size={16} strokeWidth={2.25} color="#E87722" style={{ flexShrink:0 }}/>
+                                      <div style={{ fontSize:12.5, color:C.text, lineHeight:1.4 }}><strong style={{ color:"#E87722" }}>${(pendingCents / 100).toFixed(2)}</strong> is waiting for you — finish setup to receive it.</div>
+                                    </div>
+                                  )}
                                   <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, marginBottom:14 }}>
                                     {connectStatus?.connected
                                       ? "Complete your Stripe verification to start receiving payments directly to your bank or debit card."
