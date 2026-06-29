@@ -864,8 +864,11 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    let sx=0, sy=0, sTop=0;
-    const onStart = e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; sTop=el.scrollTop||0; setDragging(false); };
+    // Track the live drag offsets in locals (not state) so the listeners can be
+    // bound ONCE per open. Previously dragY/dragX were in the deps, which tore
+    // down & rebound the listeners every frame and reset the gesture mid-swipe.
+    let sx=0, sy=0, sTop=0, curDy=0, curDx=0;
+    const onStart = e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; sTop=el.scrollTop||0; curDy=0; curDx=0; setDragging(false); };
     const onMove = e => {
       const dy=e.touches[0].clientY-sy, dx=e.touches[0].clientX-sx;
       const atTop=sTop<=2;
@@ -876,13 +879,16 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
       if (goDown||goRight) {
         e.preventDefault();
         setDragging(true);
-        setDragY(goDown?Math.max(0,dy):0);
-        setDragX(goRight?Math.max(0,dx):0);
+        curDy = goDown?Math.max(0,dy):0;
+        curDx = goRight?Math.max(0,dx):0;
+        setDragY(curDy);
+        setDragX(curDx);
       }
     };
     const onEnd = () => {
-      if (dragY>100||dragX>100) onDismiss();
+      if (curDy>100||curDx>100) onDismiss();
       else { setDragY(0); setDragX(0); }
+      curDy=0; curDx=0;
       setDragging(false);
     };
     el.addEventListener("touchstart", onStart, { passive:true });
@@ -893,7 +899,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, [item && item.id, dragY, dragX]);
+  }, [item && item.id]);
 
   if (!item) return null;
 
