@@ -672,8 +672,8 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
           </span>
         </label>
 
-        <div style={{ fontSize:11, color:C.muted, marginBottom:14, textAlign:"center" }}>
-          🔒 Secured by Stripe · Your card details are never stored on Lendie
+        <div style={{ fontSize:11, color:C.muted, marginBottom:14, textAlign:"center", lineHeight:1.5 }}>
+          🔒 Payments securely processed by <strong style={{ color:C.text }}>Stripe</strong>. Your card details are never seen or stored by Lendie.
         </div>
 
         <button
@@ -6558,6 +6558,9 @@ export default function Lendie() {
                                   <button onClick={setupStripeConnect} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontFamily:"inherit", fontWeight:700, fontSize:14, cursor:"pointer" }}>
                                     {connectStatus?.connected ? "Continue Setup" : "Set Up Payouts"}
                                   </button>
+                                  <div style={{ fontSize:11, color:C.faint, lineHeight:1.5, marginTop:10, textAlign:"center" }}>
+                                    Payouts are securely powered by <strong style={{ color:C.muted }}>Stripe</strong>. Lendie never sees your bank details. By continuing you agree to Stripe's <a href="https://stripe.com/connect-account/legal" target="_blank" rel="noopener noreferrer" style={{ color:"#00B894", textDecoration:"underline" }}>Connected Account Agreement</a>.
+                                  </div>
                                 </div>
                               )}
                             </div>
