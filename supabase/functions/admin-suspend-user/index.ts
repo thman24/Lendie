@@ -58,16 +58,19 @@ Deno.serve(async (req) => {
       const ban = durationHours && Number(durationHours) > 0 ? `${Math.round(Number(durationHours))}h` : INDEFINITE;
       const { data, error } = await admin.auth.admin.updateUserById(userId, { ban_duration: ban });
       if (error) return json({ error: error.message }, 500);
-      // Hide their listings from the marketplace while suspended (not deleted).
-      await admin.from('listings').update({ available: false }).eq('user_id', userId);
+      // Hide their CURRENTLY-AVAILABLE listings (not deleted), tagging them so we
+      // can restore exactly these on unsuspend — and not republish listings the
+      // user had intentionally paused before being suspended.
+      await admin.from('listings').update({ available: false, hidden_by_suspension: true }).eq('user_id', userId).eq('available', true);
       return json({ success: true, bannedUntil: (data.user as { banned_until?: string })?.banned_until || null });
     }
 
     if (action === 'unsuspend') {
       const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: 'none' });
       if (error) return json({ error: error.message }, 500);
-      // Restore their listings to the marketplace.
-      await admin.from('listings').update({ available: true }).eq('user_id', userId);
+      // Restore ONLY the listings we auto-hid at suspension time; leave anything
+      // the user had paused themselves untouched.
+      await admin.from('listings').update({ available: true, hidden_by_suspension: false }).eq('user_id', userId).eq('hidden_by_suspension', true);
       return json({ success: true });
     }
 

@@ -55,6 +55,11 @@ Deno.serve(async (req) => {
     // listings + bookings, so these rows must be deleted (not just cancelled) or
     // the user reappears on refresh. Each is best-effort (ignore unknown-column
     // errors across schema variations) — the auth delete below is the hard part.
+    // Reviews key on listing_id (no user_id), so remove reviews tied to this
+    // user's listings BEFORE deleting the listings, or they'd dangle.
+    const { data: ownedListings } = await admin.from('listings').select('id').eq('user_id', userId);
+    const listingIds = (ownedListings || []).map((l: { id: number | string }) => l.id);
+    if (listingIds.length) await admin.from('reviews').delete().in('listing_id', listingIds);
     await admin.from('listings').delete().eq('user_id', userId);
     await admin.from('booking_requests').delete().or(`renter_id.eq.${userId},owner_id.eq.${userId}`);
     await admin.from('messages').delete().or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`);

@@ -101,8 +101,11 @@ export default function AdminPage() {
 
   const deleteListing = async (id, title) => {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from('listings').delete().eq('id', id);
+    // .select() returns the affected rows — 0 rows means RLS blocked it, so we
+    // surface a real error instead of falsely showing success.
+    const { data, error } = await supabase.from('listings').delete().eq('id', id).select('id');
     if (error) { showToast('Delete failed: ' + error.message, 'error'); return; }
+    if (!data || data.length === 0) { showToast("Couldn't delete — you don't have permission for this listing", 'error'); return; }
     setListings(prev => prev.filter(l => l.id !== id));
     setStats(s => ({ ...s, listings: s.listings - 1 }));
     showToast('Listing deleted');
@@ -110,16 +113,18 @@ export default function AdminPage() {
 
   const toggleListingVisibility = async (id, currentlyAvailable) => {
     const next = !currentlyAvailable;
-    const { error } = await supabase.from('listings').update({ available: next }).eq('id', id);
+    const { data, error } = await supabase.from('listings').update({ available: next }).eq('id', id).select('id');
     if (error) { showToast('Update failed: ' + error.message, 'error'); return; }
+    if (!data || data.length === 0) { showToast("Couldn't update — you don't have permission for this listing", 'error'); return; }
     setListings(prev => prev.map(l => l.id === id ? { ...l, available: next } : l));
     showToast(next ? 'Listing restored to browse' : 'Listing hidden from browse');
   };
 
   const cancelBooking = async (id) => {
     if (!window.confirm('Cancel this booking request?')) return;
-    const { error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', id);
+    const { data, error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', id).select('id');
     if (error) { showToast('Cancel failed: ' + error.message, 'error'); return; }
+    if (!data || data.length === 0) { showToast("Couldn't cancel — you don't have permission for this booking", 'error'); return; }
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
     showToast('Booking cancelled');
   };
@@ -158,7 +163,9 @@ export default function AdminPage() {
     try {
       const { bannedUntil } = await callAdmin('admin-suspend-user', 'suspend', { userId: u.id, durationHours: days ? days * 24 : null });
       setSuspended(prev => ({ ...prev, [u.id]: bannedUntil || 'indefinite' }));
-      setListings(prev => prev.map(l => l.user_id === u.id ? { ...l, available: false } : l));
+      // Mirror the server: only hide currently-available listings, tag them so
+      // unsuspend restores exactly these.
+      setListings(prev => prev.map(l => l.user_id === u.id && l.available ? { ...l, available: false, hidden_by_suspension: true } : l));
       // Instant kick: if they're online, force-logout their open session now.
       try {
         const ch = supabase.channel(`account-${u.id}`);
@@ -174,7 +181,8 @@ export default function AdminPage() {
     try {
       await callAdmin('admin-suspend-user', 'unsuspend', { userId: u.id });
       setSuspended(prev => { const n = { ...prev }; delete n[u.id]; return n; });
-      setListings(prev => prev.map(l => l.user_id === u.id ? { ...l, available: true } : l));
+      // Mirror the server: restore only the listings we auto-hid at suspension.
+      setListings(prev => prev.map(l => l.user_id === u.id && l.hidden_by_suspension ? { ...l, available: true, hidden_by_suspension: false } : l));
       showToast(`${u.name} reinstated`);
     } catch (e) { showToast(e.message || 'Reinstate failed', 'error'); }
   };

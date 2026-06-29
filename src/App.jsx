@@ -580,10 +580,16 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
       if (fnErr) throw new Error(fnErr);
 
       const cardElement = elements.getElement('card');
-      const { error: stripeErr } = await stripe.confirmCardPayment(clientSecret, {
+      const { error: stripeErr, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: cardElement, billing_details: { name: user.user_metadata?.name || user.email } },
       });
       if (stripeErr) throw new Error(stripeErr.message);
+      // Only treat the payment as done if Stripe actually confirms it. 'succeeded'
+      // is the normal card outcome; 'processing' settles via webhook. Anything else
+      // (e.g. requires_action that didn't resolve) is not a completed payment.
+      if (paymentIntent && paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'processing') {
+        throw new Error('Payment could not be completed. Please try again or use a different card.');
+      }
 
       onSuccess({ bookingDbId, amountCents: bd?.amountCents ?? Math.round(grandTotal * 100) });
     } catch (e) {
@@ -6394,8 +6400,16 @@ export default function Lendie() {
                       // Prefer the exact stored owner cut; fall back to the legacy
                       // approximation (4% owner fee out of an 8%-loaded total) for
                       // bookings paid before payout_amount_cents was recorded.
-                      const ownerShare = c => Math.round(c * 0.96 / 1.08);
-                      const payoutOf = r => (r.payout_amount_cents != null ? r.payout_amount_cents : ownerShare(r.stripe_amount_cents || 0));
+                      // Legacy fallback for rows missing payout_amount_cents. The charge is
+                      // rental×1.08 + delivery; the owner gets rental×0.96 + delivery, so the
+                      // delivery must pass through whole (not shrunk by the rental fee ratio).
+                      const ownerShare = r => {
+                        const c = r.stripe_amount_cents || 0;
+                        const delivCents = r.wantsDelivery ? Math.round((Number(r.deliveryFee) || 0) * 100) : 0;
+                        const rentalLoaded = Math.max(0, c - delivCents);
+                        return Math.round(rentalLoaded * 0.96 / 1.08) + delivCents;
+                      };
+                      const payoutOf = r => (r.payout_amount_cents != null ? r.payout_amount_cents : ownerShare(r));
                       // Start of the selected period (calendar week starts Monday).
                       const rangeStart = (() => {
                         if (earningsRange === 'all') return 0;
