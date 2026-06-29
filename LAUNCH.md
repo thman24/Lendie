@@ -46,11 +46,24 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
       get-stripe-dashboard-link, admin-* , send-email).
 - [ ] **End-to-end test** a live card rental: pay → 24h hold → payout releases → refund path.
 
-## ✉️ Email (deferred — see memory `project_email_setup`)
+## 🔴 LAUNCH-DAY BLOCKERS (do these first)
 
-- [ ] **Set up Resend** (`RESEND_API_KEY`) so transactional/notification emails actually send —
-      they're currently silently skipped.
-- [ ] Auth emails are on Supabase's built-in **2/hr cap** — move to a real SMTP/provider before launch.
+- [ ] **Email deliverability** — auth emails are on Supabase's built-in **~2-4/hr cap**, so at any
+      real signup volume most users never get their confirmation and can't log in. Fix:
+  1. Create a Resend account ([resend.com](https://resend.com)).
+  2. Verify the **lendie.app** domain (add the SPF/DKIM DNS records Resend gives you).
+  3. Get a Resend API key → hand it to Claude to wire **Supabase Auth custom SMTP** +
+     set `RESEND_API_KEY` on the `send-email` edge function (via Management API).
+- [ ] **Restrict the Google Maps API key** (Google Cloud Console → Credentials → the Maps key):
+      HTTP-referrer restrict to `https://lendie.app/*`, `https://www.lendie.app/*`, `http://localhost:*`,
+      and API-restrict to the Maps APIs you use. Unrestricted = anyone can steal it and run up a bill.
+- [x] **Error monitoring** — DONE: error boundary (no white-screen crashes) + crash logging to the
+      `error_logs` table (admin-readable). Optionally add a Sentry DSN later for alerts.
+
+## ✉️ Email — detail (see memory `project_email_setup`)
+
+- Covered by the blocker above. The `send-email` edge function silently skips notifications until
+  `RESEND_API_KEY` is set; auth emails need the custom SMTP config.
 
 ## 🔑 Social login (deferred — see memory `project_social_login`)
 
