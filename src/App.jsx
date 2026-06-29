@@ -633,7 +633,7 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
           <span style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>
             I agree to Lendie's terms. {isPurchase
               ? "The 8% service fee is non-refundable if you cancel a purchase."
-              : "Cancel 72+ hours before the rental starts for a full refund; within 72 hours, the 8% service fee is non-refundable."}
+              : "If cancelled within 72 hours, the 8% service fee is non-refundable."}
           </span>
         </label>
 
