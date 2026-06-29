@@ -6367,6 +6367,16 @@ export default function Lendie() {
                       const pendingRows = myPaid.filter(r => r.payout_status === 'pending');
                       const pendingCents = pendingRows.reduce((s, r) => s + payoutOf(r), 0);
                       const nextRelease = pendingRows.map(r => r.payout_release_at).filter(Boolean).sort()[0];
+                      // Per-transaction pending breakdown; hpad matches the surrounding container's padding.
+                      const pendingItems = (hpad) => pendingRows.map(r => (
+                        <div key={r.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:`10px ${hpad}px`, borderBottom:`1px solid ${C.borderFaint}` }}>
+                          <div style={{ minWidth:0, marginRight:10 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.item?.title || "Rental"}</div>
+                            <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{r.payout_release_at ? `Releases ${new Date(r.payout_release_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : (r.dateStr && r.dateStr!=="Purchase" && !r.dateStr?.startsWith("Offer") ? r.dateStr : "Awaiting release")}</div>
+                          </div>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#E87722", flexShrink:0 }}>${(payoutOf(r) / 100).toFixed(2)}</div>
+                        </div>
+                      ));
                       const RANGES = [['week','Week'],['month','Month'],['year','Year'],['all','All']];
                       const connectBadge = connectStatus?.chargesEnabled
                         ? { label:"Connected", bg:"#00B89418", color:"#00B894" }
@@ -6407,15 +6417,18 @@ export default function Lendie() {
                                   </div>
                                   {/* Pending payouts — held in escrow until 24h after each rental begins */}
                                   {pendingCents > 0 && (
-                                    <div style={{ padding:"14px 16px", borderBottom:`1px solid ${C.borderFaint}`, background:C.bg, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                      <div>
-                                        <div style={{ fontSize:13, fontWeight:700, color:C.text }}>Pending payouts</div>
-                                        <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
-                                          {pendingRows.length} booking{pendingRows.length !== 1 ? "s" : ""}{nextRelease ? ` · next releases ${new Date(nextRelease).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : ""}
+                                    <>
+                                      <div style={{ padding:"14px 16px 8px", background:C.bg, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                        <div>
+                                          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>Pending payouts</div>
+                                          <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
+                                            {pendingRows.length} booking{pendingRows.length !== 1 ? "s" : ""}{nextRelease ? ` · next releases ${new Date(nextRelease).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : ""}
+                                          </div>
                                         </div>
+                                        <div style={{ fontSize:16, fontWeight:800, color:"#E87722" }}>${(pendingCents / 100).toFixed(2)}</div>
                                       </div>
-                                      <div style={{ fontSize:16, fontWeight:800, color:"#E87722" }}>${(pendingCents / 100).toFixed(2)}</div>
-                                    </div>
+                                      <div style={{ background:C.bg }}>{pendingItems(16)}</div>
+                                    </>
                                   )}
                                   {earned.slice(0, 5).map(r => (
                                     <div key={r.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 16px", borderBottom:`1px solid ${C.borderFaint}`, background:C.bg }}>
@@ -6437,6 +6450,12 @@ export default function Lendie() {
                                     <div style={{ display:"flex", alignItems:"center", gap:8, background: darkMode?"#3A2A12":"#FFF4E6", border:`1px solid ${darkMode?"#5A3A12":"#FFE0B2"}`, borderRadius:10, padding:"11px 12px", marginBottom:14 }}>
                                       <DollarSign size={16} strokeWidth={2.25} color="#E87722" style={{ flexShrink:0 }}/>
                                       <div style={{ fontSize:12.5, color:C.text, lineHeight:1.4 }}><strong style={{ color:"#E87722" }}>${(pendingCents / 100).toFixed(2)}</strong> is waiting for you — finish setup to receive it.</div>
+                                    </div>
+                                  )}
+                                  {pendingCents > 0 && (
+                                    <div style={{ marginBottom:14 }}>
+                                      <div style={{ fontSize:11, color:C.muted, marginBottom:2, textTransform:"uppercase", fontWeight:700, letterSpacing:"0.4px" }}>Pending breakdown</div>
+                                      {pendingItems(0)}
                                     </div>
                                   )}
                                   <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, marginBottom:14 }}>
