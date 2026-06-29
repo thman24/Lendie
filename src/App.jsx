@@ -2669,7 +2669,7 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
       });
       setLoading(false);
       if (e) setError(e.message);
-      else setSuccessMsg("Reset link sent! Check your email and click the link to set a new password.");
+      else setSuccessMsg("Reset link sent! Check your email — including your spam/junk folder — and click the link to set a new password.");
       return;
     }
 
@@ -2690,7 +2690,7 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
       });
       setLoading(false);
       if (e) setError(e.message);
-      else setSuccessMsg("Account created! Check your email for a confirmation link before signing in.");
+      else setSuccessMsg("Account created! Check your email for a confirmation link before signing in — if you don't see it, check your spam/junk folder.");
     }
   };
 
