@@ -1158,11 +1158,11 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
                   <div style={{ background: darkMode?"#0D2E26":"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:"#00B894", marginBottom:8 }}>Your offer for "{item.title}"</div>
                     <div style={{ display:"flex", gap:8 }}>
-                      <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
+                      <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
                         <span style={{ color:"#00B894", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
                         <input value={offerEntry} onChange={e=>setOfferEntry(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>{ if(e.key==="Enter"&&offerEntry) { onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry)); }}} placeholder="Enter amount" type="number" autoFocus style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:C.text, fontWeight:700 }}/>
                       </div>
-                      <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
+                      <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"12px 18px", flexShrink:0, borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
                         Send
                       </button>
                     </div>
@@ -1236,11 +1236,11 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
               <div style={{ background: darkMode?"#0D2E26":"#E8FBF6", border:"1.5px solid #00B894", borderRadius:10, padding:"12px 14px", marginTop:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:"#E87722", marginBottom:8 }}>Your offer for "{item.title}"</div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <div style={{ flex:1, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
+                  <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", background:C.bg, border:`1.5px solid ${C.border}`, borderRadius:22, padding:"9px 14px" }}>
                     <span style={{ color:"#00B894", fontWeight:700, marginRight:4, fontSize:16 }}>$</span>
                     <input value={offerEntry} onChange={e=>setOfferEntry(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>{ if(e.key==="Enter"&&offerEntry) { onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry)); }}} placeholder="Enter amount" type="number" autoFocus style={{ flex:1, background:"none", border:"none", outline:"none", fontSize:16, fontFamily:"inherit", color:C.text, fontWeight:700 }}/>
                   </div>
-                  <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"0 18px", borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
+                  <button disabled={!offerEntry} onClick={()=>onMakeOfferRequest&&onMakeOfferRequest(item,parseFloat(offerEntry))} style={{ padding:"12px 18px", flexShrink:0, borderRadius:22, border:"none", background:offerEntry?"#00B894":"#CCC", color:"#fff", fontSize:14, fontWeight:700, cursor:offerEntry?"pointer":"default", fontFamily:"inherit" }}>
                     Send
                   </button>
                 </div>
