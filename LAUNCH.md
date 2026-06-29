@@ -29,8 +29,16 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
 
 ## 💳 Stripe go-live (currently TEST mode / Connect dormant)
 
+- [ ] **Activate the LIVE Stripe account** — "Switch to live account" → complete Stripe activation
+      for **Lendie LLC** (business type LLC, EIN, business address, owner identity / KYC). Required
+      before any real payout.
+- [ ] **Connect Mercury to the PLATFORM Stripe account** (Lendie's own account, NOT a seller's) —
+      live Stripe → Settings → Bank accounts → add Mercury's ACH routing + account number; set
+      payout schedule. This is how Lendie's revenue (the 12% platform fee) lands in the LLC's bank.
+      Mercury name should match "Lendie LLC". (Sellers connect their OWN banks in-app — separate.)
 - [ ] **Swap test keys → live keys**: `VITE_STRIPE_PUBLISHABLE_KEY` (Vercel env) + the Stripe
-      secret key in the edge-function env.
+      secret key in the edge-function env. ⚠️ This is the moment real cards get charged — do it LAST,
+      after the live account is activated, Mercury is connected, and everything's verified.
 - [ ] **Enable Connect**: set `STRIPE_CONNECT_ENABLED=true` so card payments require the owner
       to have a connected account (card blocked for un-onboarded owners; cash still works).
 - [ ] **Register the LIVE webhook** pointing at the `stripe-webhook` function (test webhook ≠ live).
