@@ -3932,11 +3932,42 @@ export default function Lendie() {
   const openReport = (reportedUserId, reportedName, context = 'profile', reportedListingId = null) =>
     setReportModal({ reportedUserId, reportedName, context, reportedListingId });
 
-  const toggleFav = id => setFavorites(f => {
-    const next = f.includes(id) ? f.filter(x => x !== id) : [...f, id];
+  const toggleFav = id => {
+    const adding = !favorites.includes(id);
+    const next = adding ? [...favorites, id] : favorites.filter(x => x !== id);
+    setFavorites(next);
     try { localStorage.setItem('lendie_favorites', JSON.stringify(next)); } catch {}
-    return next;
-  });
+    // Sync to the DB for signed-in users so favorites follow them across the
+    // website, the installed app, and other devices.
+    if (user?.id) {
+      if (adding) supabase.from('user_favorites').upsert({ user_id: user.id, listing_id: id }, { onConflict: 'user_id,listing_id' }).then(({ error }) => { if (error) console.error('[fav] add failed:', error.message); });
+      else supabase.from('user_favorites').delete().eq('user_id', user.id).eq('listing_id', id).then(({ error }) => { if (error) console.error('[fav] remove failed:', error.message); });
+    }
+  };
+
+  // On sign-in, pull favorites from the DB and merge with any saved locally (e.g.
+  // while logged out), so they sync across the website, the installed app, and
+  // other devices. Local-only favorites are pushed up to the DB.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('user_favorites').select('listing_id').eq('user_id', user.id);
+      if (error || cancelled) return;
+      const dbIds = (data || []).map(r => Number(r.listing_id));
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem('lendie_favorites') || '[]'); } catch {}
+      const merged = [...new Set([...local, ...dbIds])];
+      const localOnly = local.filter(id => !dbIds.includes(id));
+      if (localOnly.length) {
+        await supabase.from('user_favorites').upsert(localOnly.map(listing_id => ({ user_id: user.id, listing_id })), { onConflict: 'user_id,listing_id' });
+      }
+      if (cancelled) return;
+      try { localStorage.setItem('lendie_favorites', JSON.stringify(merged)); } catch {}
+      setFavorites(merged);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const handleMapMoveCenter = ({ lat, lng }) => {
     setSearchCoords({ lat, lng });
