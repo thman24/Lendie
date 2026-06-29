@@ -377,6 +377,20 @@ function txNoun(req) {
   return 'rental';
 }
 
+// A transaction is "past" — and can no longer be cancelled or refunded — once it
+// has been completed, or (for rentals) once its last date is before today.
+// Dateless transactions (sales/services) are only "past" when marked completed.
+function isPastTransaction(req) {
+  if (!req) return false;
+  if (req.status === 'completed') return true;
+  const lastDay = req.end || req.start; // rentals carry dates; sales/services don't
+  if (lastDay) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (String(lastDay).slice(0, 10) < today) return true;
+  }
+  return false;
+}
+
 // Toast
 function Toast({ toast }) {
   if (!toast) return null;
@@ -2315,9 +2329,11 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             {ownerAcceptedReq.item?.title}
             {ownerAcceptedReq.dateStr && ownerAcceptedReq.dateStr!=="Purchase" && !ownerAcceptedReq.dateStr?.startsWith("Offer") && <span style={{ color:textMuted, fontWeight:400 }}> · {ownerAcceptedReq.dateStr}</span>}
           </span>
-          <button onClick={()=>{ const paid = ownerAcceptedReq.payment_status==='paid'; if(window.confirm(`Cancel this ${ownerAcceptedReq.item?.listingType==='service'?'service':'booking'}? The customer will be notified${paid?' and refunded':''}.`)) onOwnerCancel&&onOwnerCancel(ownerAcceptedReq); }} style={{ padding:"6px 12px", borderRadius:9, border:"1px solid #FA3E3E", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
-            Cancel
-          </button>
+          {isPastTransaction(ownerAcceptedReq)
+            ? <span style={{ fontSize:11, color:textMuted, flexShrink:0, whiteSpace:"nowrap" }}>Ended</span>
+            : <button onClick={()=>{ const paid = ownerAcceptedReq.payment_status==='paid'; if(window.confirm(`Cancel this ${ownerAcceptedReq.item?.listingType==='service'?'service':'booking'}? The customer will be notified${paid?' and refunded':''}.`)) onOwnerCancel&&onOwnerCancel(ownerAcceptedReq); }} style={{ padding:"6px 12px", borderRadius:9, border:"1px solid #FA3E3E", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+              Cancel
+            </button>}
         </div>
       )}
 
@@ -2367,13 +2383,19 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
               );
             })()}
           </div>
-          <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"10px 0", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
-            Checkout →
-          </button>
-          {onCancelRequest && (
-            <button onClick={()=>{ if(window.confirm("Cancel this request? The other person will be notified and the date freed up.")) onCancelRequest(acceptedReq); }} style={{ width:"100%", padding:"6px 0", marginTop:2, borderRadius:10, border:"none", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-              Cancel request
-            </button>
+          {isPastTransaction(acceptedReq) ? (
+            <div style={{ width:"100%", padding:"10px 0", textAlign:"center", fontSize:13, color:textMuted, fontWeight:600 }}>This request has expired.</div>
+          ) : (
+            <>
+              <button onClick={()=>onCheckout&&onCheckout(acceptedReq)} style={{ width:"100%", padding:"10px 0", borderRadius:10, border:"none", background:"#00B894", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+                Checkout →
+              </button>
+              {onCancelRequest && (
+                <button onClick={()=>{ if(window.confirm("Cancel this request? The other person will be notified and the date freed up.")) onCancelRequest(acceptedReq); }} style={{ width:"100%", padding:"6px 0", marginTop:2, borderRadius:10, border:"none", background:"transparent", color:"#FA3E3E", fontSize:12.5, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                  Cancel request
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -4816,6 +4838,7 @@ export default function Lendie() {
   };
 
   const handleCancelRequest = async (req) => {
+    if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be cancelled.", 'error'); return; }
     if (req.dbId) {
       const { error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', req.dbId);
       if (error) { showToast('Failed to cancel transaction', 'error'); return; }
@@ -4888,6 +4911,7 @@ export default function Lendie() {
   };
 
   const handleOwnerCancelBooking = async (req) => {
+    if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be cancelled or refunded.", 'error'); return; }
     const isPaid = req.payment_status === 'paid';
     if (isPaid && req.dbId) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -4981,6 +5005,7 @@ export default function Lendie() {
 
   const handleRefundRequest = async (req) => {
     if (!req.dbId) return;
+    if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
     // Mirror the server's refund policy so the renter sees the real numbers
     // before confirming: keep 8% on a purchase, or on a rental cancelled within
     // 72h of its start; full refund otherwise.
@@ -6032,7 +6057,7 @@ export default function Lendie() {
                                   {item?.listingType === "service" ? "✓ Mark Complete" : "✓ Mark Returned"}
                                 </button>
                               )}
-                              {!isPending && (
+                              {!isPending && !isPastTransaction(req) && (
                                 <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:C.bg, color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                   {req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}
                                 </button>
@@ -6741,7 +6766,7 @@ export default function Lendie() {
                               }} style={{ padding:"7px 14px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{isSale?"✓ Mark Complete":"✓ Mark Returned"}</button>
                             );
                           })()}
-                          {!isPending && (
+                          {!isPending && !isPastTransaction(req) && (
                             <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); setManagingListing(null); }} style={{ padding:"7px 14px", borderRadius:8, border:"1px solid #FA3E3E", background:C2.card, color:"#FA3E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}</button>
                           )}
                           <button onClick={()=>{ let convo=messages.find(m=>m.otherUserId===req.renterId&&m.item===req.item?.title); if(!convo){convo={id:Date.now(),conversation_id:`conv_req_${req.dbId||req.id}`,from:req.renterName,fromId:req.renterId,otherUserId:req.renterId,avatar:'👽',item:req.item?.title||'',sub:req.dateStr,time:"Just now",unread:false,thread:[]};setMessages(prev=>[...prev,convo]);}else{markConvoRead(convo);} setActiveConvo(convo); setManagingListing(null); }} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${C2.border}`, background:C2.card, color:C2.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message</button>

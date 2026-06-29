@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from('booking_requests')
-      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, start_date, stripe_amount_cents, renter_fee_cents')
+      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents')
       .eq('id', bookingId)
       .single();
 
@@ -51,6 +51,15 @@ Deno.serve(async (req) => {
 
     if (booking.payment_status !== 'paid') {
       return new Response(JSON.stringify({ error: 'Booking is not in a paid state' }), { status: 400, headers: corsHeaders });
+    }
+
+    // Past transactions cannot be refunded: already completed, or (for rentals)
+    // the rental window has elapsed. Sales/services have no dates and are only
+    // blocked once completed. This is the authoritative server-side enforcement.
+    const lastDay = booking.end_date || booking.start_date;
+    const rentalEnded = lastDay && String(lastDay).slice(0, 10) < new Date().toISOString().slice(0, 10);
+    if (booking.status === 'completed' || rentalEnded) {
+      return new Response(JSON.stringify({ error: 'This transaction has ended and can no longer be refunded.' }), { status: 400, headers: corsHeaders });
     }
 
     if (!booking.payment_intent_id) {
