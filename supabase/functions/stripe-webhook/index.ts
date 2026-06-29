@@ -231,32 +231,31 @@ Deno.serve(async (req) => {
       const userId = account.metadata?.user_id;
 
       if (userId) {
+        // Read the PRIOR state before updating, so we can detect first activation
+        // (was false → now true). Reading after the update always returns true.
+        const { data: prior } = await supabase
+          .from('profiles')
+          .select('stripe_charges_enabled')
+          .eq('id', userId)
+          .single();
+
         await supabase.from('profiles').update({
           stripe_charges_enabled: account.charges_enabled,
           stripe_details_submitted: account.details_submitted,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
 
-        // Notify the owner when their account becomes fully active
-        if (account.charges_enabled) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('stripe_charges_enabled')
-            .eq('id', userId)
-            .single();
-
-          // Only notify on first activation (was false, now true)
-          if (!profile?.stripe_charges_enabled) {
-            await supabase.from('notifications').insert({
-              user_id: userId,
-              icon: '🎉',
-              text: 'Payouts activated!',
-              sub: 'Your Stripe account is verified — you can now receive rental payments',
-              time_label: 'Just now',
-              unread: true,
-              type: 'payment',
-            });
-          }
+        // Notify the owner only on first activation (was not enabled, now enabled)
+        if (account.charges_enabled && !prior?.stripe_charges_enabled) {
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            icon: '🎉',
+            text: 'Payouts activated!',
+            sub: 'Your Stripe account is verified — you can now receive payments',
+            time_label: 'Just now',
+            unread: true,
+            type: 'payment',
+          });
         }
       }
       break;

@@ -42,6 +42,11 @@ Deno.serve(async (req) => {
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Missing userId' }), { status: 400, headers: corsHeaders });
     }
+    // Must be a UUID — userId is interpolated into PostgREST .or() filters below,
+    // so reject anything with filter metacharacters to prevent filter injection.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId))) {
+      return new Response(JSON.stringify({ error: 'Invalid userId' }), { status: 400, headers: corsHeaders });
+    }
     if (userId === ADMIN_ID) {
       return new Response(JSON.stringify({ error: "You can't delete the owner account" }), { status: 400, headers: corsHeaders });
     }
