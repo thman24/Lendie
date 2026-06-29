@@ -4,6 +4,10 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
 import AdminPage from './Admin.jsx'
+import ErrorBoundary, { installGlobalErrorHandlers } from './ErrorBoundary.jsx'
+
+// Log uncaught errors / promise rejections (outside React's render tree).
+installGlobalErrorHandlers()
 
 // Register immediately and re-check often (on focus + every 5 min) so installed
 // PWAs pick up new deploys without users having to force-quit the app
@@ -36,6 +40,8 @@ const isAdminRoute = window.location.pathname.startsWith('/admin');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {isAdminRoute ? <AdminPage /> : <App />}
+    <ErrorBoundary>
+      {isAdminRoute ? <AdminPage /> : <App />}
+    </ErrorBoundary>
   </StrictMode>,
 )
