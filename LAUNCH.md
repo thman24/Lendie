@@ -48,12 +48,12 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
 
 ## 🔴 LAUNCH-DAY BLOCKERS (do these first)
 
-- [ ] **Email deliverability** — auth emails are on Supabase's built-in **~2-4/hr cap**, so at any
-      real signup volume most users never get their confirmation and can't log in. Fix:
-  1. Create a Resend account ([resend.com](https://resend.com)).
-  2. Verify the **lendie.app** domain (add the SPF/DKIM DNS records Resend gives you).
-  3. Get a Resend API key → hand it to Claude to wire **Supabase Auth custom SMTP** +
-     set `RESEND_API_KEY` on the `send-email` edge function (via Management API).
+- [x] **Email deliverability** — DONE. Resend connected: domain lendie.app verified (auto-config via
+      GoDaddy, Google MX untouched), Supabase Auth custom SMTP set (smtp.resend.com, sender
+      noreply@lendie.app), email rate limit raised 2/hr → 30/hr, `RESEND_API_KEY` set on the
+      `send-email` edge function. Test email delivered. NOTE: new-domain mail may land in spam on
+      Outlook for the first few days (reputation warmup) — signup/reset copy now tells users to check
+      spam. Rotate the Resend key (it appeared in a screenshot) once stable.
 - [ ] **Restrict the Google Maps API key** (Google Cloud Console → Credentials → the Maps key):
       HTTP-referrer restrict to `https://lendie.app/*`, `https://www.lendie.app/*`, `http://localhost:*`,
       and API-restrict to the Maps APIs you use. Unrestricted = anyone can steal it and run up a bill.
