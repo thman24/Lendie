@@ -5994,7 +5994,12 @@ export default function Lendie() {
                           <Thumb item={item}/>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontWeight:700, fontSize:13, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.title}</div>
-                            <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{item.owner!=="You"?item.owner:"Your listing"} · ${item.price}/{item.priceUnit||"day"}</div>
+                            <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{item.owner!=="You"?item.owner:"Your listing"} · {
+                              item.listingType==="sale" ? `$${item.price}`
+                              : item.listingType==="service" ? `from $${item.price}/${SERVICE_UNIT_LABEL[item.priceUnit]||item.priceUnit||"hr"}`
+                              : item.listingType==="both" && item.salePrice ? `$${item.price}/${item.priceUnit||"day"} · Buy $${item.salePrice}`
+                              : `$${item.price}/${item.priceUnit||"day"}`
+                            }</div>
                           </div>
                           <button onClick={e=>{ e.stopPropagation(); toggleFav(item.id); }} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", padding:"4px 6px", flexShrink:0 }}>❤️</button>
                         </div>
