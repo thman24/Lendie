@@ -2604,9 +2604,10 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
-    if (show) { setMode(initialMode); setName(""); setEmail(""); setPassword(""); setError(""); setSuccessMsg(""); setLoading(false); }
+    if (show) { setMode(initialMode); setName(""); setEmail(""); setPassword(""); setError(""); setSuccessMsg(""); setLoading(false); setAgreed(false); }
   }, [show, initialMode]);
 
   if (!show) return null;
@@ -2630,6 +2631,7 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
 
     if (!email || !password) { setError("Email and password are required"); setLoading(false); return; }
     if (mode === "signup" && !name.trim()) { setError("Name is required"); setLoading(false); return; }
+    if (mode === "signup" && !agreed) { setError("Please confirm you're 18+ and agree to the Terms & Privacy Policy"); setLoading(false); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); setLoading(false); return; }
 
     if (mode === "login") {
@@ -2639,7 +2641,8 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
     } else {
       const { error: e } = await supabase.auth.signUp({
         email, password,
-        options: { data: { name: name.trim() }, emailRedirectTo: window.location.origin },
+        // Record terms/age consent on the account as a legal acceptance record.
+        options: { data: { name: name.trim(), terms_accepted_at: new Date().toISOString(), terms_version: '2026-06-29', age_confirmed_18: true }, emailRedirectTo: window.location.origin },
       });
       setLoading(false);
       if (e) setError(e.message);
@@ -2708,7 +2711,16 @@ function AuthModal({ show, initialMode = "login", onClose, darkMode }) {
             </div>
           )}
 
-          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"15px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:16, cursor:loading?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:loading?0.7:1, marginBottom:12 }}>
+          {mode === "signup" && (
+            <label style={{ display:"flex", alignItems:"flex-start", gap:9, marginBottom:16, cursor:"pointer" }}>
+              <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2, accentColor:"#00B894", width:16, height:16, flexShrink:0, cursor:"pointer" }}/>
+              <span style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>
+                I am <strong style={{ color:C.text }}>18 or older</strong> and agree to Lendie's <a href="/terms.html" target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#00B894", textDecoration:"underline" }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#00B894", textDecoration:"underline" }}>Privacy Policy</a>.
+              </span>
+            </label>
+          )}
+
+          <button onClick={submit} disabled={loading || (mode==="signup" && !agreed)} style={{ width:"100%", padding:"15px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:800, fontSize:16, cursor:(loading || (mode==="signup" && !agreed))?"not-allowed":"pointer", background:"#00B894", color:"#fff", opacity:(loading || (mode==="signup" && !agreed))?0.6:1, marginBottom:12 }}>
             {loading ? "…" : mode==="login" ? "Sign In" : mode==="signup" ? "Create Account" : "Send Reset Link"}
           </button>
 
