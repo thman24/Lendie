@@ -267,6 +267,16 @@ const ALL_CATEGORIES = [
   { id:"tech",         label:"Tech",         emoji:"💻" },
 ];
 
+// Browse category grid (with Lucide icons). Module-scope so it can't land in a
+// temporal dead zone when referenced by the `filtered` memo during render.
+const ALL_CATS = [
+  {id:"tools",label:"Tools",emoji:"🔧",icon:Wrench},{id:"trailers",label:"Trailers",emoji:"🚛",icon:Truck},
+  {id:"construction",label:"Equipment",emoji:"🏗️",icon:Hammer},{id:"kitchen",label:"Kitchen",emoji:"🍳",icon:Utensils},
+  {id:"garden",label:"Garden",emoji:"🌱",icon:Leaf},{id:"outdoors",label:"Outdoors",emoji:"🏕️",icon:Compass},
+  {id:"party",label:"Party",emoji:"🎉",icon:Sparkles},
+  {id:"tech",label:"Tech",emoji:"💻",icon:Monitor},{id:"other",label:"Other",emoji:"📦",icon:Package}
+];
+
 
 const SEED_MESSAGES = [];
 
@@ -5150,13 +5160,6 @@ export default function Lendie() {
     ["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],
     ["party","Party"],["tech","Tech"],["other","Other"]
   ];
-  const ALL_CATS = [
-    {id:"tools",label:"Tools",emoji:"🔧",icon:Wrench},{id:"trailers",label:"Trailers",emoji:"🚛",icon:Truck},
-    {id:"construction",label:"Equipment",emoji:"🏗️",icon:Hammer},{id:"kitchen",label:"Kitchen",emoji:"🍳",icon:Utensils},
-    {id:"garden",label:"Garden",emoji:"🌱",icon:Leaf},{id:"outdoors",label:"Outdoors",emoji:"🏕️",icon:Compass},
-    {id:"party",label:"Party",emoji:"🎉",icon:Sparkles},
-    {id:"tech",label:"Tech",emoji:"💻",icon:Monitor},{id:"other",label:"Other",emoji:"📦",icon:Package}
-  ];
 
   // Category pills swap between item and service taxonomies based on the active tab.
   const ITEM_PILLS = [["all","All"],["tools","Tools"],["trailers","Trailers"],["construction","Equipment"],["kitchen","Kitchen"],["garden","Garden"],["outdoors","Outdoors"],["party","Party"],["tech","Tech"],["other","Other"]];
@@ -6816,7 +6819,7 @@ export default function Lendie() {
         darkMode={darkMode}
       />
       {NotifPanel()}
-      {!isDesktop && <ChatView
+      {!isDesktop && activeConvo && <ChatView
         activeConvo={activeConvo}
         setActiveConvo={setActiveConvo}
         chatMsg={chatMsg}
