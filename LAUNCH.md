@@ -54,9 +54,10 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
       `send-email` edge function. Test email delivered. NOTE: new-domain mail may land in spam on
       Outlook for the first few days (reputation warmup) — signup/reset copy now tells users to check
       spam. Rotate the Resend key (it appeared in a screenshot) once stable.
-- [ ] **Restrict the Google Maps API key** (Google Cloud Console → Credentials → the Maps key):
-      HTTP-referrer restrict to `https://lendie.app/*`, `https://www.lendie.app/*`, `http://localhost:*`,
-      and API-restrict to the Maps APIs you use. Unrestricted = anyone can steal it and run up a bill.
+- [x] **Restrict the Google Maps API key** — DONE. Website (HTTP-referrer) restriction applied to
+      `https://lendie.app/*` and `https://www.lendie.app/*` (localhost skipped — Google rejects the
+      `:*` port wildcard; not needed for prod). Restrictions column now shows "HTTP referrers". Map
+      still works. (For local-dev maps later, make a separate dev key with `http://localhost:5173/*`.)
 - [x] **Error monitoring** — DONE: error boundary (no white-screen crashes) + crash logging to the
       `error_logs` table (admin-readable). Optionally add a Sentry DSN later for alerts.
 
