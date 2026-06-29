@@ -2,7 +2,12 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Bell, LayoutGrid, Wrench, Truck, Hammer, Utensils, Leaf, Compass, Building2, Sparkles, Monitor, Package, MapPin, Camera, Heart, Search, Tag, ChevronDown, Star, Pencil, MessageCircle, CheckCircle2, XCircle, RotateCcw, Clock, ShoppingCart, DollarSign, Inbox, PartyPopper, Ban, CreditCard } from "lucide-react";
 import { supabase } from './supabase';
 
-const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+// Soft-launch switch: when true, card payments are OFF (cash only) — the build
+// tree-shakes the Stripe key out entirely, so users see "card coming soon" and
+// the Payouts dashboard is hidden. To enable card payments: set this to false
+// AND add the LIVE VITE_STRIPE_PUBLISHABLE_KEY in Vercel.
+const CASH_ONLY_LAUNCH = true;
+const STRIPE_KEY = CASH_ONLY_LAUNCH ? '' : (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 const OWNER_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 
