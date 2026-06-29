@@ -2555,6 +2555,7 @@ function dbToListing(row) {
     ownerName: row.owner_name || null,
     ownerAvatarUrl: row.owner_avatar_url || null,
     ownerId: row.user_id || null,
+    conditionAttestedAt: row.condition_attested_at || null,
   };
 }
 
@@ -2586,6 +2587,11 @@ function listingToDb(listing) {
     uploaded_images: listing.uploadedImages || [],
     photos: listing.photos || [],
     owner_avatar_url: listing.ownerAvatarUrl || null,
+    // Legal record: timestamp the owner's condition/liability attestation at
+    // publish/edit time. Re-stamped each time they re-confirm the box.
+    condition_attested_at: listing.attested
+      ? new Date().toISOString()
+      : (listing.conditionAttestedAt || null),
   };
 }
 
@@ -4162,6 +4168,7 @@ export default function Lendie() {
     if (newListing.listingType !== "sale" && newListing.listingType !== "service" && !newListing.price) { showToast("Enter a rental price","error"); return; }
     if (newListing.listingType === "sale" && !newListing.price) { showToast("Enter a sale price","error"); return; }
     if (newListing.listingType === "both" && !newListing.salePrice) { showToast("Enter a sale price","error"); return; }
+    if (newListing.listingType !== "service" && !newListing.attested) { showToast("Please confirm the item condition box","error"); return; }
     setSubmittingListing(true);
     const finalLat = newListing.listingLat || gpsCoords?.lat || null;
     const finalLng = newListing.listingLng || gpsCoords?.lng || null;
@@ -4203,6 +4210,7 @@ export default function Lendie() {
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const handleEditSave = async () => {
     if (submittingEdit) return;
+    if (newListing.listingType !== "service" && !newListing.attested) { showToast("Please confirm the item condition box","error"); return; }
     setSubmittingEdit(true);
     const savedImages = addImagesRef.current.filter(img => img.url);
     const photos = savedImages.length > 0 ? [] : (newListing.photos?.length ? newListing.photos : [newListing.emoji||"📦"]);
