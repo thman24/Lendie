@@ -1711,9 +1711,23 @@ function AddListingModal({ show, onClose, newListing, setNewListing, addImages, 
             )}
           </div>
         )}
-        <button style={{ ...S.pBtn, opacity:(uploading>0||submitting)?0.6:1, cursor:(uploading>0||submitting)?"not-allowed":"pointer" }} onClick={(uploading>0||submitting)?undefined:onSubmit} disabled={uploading>0||submitting}>
-          {uploading>0 ? `Uploading ${uploading} photo${uploading>1?"s":""}…` : submitting ? "Publishing…" : "Publish Listing"}
-        </button>
+        {newListing.listingType !== "service" && (
+          <label style={{ display:"flex", alignItems:"flex-start", gap:9, margin:"6px 2px 14px", cursor:"pointer" }}>
+            <input type="checkbox" checked={!!newListing.attested} onChange={e=>setNewListing(n=>({...n, attested:e.target.checked}))} style={{ marginTop:2, accentColor:"#00B894", width:16, height:16, flexShrink:0, cursor:"pointer" }}/>
+            <span style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>
+              I confirm this item is <strong style={{ color:C.text }}>as described and functioning as designed</strong>, and I understand Lendie is <strong style={{ color:C.text }}>not liable for items lost or damaged</strong> during a rental or sale, per the <a href="/terms.html" target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#00B894", textDecoration:"underline" }}>Terms of Service</a>.
+            </span>
+          </label>
+        )}
+        {(() => {
+          const attestOk = newListing.listingType === "service" || !!newListing.attested;
+          const blocked = uploading>0 || submitting || !attestOk;
+          return (
+            <button style={{ ...S.pBtn, opacity:blocked?0.6:1, cursor:blocked?"not-allowed":"pointer" }} onClick={blocked?undefined:onSubmit} disabled={blocked}>
+              {uploading>0 ? `Uploading ${uploading} photo${uploading>1?"s":""}…` : submitting ? "Publishing…" : !attestOk ? "Confirm the box above to publish" : "Publish Listing"}
+            </button>
+          );
+        })()}
         <button style={S.gBtn} onClick={onClose}>Cancel</button>
       </div>
     </div>
