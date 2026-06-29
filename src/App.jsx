@@ -5229,7 +5229,12 @@ export default function Lendie() {
         <div style={{ ...S.sheet, zIndex:401 }} onClick={e=>e.stopPropagation()}>
           <div>
             <div style={{ textAlign:"center", marginBottom:20 }}>
-              <div style={{ fontSize:36, marginBottom:8 }}>{item.emoji}</div>
+              {(() => {
+                const t = thumbSrc(item.uploadedImages?.[0]);
+                return t
+                  ? <img src={t} alt="" style={{ width:64, height:64, borderRadius:14, objectFit:"cover", marginBottom:8, display:"inline-block", verticalAlign:"middle" }}/>
+                  : <div style={{ fontSize:36, marginBottom:8 }}>{item.emoji}</div>;
+              })()}
               <div style={{ fontSize:18, fontWeight:800, color:C.text }}>{item.title}</div>
               <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>{item.owner}</div>
             </div>
