@@ -27,7 +27,18 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
       (clearance concern: **LENDIO**, an existing fintech in classes 35/36/42). Don't gate launch
       on it, but resolve early — a forced rebrand only gets more painful with growth.
 
-## 💳 Stripe go-live (currently TEST mode / Connect dormant)
+## 💳 Stripe go-live
+
+> CURRENT STATE: **cash-only soft-launch.** Card payments are OFF via the
+> `CASH_ONLY_LAUNCH = true` flag in `src/App.jsx` (Stripe key tree-shaken out of the
+> bundle; users see "card coming soon"). The live Stripe account is activated and
+> Mercury is connected — only the app-side flip below remains.
+>
+> TO TURN ON CARD PAYMENTS:
+> 1. Set `CASH_ONLY_LAUNCH = false` in `src/App.jsx`.
+> 2. Add the **live** `VITE_STRIPE_PUBLISHABLE_KEY` (pk_live_…) in Vercel env.
+> 3. Set the **live** `STRIPE_SECRET_KEY` (sk_live_…) as a Supabase edge-function secret.
+> 4. Then the steps below (webhook, Connect, payout cron). Build + redeploy.
 
 - [x] **Activate the LIVE Stripe account** — DONE (Lendie LLC activated, KYC complete during setup).
 - [x] **Connect Mercury to the PLATFORM Stripe account** — DONE (Mercury set as payout bank on the
