@@ -3790,9 +3790,17 @@ export default function Lendie() {
     }).catch(() => {});
   }, []);
 
-  // Resolve actual city/neighborhood from browser geolocation
-  const requestLocation = () => {
-    if (!navigator.geolocation) return;
+  // Resolve actual city/neighborhood from browser geolocation. `interactive` =
+  // the user explicitly clicked "Use mine" (vs the silent attempt on mount), so
+  // we give feedback: a toast on success/failure and a 10s timeout so a blocked
+  // or hanging request (common on desktop when OS Location Services is off)
+  // doesn't fail silently.
+  const requestLocation = (interactive = false) => {
+    if (!navigator.geolocation) {
+      if (interactive) showToast("This browser can't share location — enter your city instead", 'error');
+      return;
+    }
+    if (interactive) showToast('Getting your location…');
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
         const { latitude: lat, longitude: lng } = pos.coords;
@@ -3809,9 +3817,22 @@ export default function Lendie() {
           const state        = comps.find(c => c.types.includes('administrative_area_level_1'))?.short_name;
           const place = neighborhood || sublocality || locality || county || '';
           if (place) setResolvedLocation(place + (state ? ', ' + state : ''));
+          if (interactive) showToast(place ? `Location set — ${place}${state ? ', ' + state : ''}` : 'Location set');
+        } else if (interactive) {
+          showToast('Location set');
         }
-      } catch {}
-    }, () => { setLocPromptState(p => (p === 'granted' ? p : 'denied')); });
+      } catch { if (interactive) showToast('Location set'); }
+    }, err => {
+      setLocPromptState(p => (p === 'granted' ? p : 'denied'));
+      if (interactive) {
+        const msg = err.code === 1
+          ? "Location is blocked. Allow it in your browser (and macOS System Settings → Privacy → Location Services), or enter your city."
+          : err.code === 3
+          ? "Location timed out — enter your city instead."
+          : "Couldn't get your location — enter your city instead.";
+        showToast(msg, 'error');
+      }
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   };
   useEffect(() => { requestLocation(); }, []);
 
@@ -5785,7 +5806,7 @@ export default function Lendie() {
                   : <><b>See what's nearby.</b> Turn on location to find items closest to you.</>}
               </div>
               {locPromptState !== 'denied' && (
-                <button onClick={requestLocation} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enable</button>
+                <button onClick={()=>requestLocation(true)} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enable</button>
               )}
               <button onClick={()=>{ setLocBannerDismissed(true); sessionStorage.setItem('lendie_loc_banner','1'); }} style={{ background:"none", border:"none", color:C.faint, fontSize:18, cursor:"pointer", padding:"0 2px", lineHeight:1, flexShrink:0 }}>×</button>
             </div>
@@ -5815,10 +5836,10 @@ export default function Lendie() {
                     }}
                   />
                 </div>
-                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(); }} style={{ background:"#E8FBF6", border:"none", borderRadius:12, padding:"0 14px", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Use mine</button>
+                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(true); }} style={{ background:"#E8FBF6", border:"none", borderRadius:12, padding:"0 14px", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Use mine</button>
               </div>
               <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
-                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"transparent", border:locationText==="Current Location"?"1px solid #00B894":`1px solid ${C.border}`, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":C.muted, cursor:"pointer" }}>
+                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(true); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"transparent", border:locationText==="Current Location"?"1px solid #00B894":`1px solid ${C.border}`, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":C.muted, cursor:"pointer" }}>
                   📍 Current
                 </button>
                 {recentLocations.map(loc=>(
@@ -5886,7 +5907,7 @@ export default function Lendie() {
                     <b>Set your location to filter by distance.</b> We can't tell what's near you yet, so we're showing listings from <b>all areas</b> — the {radius} mi radius isn't being applied.{locPromptState === 'denied' ? ' Location is blocked in your browser; enable it in settings, or enter a place below.' : ''}
                   </div>
                   {locPromptState !== 'denied' && (
-                    <button onClick={requestLocation} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enable location</button>
+                    <button onClick={()=>requestLocation(true)} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enable location</button>
                   )}
                   <button onClick={()=>setShowLocationPicker(true)} style={{ background:"transparent", color:"#00B894", border:"1px solid #00B894", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enter a place</button>
                 </div>
