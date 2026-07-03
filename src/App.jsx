@@ -3790,14 +3790,39 @@ export default function Lendie() {
     }).catch(() => {});
   }, []);
 
-  // Resolve actual city/neighborhood from browser geolocation. `interactive` =
-  // the user explicitly clicked "Use mine" (vs the silent attempt on mount), so
-  // we give feedback: a toast on success/failure and a 10s timeout so a blocked
-  // or hanging request (common on desktop when OS Location Services is off)
-  // doesn't fail silently.
+  // Approximate location from the user's IP address — the reliable fallback when
+  // browser GPS is blocked or unavailable (very common on desktop / when macOS
+  // Location Services is off for the browser). City-level accuracy, no OS
+  // permission required. Tries two free HTTPS providers for resilience.
+  const ipLocate = async (interactive = false) => {
+    const tryOne = async (url, pick) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const c = pick(await r.json());
+        return (c && Number(c.lat) && Number(c.lng)) ? c : null;
+      } catch { return null; }
+    };
+    const c = await tryOne('https://ipapi.co/json/', d => ({ lat: d.latitude, lng: d.longitude, place: [d.city, d.region_code].filter(Boolean).join(', ') }))
+           || await tryOne('https://ipwho.is/', d => (d && d.success === false ? null : { lat: d.latitude, lng: d.longitude, place: [d.city, d.region_code || d.region].filter(Boolean).join(', ') }));
+    if (c) {
+      setGpsCoords({ lat: Number(c.lat), lng: Number(c.lng) });
+      setLocPromptState('granted');
+      if (c.place) setResolvedLocation(c.place);
+      if (interactive) showToast(c.place ? `Approximate location — ${c.place}` : 'Approximate location set');
+      return true;
+    }
+    return false;
+  };
+
+  // Resolve the viewer's location. Tries precise browser GPS first, then falls
+  // back to IP-based location so "Use mine" works even when the OS blocks GPS.
+  // `interactive` = the user explicitly clicked "Use mine" (vs the silent attempt
+  // on mount), so we surface progress/result toasts.
   const requestLocation = (interactive = false) => {
     if (!navigator.geolocation) {
-      if (interactive) showToast("This browser can't share location — enter your city instead", 'error');
+      if (interactive) showToast('Getting your location…');
+      ipLocate(interactive).then(ok => { if (!ok && interactive) showToast("Couldn't detect your location — enter your city with the 📍 pin.", 'error'); });
       return;
     }
     if (interactive) showToast('Getting your location…');
@@ -3822,17 +3847,13 @@ export default function Lendie() {
           showToast('Location set');
         }
       } catch { if (interactive) showToast('Location set'); }
-    }, err => {
-      // code 1 = permission denied; 2 = position unavailable (usually macOS
-      // Location Services off for the browser); 3 = timeout.
-      setLocPromptState(p => (err.code === 1 ? 'denied' : (p === 'granted' ? p : p)));
-      if (interactive) {
-        const msg = err.code === 1
-          ? "Location permission is blocked — allow it for this site, or enter your city below."
-          : err.code === 3
-          ? "Location timed out. On a Mac, turn on System Settings → Privacy & Security → Location Services for your browser — or just enter your city below."
-          : "Your device couldn't determine your location. On a Mac, turn on System Settings → Privacy & Security → Location Services for your browser — or just enter your city below.";
-        showToast(msg, 'error');
+    }, async err => {
+      if (err.code === 1) setLocPromptState('denied');
+      // Browser GPS failed — fall back to approximate IP-based location so
+      // "Use mine" still works without any OS permission.
+      const ok = await ipLocate(interactive);
+      if (!ok && interactive) {
+        showToast("Couldn't detect your location automatically — enter your city with the 📍 pin instead.", 'error');
       }
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
   };
