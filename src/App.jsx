@@ -566,6 +566,14 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
   const { item, start, end } = paymentModal;
   const isPurchase = paymentModal.purchase || !start;
 
+  // Delayed charge: rentals / dated services more than 24h out save the card now
+  // (no charge) and get charged 24h before the rental day. Sales, undated
+  // services, and last-minute bookings charge immediately at this step.
+  const SCHEDULE_LEAD_MS = 24 * 60 * 60 * 1000;
+  const chargeAtMs = start ? new Date(`${start}T00:00:00Z`).getTime() - SCHEDULE_LEAD_MS : 0;
+  const willSchedule = !isPurchase && !!start && chargeAtMs > Date.now();
+  const chargeDateLabel = willSchedule ? new Date(chargeAtMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
+
   // Calculate breakdown client-side (item was loaded from DB, server re-validates on pay)
   const days = start && end ? Math.max(1, Math.ceil((new Date(end) - new Date(start)) / 86400000) + 1) : 1;
   const unitMul = { hour: 1, day: days, night: days, week: Math.ceil(days / 7) };
@@ -584,6 +592,32 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not signed in');
+
+      // Delayed-charge path: save the card via a SetupIntent — no money moves now.
+      // The charge-due-bookings cron charges it 24h before the rental day.
+      if (willSchedule) {
+        const sRes = await fetch(`${SUPABASE_URL}/functions/v1/create-setup-intent`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            listingId: item.id, startDate: start, endDate: end,
+            wantsDelivery, deliveryAddress: wantsDelivery ? deliveryAddress : null,
+            existingBookingId: paymentModal?.existingBookingId ?? null,
+          }),
+        });
+        const { clientSecret, bookingDbId, chargeAt, breakdown: bd, error: fnErr } = await sRes.json();
+        if (fnErr) throw new Error(fnErr);
+        const cardEl = elements.getElement('card');
+        const { error: setupErr, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
+          payment_method: { card: cardEl, billing_details: { name: user.user_metadata?.name || user.email } },
+        });
+        if (setupErr) throw new Error(setupErr.message);
+        if (setupIntent && setupIntent.status !== 'succeeded' && setupIntent.status !== 'processing') {
+          throw new Error('Could not save your card. Please try again or use a different card.');
+        }
+        onSuccess({ bookingDbId, scheduled: true, chargeAt, amountCents: bd?.amountCents ?? Math.round(grandTotal * 100) });
+        return;
+      }
 
       // Server fetches authoritative price from DB and creates the booking record atomically
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-payment-intent`, {
@@ -666,11 +700,19 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
             style={{ marginTop:2, accentColor:"#00B894", width:16, height:16, cursor:"pointer", flexShrink:0 }}
           />
           <span style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>
-            I agree to Lendie's terms. {isPurchase
+            I agree to Lendie's terms. {willSchedule
+              ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel free of charge until then.</>
+              : isPurchase
               ? "The 8% service fee is non-refundable if you cancel a purchase."
               : "If cancelled within 72 hours, the 8% service fee is non-refundable."}
           </span>
         </label>
+
+        {willSchedule && (
+          <div style={{ fontSize:12, color:"#00B894", background:"#E8FBF6", border:"1px solid #B2EFE3", borderRadius:10, padding:"10px 12px", marginBottom:14, lineHeight:1.5, textAlign:"center" }}>
+            💳 <strong>You won't be charged today.</strong> Your card is saved and {fmt(grandTotal)} will be charged on <strong>{chargeDateLabel}</strong> — cancel free any time before then.
+          </div>
+        )}
 
         <div style={{ fontSize:11, color:C.muted, marginBottom:14, textAlign:"center", lineHeight:1.5 }}>
           🔒 Payments securely processed by <strong style={{ color:C.text }}>Stripe</strong>. Your card details are never seen or stored by Lendie.
@@ -681,7 +723,7 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
           disabled={!canPay}
           style={{ ...S.pBtn, opacity: canPay ? 1 : 0.5, cursor: canPay ? "pointer" : "not-allowed" }}
         >
-          {processing ? "Processing…" : `Pay ${fmt(grandTotal)}`}
+          {processing ? "Processing…" : willSchedule ? `Save card — charged ${chargeDateLabel}` : `Pay ${fmt(grandTotal)}`}
         </button>
         <button style={S.gBtn} onClick={onDismiss}>Back</button>
       </div>
@@ -4390,15 +4432,20 @@ export default function Lendie() {
       renterId: user?.id,
       status: "pending",
       time: "Just now",
-      // Stripe bookings are pre-created by the Edge Function
-      ...(stripeData?.bookingDbId ? { dbId: stripeData.bookingDbId, payment_status: 'paid', stripe_amount_cents: stripeData.amountCents } : {}),
+      // Stripe bookings are pre-created by the Edge Function. Scheduled bookings
+      // saved a card but haven't been charged yet.
+      ...(stripeData?.bookingDbId ? { dbId: stripeData.bookingDbId, payment_status: stripeData.scheduled ? 'scheduled' : 'paid', stripe_amount_cents: stripeData.amountCents, ...(stripeData.chargeAt ? { charge_at: stripeData.chargeAt } : {}) } : {}),
     };
     setBookingRequests(prev => [...prev, req]);
     setRequestSent(r => ({...r, [item.id]: "pending"}));
     setPaymentModal(null); setShowStripeModal(false); setPaymentStep(1); setWantsDelivery(false);
     setDeliveryAddress(""); setDeliveryCoords(null); setDeliveryCheck(null);
     setSelectedItem(null);
-    if (stripeData?.bookingDbId) {
+    if (stripeData?.bookingDbId && stripeData.scheduled) {
+      const when = stripeData.chargeAt ? new Date(stripeData.chargeAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'before your rental';
+      showToast(`Card saved! You'll be charged on ${when}.`);
+      addNotification({ icon: "💳", text: "Card saved: " + item.title, sub: `Charged on ${when} · cancel free until then`, time: "Just now", type: "payment" });
+    } else if (stripeData?.bookingDbId) {
       showToast("Payment confirmed! You're all set.");
       addNotification({ icon: "✅", text: "Payment confirmed: " + item.title, sub: "Booking secured" + (dateStr ? " · " + dateStr : ""), time: "Just now", type: "payment" });
     } else {
@@ -4409,7 +4456,7 @@ export default function Lendie() {
 
     if (stripeData?.bookingDbId) {
       // Webhook sends "Payment received" to the owner — only push for fresh (non-chat) payments
-      if (!paymentModal?.existingBookingId && item.ownerId && item.ownerId !== 'me') {
+      if (!stripeData.scheduled && !paymentModal?.existingBookingId && item.ownerId && item.ownerId !== 'me') {
         const renterName = user?.user_metadata?.name || 'Someone';
         sendPushToUser(item.ownerId, {
           title: '💰 Payment received',

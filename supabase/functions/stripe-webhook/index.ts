@@ -61,6 +61,10 @@ Deno.serve(async (req) => {
   switch (event.type) {
     case 'payment_intent.succeeded': {
       const pi = event.data.object as Stripe.PaymentIntent;
+      // Scheduled off-session charges are owned end-to-end by charge-due-bookings
+      // (it sets 'paid', the payout hold, and notifications). Ignore them here so
+      // we don't double-process or double-notify.
+      if (pi.metadata?.flow === 'scheduled') break;
       const bookingId = pi.metadata?.booking_id;
       const listingTitle = pi.metadata?.listing_title;
       const amountDollars = (pi.amount / 100).toFixed(2);
@@ -184,6 +188,9 @@ Deno.serve(async (req) => {
 
     case 'payment_intent.payment_failed': {
       const pi = event.data.object as Stripe.PaymentIntent;
+      // Scheduled-charge failures are handled by charge-due-bookings (grace +
+      // retry + auto-cancel). Don't let the webhook flip them to terminal 'failed'.
+      if (pi.metadata?.flow === 'scheduled') break;
       const bookingId = pi.metadata?.booking_id;
 
       if (bookingId) {
@@ -221,6 +228,46 @@ Deno.serve(async (req) => {
           .from('booking_requests')
           .update({ payment_status: 'cancelled' })
           .eq('id', bookingId);
+      }
+      break;
+    }
+
+    // A renter finished saving their card for a delayed charge. Store the saved
+    // card + customer and move the booking from 'saving' to 'scheduled' so the
+    // charge-due-bookings cron can charge it 24h before the rental.
+    case 'setup_intent.succeeded': {
+      const si = event.data.object as Stripe.SetupIntent;
+      const bookingId = si.metadata?.booking_id;
+      if (!bookingId) break;
+
+      const customerId = typeof si.customer === 'string' ? si.customer : si.customer?.id ?? null;
+      const pmId = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id ?? null;
+
+      // Don't resurrect a booking the renter cancelled while the card was saving.
+      const { data: booking } = await supabase
+        .from('booking_requests')
+        .select('renter_id, item_title, status, payment_status, charge_at, stripe_amount_cents')
+        .eq('id', bookingId)
+        .single();
+      if (!booking || booking.status === 'cancelled' || booking.payment_status === 'refunded') break;
+
+      await supabase
+        .from('booking_requests')
+        .update({ payment_status: 'scheduled', stripe_customer_id: customerId, stripe_payment_method_id: pmId })
+        .eq('id', bookingId);
+
+      if (booking.renter_id) {
+        const amt = booking.stripe_amount_cents ? (booking.stripe_amount_cents / 100).toFixed(2) : null;
+        const when = booking.charge_at ? new Date(booking.charge_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'before your rental';
+        await supabase.from('notifications').insert({
+          user_id: booking.renter_id, icon: '💳',
+          text: 'Card saved — nothing charged yet',
+          sub: `${amt ? `$${amt} ` : ''}will be charged on ${when} for ${booking.item_title}. Cancel free until then.`,
+          time_label: 'Just now', unread: true, type: 'payment',
+        });
+        await sendEmail(booking.renter_id, `Card saved — ${booking.item_title}`,
+          `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">💳 Card saved — you haven't been charged</h2>
+           <p style="margin:0 0 12px;color:#3A3B3C;font-size:15px">Your card is saved for <strong>${booking.item_title}</strong>. ${amt ? `We'll charge <strong>$${amt}</strong>` : "We'll charge it"} on <strong>${when}</strong> (24 hours before your rental). You can cancel free of charge any time before then.</p>`);
       }
       break;
     }

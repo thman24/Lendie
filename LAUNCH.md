@@ -50,6 +50,9 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
 - [ ] **Enable Connect**: set `STRIPE_CONNECT_ENABLED=true` so card payments require the owner
       to have a connected account (card blocked for un-onboarded owners; cash still works).
 - [ ] **Register the LIVE webhook** pointing at the `stripe-webhook` function (test webhook ≠ live).
+      Subscribe to at least: `payment_intent.succeeded`, `payment_intent.payment_failed`,
+      `payment_intent.canceled`, **`setup_intent.succeeded`** (needed for delayed charging —
+      it flips a saved-card booking to `scheduled`), and `account.updated`.
 - [ ] **Turn on the payout-release cron** (deliberately not auto-applied — `20240126_payout_release_cron.sql`):
   1. `create extension pg_cron; create extension pg_net;`
   2. Store Vault secrets (in the Supabase SQL editor, NOT in git):
@@ -61,6 +64,31 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
       create-refund, release-payouts, create-connect-account, get-connect-status,
       get-stripe-dashboard-link, admin-* , send-email).
 - [ ] **End-to-end test** a live card rental: pay → 24h hold → payout releases → refund path.
+
+### Delayed charging (built 2026-07-03 — inert until cards are on)
+
+To avoid Stripe fees on cancellations, rentals & dated services with a start date **>24h out
+don't charge at checkout** — the card is SAVED (SetupIntent, $0) and charged off-session **24h
+before the rental day** by the `charge-due-bookings` cron. Sales, undated services, and
+last-minute bookings still charge immediately (= "charge on acceptance"). A cancellation before
+the scheduled charge costs **zero** Stripe fees because no charge ever happened.
+
+- `payment_status` states added: `saving` → `scheduled` → (`charging`) → `paid`; `payment_failed`
+  during the notify+grace window. Columns on `booking_requests`: `stripe_customer_id`,
+  `stripe_payment_method_id`, `charge_at`, `charge_attempts`, `charge_last_error`,
+  `payment_failed_at` (migration `20240137`).
+- Charge cron `charge-due-bookings-hourly` scheduled via `20240138` (reuses the release-payouts
+  Vault secrets). On a failed charge: renter is notified with a pay-now link (also clears 3DS),
+  retried through the day, then **auto-cancelled at the rental day** if still unpaid (dates freed).
+- New edge functions to confirm deployed: **`create-setup-intent`**, **`charge-due-bookings`**
+  (plus the updated `stripe-webhook`).
+- [ ] **LAWYER: stored-card authorization (mandate).** Delayed charging saves the renter's card
+      and charges it later, so the ToS + checkout must include an authorization clause. The checkout
+      already shows: *"I authorize Lendie to securely save this card and charge $X on [date] (24
+      hours before my rental). I can cancel free of charge until then."* Have the lawyer confirm
+      this wording + add a matching stored-card / future-charge clause to the ToS. (Card data still
+      lives only at Stripe — this is a consent/disclosure item, not new data-security scope; PCI
+      stays SAQ A.) Fold into the ToS/Privacy review above.
 
 ## 🔴 LAUNCH-DAY BLOCKERS (do these first)
 
