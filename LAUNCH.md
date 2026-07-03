@@ -18,9 +18,27 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
   - If it's your home: consider a **commercial registered agent** (~$50–150/yr) and/or a
     **UPS Store mailbox or virtual business address** (~$10–25/mo, real street address) and
     reuse it for DMCA, email footers, etc.
-- [ ] **Lawyer review of ToS & Privacy** — the updated docs (sales + services, independent-
-      contractor & assumption-of-risk language) were drafted carefully but not by an attorney.
-      Have a lawyer review before relying on them.
+- [ ] **Lawyer review of ToS & Privacy** — the docs were drafted carefully but NOT by an attorney.
+      Have a lawyer review before relying on them. As of 2026-07-03 the docs already include:
+      delayed-charge + stored-card authorization (terms §6.2), gentle cancellation policy (§6.4),
+      neutral-venue / no-joint-employer master clause (§5.7), independent-contractor + assumption-of-
+      risk for services (§5.5), marketplace-facilitator tax authorization (§6.6), governing-law
+      savings clause (§17), CA Civ. Code §1789.3 + NJ TCCWNA + general state-specific savings (§20),
+      and a multi-state privacy-rights section (privacy §15: CCPA/CPRA + VA/CO/CT/UT/TX/OR/MT + appeal).
+      Ask the attorney to specifically confirm: (1) WV choice-of-law + arbitration/class-waiver
+      enforceability, (2) services worker-classification exposure (esp. CA AB5), (3) whether any
+      listing categories (vehicles, lodging) should be further restricted.
+
+> ⚠️ **IRREDUCIBLE pre-launch legal actions** — these CANNOT be handled in code/docs; they are
+> external actions someone must take. The ToS text is as hardened as it can be without them:
+- [ ] **Attorney review + sign-off** (item above) — only a licensed attorney makes the terms
+      enforceable for your facts.
+- [ ] **General liability / marketplace insurance** — a policy is the real protection against
+      injury/damage claims; ToS disclaimers reduce but do not eliminate exposure.
+- [ ] **Sales-tax registration + remittance** — as a marketplace facilitator you may owe sales
+      tax collection per state once nexus/thresholds are hit. §6.6 now authorizes collection;
+      the actual registration + remittance (e.g. via Stripe Tax) is operational and ongoing.
+- [ ] **Register the DMCA agent** (item above) — the safe-harbor isn't active until filed.
 - [ ] **Service-provider insurance** — decide whether providers (lawn care, handyman, moving)
       must carry their own liability insurance, or whether to restrict high-risk service types.
 - [ ] **Trademark** — hire a flat-fee trademark attorney to clear + file **LENDIE**
