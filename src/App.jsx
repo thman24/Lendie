@@ -701,10 +701,10 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
           />
           <span style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>
             I agree to Lendie's terms. {willSchedule
-              ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel free of charge until then.</>
+              ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel <strong style={{ color:C.text }}>free of charge</strong> any time before then; after that the 8% service fee is non-refundable.</>
               : isPurchase
               ? "The 8% service fee is non-refundable if you cancel a purchase."
-              : "If cancelled within 72 hours, the 8% service fee is non-refundable."}
+              : "The 8% service fee is non-refundable if you cancel."}
           </span>
         </label>
 
@@ -5124,24 +5124,16 @@ export default function Lendie() {
   const handleRefundRequest = async (req) => {
     if (!req.dbId) return;
     if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
-    // Mirror the server's refund policy so the renter sees the real numbers
-    // before confirming: keep 8% on a purchase, or on a rental cancelled within
-    // 72h of its start; full refund otherwise.
+    // Mirror the server's gentle refund policy so the renter sees the real
+    // numbers before confirming: once a booking has been charged, a renter/buyer
+    // cancel refunds everything except the 8% service fee. (Cancellations before
+    // the card is charged are free and never reach this refund path.)
     const total = (req.stripe_amount_cents || 0) / 100;
     const fee = (req.renter_fee_cents || 0) / 100;
-    const isSale = !req.start;
-    const within72 = req.start
-      ? (new Date(`${req.start}T00:00:00Z`).getTime() - Date.now()) <= 72 * 60 * 60 * 1000
-      : false;
-    const keepFee = fee > 0 && (isSale || within72);
+    const keepFee = fee > 0;
     const refundAmt = keepFee ? Math.max(0, total - fee) : total;
-    const reason = isSale
-      ? `Because this is a purchase, the 8% service fee ($${fee.toFixed(2)}) is non-refundable.`
-      : within72
-        ? `Because this is within 72 hours of the rental start, the 8% service fee ($${fee.toFixed(2)}) is non-refundable.`
-        : '';
     const confirmMsg = keepFee
-      ? `Cancel this ${txNoun(req)}? ${reason} You'll be refunded $${refundAmt.toFixed(2)} of $${total.toFixed(2)}.`
+      ? `Cancel this ${txNoun(req)}? The 8% service fee ($${fee.toFixed(2)}) is non-refundable — you'll be refunded $${refundAmt.toFixed(2)} of $${total.toFixed(2)}.`
       : `Cancel this ${txNoun(req)}? You'll be refunded in full ($${total.toFixed(2)}).`;
     if (!window.confirm(confirmMsg)) return;
     const { data: { session } } = await supabase.auth.getSession();

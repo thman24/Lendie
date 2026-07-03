@@ -68,22 +68,15 @@ Deno.serve(async (req) => {
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
 
-    // Decide the refund amount by who is cancelling and when.
-    //  - Owner cancels         -> always full refund, no fee kept.
-    //  - Renter cancels a sale -> keep the 8% service fee (no rental window).
-    //  - Renter cancels rental -> full refund if >72h before start; keep 8% within 72h.
+    // Gentle cancellation policy. With delayed charging, a booking is only ever
+    // charged within 24h of the rental (or immediately for sales / last-minute) —
+    // cancellations before that happen while unpaid and never reach this function.
+    // So once we're here (payment is 'paid'):
+    //  - Owner/provider cancels -> always full refund, no fee kept.
+    //  - Renter/buyer cancels    -> refund everything except the 8% service fee.
     const isOwner = user.id === booking.owner_id;
     const feeCents = booking.renter_fee_cents ?? 0;
-    let keepFee = false;
-    if (!isOwner && feeCents > 0) {
-      if (!booking.start_date) {
-        keepFee = true; // purchase / sale
-      } else {
-        const startMs = new Date(`${booking.start_date}T00:00:00Z`).getTime();
-        const HRS_72 = 72 * 60 * 60 * 1000;
-        keepFee = (startMs - Date.now()) <= HRS_72; // within 72h of (or past) start
-      }
-    }
+    const keepFee = !isOwner && feeCents > 0;
     const refundCents = keepFee
       ? Math.max(0, (booking.stripe_amount_cents ?? 0) - feeCents)
       : null; // null => full refund
