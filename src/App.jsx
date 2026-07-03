@@ -952,7 +952,10 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
   // For rent items, only block if selected dates overlap an existing booking's dates.
   const myRequest = myActiveRequests.find(r => {
     if (!startDate) return false;
-    if (!r.start && !r.end) return true; // no dates stored — treat as conflict
+    // A prior request only blocks the exact dates it holds. Requests with no
+    // stored dates (e.g. legacy service bookings) never conflict, so a past
+    // booking can't permanently lock a rental/service out of being re-booked.
+    if (!r.start && !r.end) return false;
     const selDates = getDatesInRange(startDate, endDate || startDate);
     const reqDates = getDatesInRange(r.start, r.end || r.start);
     return selDates.some(d => reqDates.includes(d));
@@ -1154,14 +1157,13 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         {!isMine && isService && (
           !item.available
             ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:C.card, color:C.faint, textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:`1px solid ${C.border}` }}>This service is currently unavailable</div>
-            : anyActiveRequest?.status === "pending"
-            ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:"#F0EDFF", color:"#7B61FF", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"1px solid #DAD2FF" }}>⏳ Request sent — check your messages</div>
-            : anyActiveRequest?.status === "accepted"
-            ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10 }}>✅ Accepted — arrange details in Messages</div>
             : <div>
+                {/* A prior request only holds the exact date it was made for — you can
+                    always book this service again on a different date (alreadySent is
+                    date-aware), so a past/accepted booking never blocks re-booking. */}
                 <div style={{ fontWeight:700, fontSize:14, color:C.text, marginBottom:10 }}>Choose a date</div>
                 <RangeCalendar booked={item.booked||[]} startDate={startDate} endDate={endDate} onRangeChange={(s,e)=>{ setStartDate(s); setEndDate(e); }} darkMode={darkMode}/>
-                {startDate && !rangeBooked && (
+                {startDate && !rangeBooked && alreadySent !== "pending" && alreadySent !== "accepted" && (
                   <div style={{ background:"#F0EDFF", borderRadius:10, padding:"11px 14px", margin:"10px 0", border:"1px solid #DAD2FF" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#7B61FF" }}>{formatDate(startDate)}{endDate&&endDate!==startDate?" to "+formatDate(endDate):""}</div>
                   </div>
@@ -1171,10 +1173,26 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
                     <div style={{ fontSize:13, fontWeight:700, color:"#DC2626" }}>That date isn't available — pick another</div>
                   </div>
                 )}
-                <button disabled={!startDate||rangeBooked} onClick={()=>{ if(startDate&&!rangeBooked) onServiceRequest&&onServiceRequest(item, startDate, endDate); }}
-                  style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:(!startDate||rangeBooked)?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#7B61FF", color:"#fff", opacity:(!startDate||rangeBooked)?0.55:1, marginBottom:10 }}>
-                  {!startDate ? "Select a date to continue" : rangeBooked ? "Date unavailable — pick another" : `Request Service — $${item.price}/${svcUnit}`}
-                </button>
+                {startDate && !rangeBooked && alreadySent === "pending" && (
+                  <div style={{ background:"#F0EDFF", borderRadius:10, padding:"11px 14px", margin:"10px 0", border:"1px solid #DAD2FF" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#7B61FF" }}>⏳ You've already requested this date — pick another to book again</div>
+                  </div>
+                )}
+                {startDate && !rangeBooked && alreadySent === "accepted" && (
+                  <div style={{ background:"#E8FBF6", borderRadius:10, padding:"11px 14px", margin:"10px 0", border:"1px solid #B2EFE3" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#00B894" }}>✅ Booked for this date — arrange details in Messages, or pick another to book again</div>
+                  </div>
+                )}
+                {(() => {
+                  const svcBlocked = alreadySent === "pending" || alreadySent === "accepted";
+                  const disabled = !startDate || rangeBooked || svcBlocked;
+                  return (
+                    <button disabled={disabled} onClick={()=>{ if(startDate&&!rangeBooked&&!svcBlocked) onServiceRequest&&onServiceRequest(item, startDate, endDate); }}
+                      style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:disabled?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#7B61FF", color:"#fff", opacity:disabled?0.55:1, marginBottom:10 }}>
+                      {!startDate ? "Select a date to continue" : rangeBooked ? "Date unavailable — pick another" : svcBlocked ? "Already booked for this date" : `Request Service — $${item.price}/${svcUnit}`}
+                    </button>
+                  );
+                })()}
               </div>
         )}
 
