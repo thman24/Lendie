@@ -60,9 +60,9 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
      `select vault.create_secret('<SERVICE_ROLE_KEY>','service_role_key');`
   3. Run the `cron.schedule('release-payouts-hourly', ...)` block from the migration.
   - Without this, held owner payouts never release on the 24h timer.
-- [ ] **Verify all edge functions are deployed** (create-payment-intent, stripe-webhook,
-      create-refund, release-payouts, create-connect-account, get-connect-status,
-      get-stripe-dashboard-link, admin-* , send-email).
+- [ ] **Verify all edge functions are deployed** (create-payment-intent, **create-setup-intent**,
+      stripe-webhook, create-refund, release-payouts, **charge-due-bookings**, create-connect-account,
+      get-connect-status, get-stripe-dashboard-link, admin-* , send-email).
 - [ ] **End-to-end test** a live card rental: pay → 24h hold → payout releases → refund path.
 
 ### Delayed charging (built 2026-07-03 — inert until cards are on)
@@ -82,6 +82,17 @@ the scheduled charge costs **zero** Stripe fees because no charge ever happened.
   retried through the day, then **auto-cancelled at the rental day** if still unpaid (dates freed).
 - New edge functions to confirm deployed: **`create-setup-intent`**, **`charge-due-bookings`**
   (plus the updated `stripe-webhook`).
+
+**Delayed-charge go-live checklist (do in Stripe TEST mode first):**
+- [ ] Webhook subscribes to **`setup_intent.succeeded`** (see webhook step above) — without it,
+      saved-card bookings never become `scheduled` and never charge.
+- [ ] Confirm the **`charge-due-bookings-hourly`** cron exists (`select * from cron.job;`) — it was
+      scheduled by `20240138` and reuses the release-payouts Vault secrets.
+- [ ] TEST the happy path: book a rental >24h out → card saved ($0, `scheduled`) → move `charge_at`
+      back / wait → cron charges → `paid` → payout hold → release.
+- [ ] TEST the decline path with Stripe test card **`4000 0000 0000 0341`** (fails off-session):
+      charge fails → renter notified w/ pay-now link → retries → **auto-cancel at rental day** → dates freed.
+- [ ] TEST a cancel BEFORE the charge → confirm **no Stripe charge/refund happened** (zero fee).
 - [ ] **LAWYER: stored-card authorization (mandate).** Delayed charging saves the renter's card
       and charges it later, so the ToS + checkout must include an authorization clause. The checkout
       already shows: *"I authorize Lendie to securely save this card and charge $X on [date] (24
