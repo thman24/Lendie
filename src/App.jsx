@@ -1128,7 +1128,6 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             <div style={{ flex:1 }}>
               <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:2 }}>
                 <span style={{ fontWeight:700, fontSize:14, color:C.text }}>{item.owner || 'Neighbor'}</span>
-                {item.ownerAvatarUrl && <span title="Verified profile" style={{ fontSize:13, color:"#1877F2" }}>✓</span>}
               </div>
               {(() => {
                 const ownerListings = allItems.filter(x => x.ownerId === item.ownerId && x.reviews > 0);
