@@ -4144,6 +4144,23 @@ export default function Lendie() {
     return [...derived, ...notifications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [derivedNotifs, notifications, notifLocalState]);
   const unreadNotifs = bellItems.filter(n=>n.unread).length;
+
+  // Opening the notification tray counts as viewing everything in it — mark all
+  // as read so the bell badge clears, mirroring how opening a conversation
+  // auto-marks it read. Clicking an individual notification still navigates.
+  useEffect(() => {
+    if (!showNotifs) return;
+    const derivedKeys = derivedNotifs
+      .filter(d => notifLocalState[d.key] !== 'read' && notifLocalState[d.key] !== 'hidden')
+      .map(d => d.key);
+    if (derivedKeys.length) setNotifKeyState(derivedKeys, 'read');
+    if (notifications.some(n => n.unread)) {
+      setNotifications(prev => prev.map(n => n.unread ? { ...n, unread: false } : n));
+      if (user) supabase.from('notifications').update({ unread:false }).eq('user_id', user.id).eq('unread', true)
+        .then(({ error }) => { if (error) console.error('[Notif] view-all read failed:', error.message); });
+    }
+  }, [showNotifs]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const openRequestConvo = async (req) => {
     let convo = messages.find(m => m.otherUserId === req.renterId && m.item === req.item?.title);
     if (!convo) {
