@@ -81,6 +81,16 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Human-friendly distance label. Returns null when distance is unknown (no
+// viewer location or no listing coordinates) so callers can hide it rather than
+// print a misleading "0 mi away".
+function formatDistance(d) {
+  if (d == null || isNaN(d)) return null;
+  if (d < 0.1) return "Near you";
+  if (d < 10) return `${d.toFixed(1)} mi away`;
+  return `${Math.round(d)} mi away`;
+}
+
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const VAPID_PUBLIC_KEY = 'BApnfC-Tg2ygXMqneDuuD9-KOwWHJjUa5W7Na4dJwF7KQKkDKjnsdwQKvb-CQ9NW7x0mRuS-ErUKur3LgdQeUI0';
 
@@ -887,7 +897,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:600, fontSize:15, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.title}</div>
-                <div style={{ fontSize:13, color:C.faint, marginTop:2 }}>{item.distance===0?"Near you":`${item.distance} mi away`}</div>
+                <div style={{ fontSize:13, color:C.faint, marginTop:2 }}>{formatDistance(item.distance) || "Distance unavailable"}</div>
               </div>
               <div style={{ textAlign:"right", flexShrink:0 }}>
                 <div style={{ fontSize:16, fontWeight:700, color:C.text }}>${item.price}</div>
@@ -1089,7 +1099,7 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:12, flexWrap:"wrap" }}>
           <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:item.available?"#31A24C":"#FA3E3E" }}/>
           <span style={{ fontSize:13, fontWeight:600, color:item.available?"#31A24C":"#FA3E3E" }}>{item.available?"Available":"Unavailable"}</span>
-          <span style={{ fontSize:13, color:C.muted }}>&middot; {item.distance}mi away</span>
+          {formatDistance(item.distance) && <span style={{ fontSize:13, color:C.muted }}>&middot; {formatDistance(item.distance)}</span>}
           {isService && (
             <span style={{ fontSize:11, fontWeight:700, color:"#7B61FF", background:"#F0EDFF", borderRadius:6, padding:"2px 7px", border:"1px solid #DAD2FF" }}>
               Service
@@ -4225,6 +4235,8 @@ export default function Lendie() {
     setTab('messages');
   };
 
+  const centerCoords = locationText === "Current Location" ? gpsCoords : searchCoords;
+
   const allItems = useMemo(() => {
     const myIds = new Set(myListings.map(l => l.id));
     const blockedSet = new Set(blocks);
@@ -4235,15 +4247,22 @@ export default function Lendie() {
     };
     const enrich = item => {
       const lr = listingRatings[item.id];
-      return lr ? { ...item, rating: lr.avg, reviews: lr.count } : item;
+      const base = lr ? { ...item, rating: lr.avg, reviews: lr.count } : item;
+      // Real distance from the viewer's location (GPS or the searched location).
+      // null when we can't compute it (no location set, or the listing has no
+      // coordinates) so the UI hides it instead of showing a misleading "0 mi".
+      const distance = (centerCoords && base.lat && base.lng)
+        ? haversineDistance(centerCoords.lat, centerCoords.lng, base.lat, base.lng)
+        : null;
+      return { ...base, distance };
     };
     return [
-      ...myListings.map(l => enrich(merge({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", distance:0, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
+      ...myListings.map(l => enrich(merge({ ...l, owner:"You", ownerAvatar:"🧑", ownerId:"me", reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
       ...publicListings
         .filter(l => !myIds.has(l.id) && !blockedSet.has(l.ownerId))
         .map(l => enrich(merge({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
     ];
-  }, [myListings, publicListings, bookedOverrides, listingRatings, blocks]);
+  }, [myListings, publicListings, bookedOverrides, listingRatings, blocks, centerCoords]);
 
   // Refresh availability whenever a listing detail opens — booked dates change
   // owner-side (accepts, blocked dates), so renters need a fresh read mid-session
@@ -4271,8 +4290,6 @@ export default function Lendie() {
     }
   }, [allItems]);
 
-  const centerCoords = locationText === "Current Location" ? gpsCoords : searchCoords;
-
   const filtered = useMemo(() => allItems.filter(item => {
     // Sold or paused listings leave the marketplace for everyone
     if (!item.available) return false;
@@ -4296,7 +4313,8 @@ export default function Lendie() {
     if (sortBy==="price-desc") return b.price-a.price;
     if (sortBy==="rating") return (b.rating||0)-(a.rating||0);
     if (sortBy==="newest") return (b.id||0)-(a.id||0);
-    return a.distance-b.distance;
+    // Unknown distances sort last so listings without coordinates don't jump to the top.
+    return (a.distance ?? Infinity) - (b.distance ?? Infinity);
   }), [allItems, showFavOnly, favorites, category, search, centerCoords, radius, listingTypeFilter, sortBy]);
 
   const C = darkMode ? {
@@ -5367,7 +5385,7 @@ export default function Lendie() {
                 ? <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span><span style={{ fontSize:11, fontWeight:700, color:"#E87722" }}> · Buy ${item.salePrice}</span></>
                 : <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span></>}
             </div>
-            {item.distance>0 && <div style={{ fontSize:11, color:C.faint }}>{item.distance} mi away</div>}
+            {formatDistance(item.distance) && <div style={{ fontSize:11, color:C.faint }}>{formatDistance(item.distance)}</div>}
           </div>
         </div>
       ))}
