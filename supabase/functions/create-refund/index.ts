@@ -182,8 +182,10 @@ Deno.serve(async (req) => {
     await supabaseAdmin
       .from('booking_requests')
       // Base 'skipped' neutralises any inert leftover status; a reversal in
-      // payoutUpdate overrides it to 'reversed'.
-      .update({ payment_status: 'refunded', status: 'cancelled', payout_status: 'skipped', ...payoutUpdate })
+      // payoutUpdate overrides it to 'reversed'. cancelled_by attributes the
+      // cancellation to whoever initiated it (this fn runs as service_role, so
+      // the DB trigger's auth.uid() fallback would be null without this).
+      .update({ payment_status: 'refunded', status: 'cancelled', payout_status: 'skipped', cancelled_by: user.id, cancellation_reason: isOwner ? 'owner_cancelled' : 'renter_cancelled', ...payoutUpdate })
       .eq('id', bookingId);
 
     // Notify the other party

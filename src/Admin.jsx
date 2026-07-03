@@ -20,11 +20,13 @@ function SearchInput({ value, onChange, placeholder }) {
 export default function AdminPage() {
   const [authed, setAuthed]     = useState(null);
   const [openSections, setOpenSections] = useState({ overview: true });
-  const [stats, setStats]       = useState({ users:0, listings:0, bookings:0, messages:0, reviews:0, reports:0 });
+  const [stats, setStats]       = useState({ users:0, listings:0, bookings:0, messages:0, reviews:0, reports:0, flags:0 });
   const [users, setUsers]       = useState([]);
   const [listings, setListings] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [reports, setReports]   = useState([]);
+  const [flags, setFlags]       = useState([]);
+  const [adminId, setAdminId]   = useState(null);
   const [searches, setSearches] = useState({});
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [suspended, setSuspended] = useState({}); // userId -> banned_until ISO (or 'indefinite')
@@ -45,12 +47,13 @@ export default function AdminPage() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [lRes, bRes, mRes, rRes, rpRes] = await Promise.all([
+    const [lRes, bRes, mRes, rRes, rpRes, fRes] = await Promise.all([
       supabase.from('listings').select('*').order('created_at', { ascending: false }),
       supabase.from('booking_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('messages').select('id'),
       supabase.from('reviews').select('id'),
       supabase.from('reports').select('*').order('created_at', { ascending: false }),
+      supabase.from('user_flags').select('*').order('created_at', { ascending: false }),
     ]);
 
     const listingsData = lRes.data || [];
@@ -72,10 +75,12 @@ export default function AdminPage() {
 
     const usersArr = Object.values(usersMap).sort((a, b) => a.name.localeCompare(b.name));
     const reportsData = rpRes.data || [];
+    const flagsData = fRes.data || [];
     setListings(listingsData);
     setBookings(bookingsData);
     setUsers(usersArr);
     setReports(reportsData);
+    setFlags(flagsData);
     setStats({
       users: usersArr.length,
       listings: listingsData.length,
@@ -83,6 +88,7 @@ export default function AdminPage() {
       messages: (mRes.data || []).length,
       reviews: (rRes.data || []).length,
       reports: reportsData.filter(r => r.status === 'pending').length,
+      flags: flagsData.filter(f => f.status === 'pending').length,
     });
     setLoading(false);
   }, []);
@@ -94,6 +100,7 @@ export default function AdminPage() {
       if (!ok) { const { data } = await supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle(); ok = !!data; }
       if (!ok) { window.location.href = '/'; return; }
       setIsOwner(user.id === ADMIN_ID);
+      setAdminId(user.id);
       setAuthed(true);
       loadAll();
     });
@@ -156,10 +163,10 @@ export default function AdminPage() {
 
   const suspendUser = async (u) => {
     const input = window.prompt(`Suspend ${u.name} for how many DAYS?\n\nLeave blank for indefinite (until you reinstate them).`, '');
-    if (input === null) return;
+    if (input === null) return false;
     const trimmed = input.trim();
     const days = trimmed === '' ? null : Number(trimmed);
-    if (trimmed !== '' && (!days || days <= 0)) { showToast('Enter a valid number of days', 'error'); return; }
+    if (trimmed !== '' && (!days || days <= 0)) { showToast('Enter a valid number of days', 'error'); return false; }
     try {
       const { bannedUntil } = await callAdmin('admin-suspend-user', 'suspend', { userId: u.id, durationHours: days ? days * 24 : null });
       setSuspended(prev => ({ ...prev, [u.id]: bannedUntil || 'indefinite' }));
@@ -173,8 +180,45 @@ export default function AdminPage() {
         await ch.send({ type: 'broadcast', event: 'suspended', payload: {} });
         setTimeout(() => supabase.removeChannel(ch), 1500);
       } catch { /* best effort */ }
+      // Notify the suspended user (in-app + email) so they know why. Best-effort.
+      const notice = days ? `for ${days} day${days>1?'s':''}` : 'indefinitely';
+      supabase.from('notifications').insert({
+        user_id: u.id, icon: '⛔',
+        text: 'Your account has been suspended',
+        sub: `Your Lendie account has been suspended ${notice} following a review. Contact support if you believe this is a mistake.`,
+        time_label: 'Just now', unread: true, type: 'general',
+      }).then(({ error }) => { if (error) console.error('[suspend] notif failed:', error.message); });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+          method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: u.id, subject: 'Your Lendie account has been suspended',
+            html: `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">Account suspended</h2>
+                   <p style="margin:0 0 6px;color:#3A3B3C;font-size:15px">Your Lendie account has been suspended <strong>${notice}</strong> following a review of activity on your account.</p>
+                   <p style="margin:0 0 6px;color:#65676B;font-size:14px">If you believe this was made in error, reply to this email and we'll take a look.</p>` }),
+        }).catch(() => {});
+      } catch { /* best effort */ }
       showToast(`${u.name} suspended${days ? ` for ${days} day${days>1?'s':''}` : ' indefinitely'}`);
-    } catch (e) { showToast(e.message || 'Suspend failed', 'error'); }
+      return true;
+    } catch (e) { showToast(e.message || 'Suspend failed', 'error'); return false; }
+  };
+
+  // Resolve a review flag. 'actioned' = user was suspended off this flag.
+  const updateFlagStatus = async (id, status) => {
+    const { error } = await supabase.from('user_flags')
+      .update({ status, resolved_at: new Date().toISOString(), resolved_by: adminId }).eq('id', id);
+    if (error) { showToast('Update failed: ' + error.message, 'error'); return; }
+    const next = flags.map(f => f.id === id ? { ...f, status } : f);
+    setFlags(next);
+    setStats(s => ({ ...s, flags: next.filter(f => f.status === 'pending').length }));
+    showToast(status === 'actioned' ? 'User suspended · flag resolved' : status === 'dismissed' ? 'Flag dismissed' : 'Flag reopened');
+  };
+
+  // Suspend the flagged user, then mark the flag actioned only if it went through
+  // (the suspend prompt may be cancelled).
+  const suspendFromFlag = async (f) => {
+    const ok = await suspendUser({ id: f.user_id, name: userName(f.user_id) });
+    if (ok) updateFlagStatus(f.id, 'actioned');
   };
 
   const unsuspendUser = async (u) => {
@@ -312,6 +356,10 @@ export default function AdminPage() {
     return b.renter_name?.toLowerCase().includes(q_bookings) || b.item_title?.toLowerCase().includes(q_bookings);
   });
   const filteredReports = reports.filter(r => !q_reports || q_reports === 'all' || r.status === q_reports);
+  // Pending flags first, then most-recently-updated.
+  const sortedFlags = [...flags].sort((a, b) =>
+    (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1)
+    || new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
   const userName = (id) => (users.find(u => u.id === id)?.name) || (id ? id.slice(0, 8) + '…' : '—');
   // Open a user's public profile in the main app (new tab so admin stays open).
   const openUser = (id, name) => { if (id) window.open(`/?owner=${encodeURIComponent(id)}&oname=${encodeURIComponent(name || '')}`, '_blank', 'noopener'); };
@@ -626,6 +674,59 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── FLAGS (auto-suspension review queue) ────────────────────────────── */}
+      <div style={{ borderBottom:`1px solid ${BD}` }}>
+        <SectionHeader id="flags" label="Flags" badge={stats.flags} />
+        {isOpen('flags') && (
+          <div style={{ padding:'0 16px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ padding:'12px 0 0', fontSize:12, color:MU, lineHeight:1.5 }}>
+              Auto-raised when a user cancels their 3rd committed booking within 120 days — tracked separately for their renter and owner sides. Review the pattern, then suspend or dismiss.
+            </div>
+            {sortedFlags.map(f => {
+              const pending = f.status === 'pending';
+              const sm = f.status === 'pending' ? { c:'#FA3E3E', l:'Pending' } : f.status === 'actioned' ? { c:'#00B894', l:'Suspended' } : { c:'#8A8D91', l:'Dismissed' };
+              const ev = Array.isArray(f.evidence) ? f.evidence : [];
+              return (
+                <div key={f.id} style={{ background:S1, border:`1px solid ${pending ? '#FA3E3E55' : BD}`, borderRadius:12, padding:'14px 16px' }}>
+                  {/* Top: who + role + status */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontSize:15, fontWeight:700, color:TX, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <span style={{ cursor:'pointer', color:G, textDecoration:'underline', textDecorationColor:G+'66' }} onClick={() => openUser(f.user_id, userName(f.user_id))}>{userName(f.user_id)}</span>
+                        <span style={{ background:(f.role==='owner'?'#E87722':'#0984E3')+'22', color:f.role==='owner'?'#E87722':'#0984E3', borderRadius:5, padding:'1px 7px', fontSize:11, fontWeight:700, textTransform:'capitalize' }}>as {f.role}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:MU, marginTop:3 }}>
+                        <strong style={{ color:'#FA3E3E' }}>{f.count}</strong> committed cancellations in {f.window_days} days · flagged {new Date(f.created_at).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}
+                      </div>
+                    </div>
+                    <span style={{ background:sm.c+'22', color:sm.c, borderRadius:20, padding:'4px 11px', fontSize:11, fontWeight:800, whiteSpace:'nowrap', flexShrink:0 }}>{sm.l}</span>
+                  </div>
+                  {/* Evidence: the offending bookings */}
+                  {ev.length > 0 && (
+                    <div style={{ background:BG, border:`1px solid ${BD}`, borderRadius:8, padding:'8px 12px', marginBottom:12, display:'flex', flexDirection:'column', gap:6 }}>
+                      {ev.map((e, i) => (
+                        <div key={i} style={{ fontSize:12, color:'#D1D1D6', display:'flex', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+                          <span style={{ fontWeight:600, overflowWrap:'anywhere' }}>{e.item || 'Listing'}{e.date_str ? ` · ${e.date_str}` : ''}</span>
+                          <span style={{ color:MU, whiteSpace:'nowrap' }}>{e.cancelled_at ? new Date(e.cancelled_at).toLocaleDateString([],{month:'short',day:'numeric'}) : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Actions */}
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {pending && <ActionBtn label="⛔ Suspend user" variant="danger" solid onClick={() => suspendFromFlag(f)}/>}
+                    <ActionBtn label="View their listings" variant="primary" onClick={() => { setQ('listings', f.user_id); setOpenSections(p => ({ ...p, listings: true, flags: false })); }}/>
+                    {pending && <ActionBtn label="Dismiss" onClick={() => updateFlagStatus(f.id,'dismissed')}/>}
+                    {!pending && <ActionBtn label="Reopen" onClick={() => updateFlagStatus(f.id,'pending')}/>}
+                  </div>
+                </div>
+              );
+            })}
+            {flags.length === 0 && <div style={{ padding:'24px 16px', textAlign:'center', color:MU, fontSize:13 }}>No flags — no one has hit the cancellation threshold</div>}
           </div>
         )}
       </div>

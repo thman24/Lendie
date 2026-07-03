@@ -4876,7 +4876,7 @@ export default function Lendie() {
   const handleCancelRequest = async (req) => {
     if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be cancelled.", 'error'); return; }
     if (req.dbId) {
-      const { error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', req.dbId);
+      const { error } = await supabase.from('booking_requests').update({ status: 'cancelled', cancelled_by: user?.id, cancellation_reason: 'renter_cancelled' }).eq('id', req.dbId);
       if (error) { showToast('Failed to cancel transaction', 'error'); return; }
     }
     setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:"cancelled"} : r));
@@ -4968,7 +4968,7 @@ export default function Lendie() {
       }
     } else {
       if (req.dbId) {
-        const { error } = await supabase.from('booking_requests').update({ status: 'cancelled' }).eq('id', req.dbId);
+        const { error } = await supabase.from('booking_requests').update({ status: 'cancelled', cancelled_by: user?.id, cancellation_reason: 'owner_cancelled' }).eq('id', req.dbId);
         if (error) { showToast('Failed to cancel transaction', 'error'); return; }
       }
       setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:"cancelled"} : r));
