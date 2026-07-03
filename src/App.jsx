@@ -5815,10 +5815,10 @@ export default function Lendie() {
                     }}
                   />
                 </div>
-                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); }} style={{ background:"#E8FBF6", border:"none", borderRadius:12, padding:"0 14px", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Use mine</button>
+                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(); }} style={{ background:"#E8FBF6", border:"none", borderRadius:12, padding:"0 14px", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Use mine</button>
               </div>
               <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
-                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"transparent", border:locationText==="Current Location"?"1px solid #00B894":`1px solid ${C.border}`, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":C.muted, cursor:"pointer" }}>
+                <button onClick={()=>{ setLocationText("Current Location"); setSearchCoords(null); setLocationPickerKey(k=>k+1); requestLocation(); }} style={{ background:locationText==="Current Location"?"#E8FBF6":"transparent", border:locationText==="Current Location"?"1px solid #00B894":`1px solid ${C.border}`, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:locationText==="Current Location"?700:500, color:locationText==="Current Location"?"#00B894":C.muted, cursor:"pointer" }}>
                   📍 Current
                 </button>
                 {recentLocations.map(loc=>(
