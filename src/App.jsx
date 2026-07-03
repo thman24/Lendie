@@ -3823,16 +3823,18 @@ export default function Lendie() {
         }
       } catch { if (interactive) showToast('Location set'); }
     }, err => {
-      setLocPromptState(p => (p === 'granted' ? p : 'denied'));
+      // code 1 = permission denied; 2 = position unavailable (usually macOS
+      // Location Services off for the browser); 3 = timeout.
+      setLocPromptState(p => (err.code === 1 ? 'denied' : (p === 'granted' ? p : p)));
       if (interactive) {
         const msg = err.code === 1
-          ? "Location is blocked. Allow it in your browser (and macOS System Settings → Privacy → Location Services), or enter your city."
+          ? "Location permission is blocked — allow it for this site, or enter your city below."
           : err.code === 3
-          ? "Location timed out — enter your city instead."
-          : "Couldn't get your location — enter your city instead.";
+          ? "Location timed out. On a Mac, turn on System Settings → Privacy & Security → Location Services for your browser — or just enter your city below."
+          : "Your device couldn't determine your location. On a Mac, turn on System Settings → Privacy & Security → Location Services for your browser — or just enter your city below.";
         showToast(msg, 'error');
       }
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
   };
   useEffect(() => { requestLocation(); }, []);
 
