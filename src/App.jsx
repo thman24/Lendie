@@ -4299,7 +4299,14 @@ export default function Lendie() {
       const catLabel = ALL_CATS.find(c => c.id === item.category)?.label?.toLowerCase() || '';
       if (!item.title.toLowerCase().includes(q) && !item.description?.toLowerCase().includes(q) && !catLabel.includes(q)) return false;
     }
-    if (centerCoords && item.lat && item.lng) {
+    // Distance filter — only when we have a real center point (GPS or a searched
+    // location). With a center, a listing must have coordinates AND fall within
+    // the radius; listings with no coordinates can't be confirmed in range, so
+    // they're excluded rather than leaking in. With no center we can't measure
+    // distance at all, so nothing is filtered and the UI prompts for a location
+    // instead of pretending the results are "near you".
+    if (centerCoords) {
+      if (!item.lat || !item.lng) return false;
       const dist = haversineDistance(centerCoords.lat, centerCoords.lng, item.lat, item.lng);
       if (dist > radius) return false;
     }
@@ -5838,7 +5845,7 @@ export default function Lendie() {
               {/* Title + location row */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div style={{ fontSize:18, fontWeight:800, color:C.text }}>
-                  {showFavOnly ? "Favorites" : category==="all" ? "Near you" : TABS.find(([id])=>id===category)?.[1] || category}
+                  {showFavOnly ? "Favorites" : category==="all" ? (centerCoords ? "Near you" : "Browse all") : TABS.find(([id])=>id===category)?.[1] || category}
                 </div>
                 <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }} onClick={()=>setShowLocationPicker(p=>!p)}>
@@ -5870,6 +5877,20 @@ export default function Lendie() {
                 </select>
                 <div style={{ fontSize:12, color:C.faint, whiteSpace:"nowrap" }}><span style={{ fontWeight:700, color:C.text }}>{filtered.length}</span> listings</div>
               </div>
+              {/* No center point → we can't apply the distance radius. Be honest about
+                  it and prompt for a location instead of showing everything as "near you". */}
+              {!centerCoords && (
+                <div style={{ display:"flex", alignItems:"center", gap:12, background: darkMode ? "#0D2E26" : "#E8FBF6", border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 16px", marginBottom:14, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:18 }}>📍</span>
+                  <div style={{ flex:1, minWidth:220, fontSize:13, color:C.text, lineHeight:1.45 }}>
+                    <b>Set your location to filter by distance.</b> We can't tell what's near you yet, so we're showing listings from <b>all areas</b> — the {radius} mi radius isn't being applied.{locPromptState === 'denied' ? ' Location is blocked in your browser; enable it in settings, or enter a place below.' : ''}
+                  </div>
+                  {locPromptState !== 'denied' && (
+                    <button onClick={requestLocation} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enable location</button>
+                  )}
+                  <button onClick={()=>setShowLocationPicker(true)} style={{ background:"transparent", color:"#00B894", border:"1px solid #00B894", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>Enter a place</button>
+                </div>
+              )}
               <div style={{ marginBottom:16 }}>{CategoryPills()}</div>
               <div style={{ marginBottom:16 }}>{TypeFilterBar()}</div>
               {filtered.length===0
