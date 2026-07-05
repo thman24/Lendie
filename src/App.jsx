@@ -3171,7 +3171,7 @@ export default function Lendie() {
   const longPressRef = useRef(null);
   const longPressDidFire = useRef(false);
   const seenMsgIdsRef = useRef(new Set());
-  const [radius, setRadius] = useState(() => Number(localStorage.getItem('lendie_radius')) || 10);
+  const [radius, setRadius] = useState(() => Number(localStorage.getItem('lendie_radius')) || 50);
   useEffect(() => { localStorage.setItem('lendie_radius', String(radius)); }, [radius]);
   const [recentLocations, setRecentLocations] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lendie_recent_locs') || '[]'); } catch { return []; }
