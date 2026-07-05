@@ -1085,8 +1085,11 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
           <div style={{ fontSize:19, fontWeight:800, color:C.text, flex:1, marginRight:10, textTransform:"capitalize" }}>{item.title}</div>
           <div style={{ display:"flex", gap:4, alignItems:"center" }}>
             <button onClick={()=>{
-              const url = `${window.location.origin}/?item=${item.id}`;
-              if (navigator.share) { navigator.share({ title: item.title, text: `Check out this listing on Lendie: ${item.title}`, url }); }
+              // /api/og serves a per-listing preview (photo/title/price) so the link
+              // unfurls nicely in iMessage/WhatsApp, then redirects into the app.
+              const url = `${window.location.origin}/api/og?item=${item.id}`;
+              const priceStr = item.listingType==="service" ? `from $${item.price}/${SERVICE_UNIT_LABEL[item.priceUnit]||item.priceUnit||"hr"}` : item.listingType==="sale" ? `$${item.price}` : `$${item.price}/${item.priceUnit||"day"}`;
+              if (navigator.share) { navigator.share({ title: item.title, text: `${item.title} — ${priceStr} on Lendie`, url }); }
               else { navigator.clipboard?.writeText(url); }
             }} style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 6px", lineHeight:1, display:"flex", alignItems:"center", gap:5, color:C.text }} title="Share listing">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
@@ -4019,12 +4022,23 @@ export default function Lendie() {
     }
   }, []);
 
-  const requireAuth = (mode = "login") => {
+  const pendingAction = useRef(null);
+  const requireAuth = (mode = "login", replay = null) => {
     if (user) return true;
+    pendingAction.current = replay;
     setAuthModalMode(mode);
     setShowAuthModal(true);
     return false;
   };
+  // After a successful sign-in, replay whatever the user was trying to do
+  // (request / buy / offer / message) so their intent isn't lost at the auth wall.
+  useEffect(() => {
+    if (user && pendingAction.current) {
+      const fn = pendingAction.current;
+      pendingAction.current = null;
+      setTimeout(() => { try { fn(); } catch (e) { console.error('[resume-after-auth]', e); } }, 400);
+    }
+  }, [user]);
 
   const showToast = (msg, type="success") => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -4326,12 +4340,20 @@ export default function Lendie() {
     const itemId = params.get('item');
     if (!itemId) { itemDeepLinkDone.current = true; return; }
     const item = allItems.find(l => String(l.id) === itemId);
-    if (item) {
-      setSelectedItem(item);
-      itemDeepLinkDone.current = true;
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    if (item) setSelectedItem(item);
+    itemDeepLinkDone.current = true;
   }, [allItems]);
+
+  // Keep ?item=<id> in the address bar while a listing is open, so the URL is
+  // copy-pasteable and shareable; clear it when the sheet closes.
+  useEffect(() => {
+    if (!itemDeepLinkDone.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (selectedItem && typeof selectedItem.id === 'number') params.set('item', String(selectedItem.id));
+    else params.delete('item');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  }, [selectedItem?.id]);
 
   const filtered = useMemo(() => allItems.filter(item => {
     // Sold or paused listings leave the marketplace for everyone
@@ -4842,7 +4864,7 @@ export default function Lendie() {
   };
 
   const handleBuyRequest = async (item) => {
-    if (!requireAuth()) return;
+    if (!requireAuth("login", () => handleBuyRequest(item))) return;
     if (!item?.ownerId || item.ownerId === 'me') return;
     const salePrice = item.salePrice || item.price;
     const req = { id: Date.now(), item, start: null, end: null, dateStr: "Purchase", wantsDelivery: false, renterName: user?.user_metadata?.name || "You", renterId: user?.id, status: "pending", time: "Just now" };
@@ -4873,7 +4895,7 @@ export default function Lendie() {
   };
 
   const handleServiceRequest = async (item, start = null, end = null) => {
-    if (!requireAuth()) return;
+    if (!requireAuth("login", () => handleServiceRequest(item, start, end))) return;
     if (!item?.ownerId || item.ownerId === 'me') return;
     const unit = SERVICE_UNIT_LABEL[item.priceUnit] || item.priceUnit || 'hr';
     const dateStr = start ? (end && end !== start ? `${formatDate(start)} – ${formatDate(end)}` : formatDate(start)) : "Service";
@@ -4907,7 +4929,7 @@ export default function Lendie() {
   };
 
   const handleMakeOfferRequest = async (item, offerAmount) => {
-    if (!requireAuth()) return;
+    if (!requireAuth("login", () => handleMakeOfferRequest(item, offerAmount))) return;
     if (!item?.ownerId || item.ownerId === 'me') return;
 
     // Build everything synchronously so the chat opens immediately
@@ -5437,6 +5459,15 @@ export default function Lendie() {
                 : <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span></>}
             </div>
             {formatDistance(item.distance) && <div style={{ fontSize:11, color:C.faint }}>{formatDistance(item.distance)}</div>}
+            {/* Trust signal: rating when reviewed, a neutral "New" badge otherwise
+                so a zero-review listing reads as new, not sketchy. */}
+            {item.rating > 0
+              ? <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
+                  <span style={{ color:"#F5A623", fontSize:12, lineHeight:1 }}>★</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:C.text }}>{item.rating}</span>
+                  <span style={{ fontSize:10, color:C.faint }}>({item.reviews})</span>
+                </div>
+              : <div style={{ fontSize:10, color:"#00B894", fontWeight:600, marginTop:3 }}>✦ New listing</div>}
           </div>
         </div>
       ))}
@@ -5939,16 +5970,22 @@ export default function Lendie() {
               <div style={{ marginBottom:16 }}>{CategoryPills()}</div>
               <div style={{ marginBottom:16 }}>{TypeFilterBar()}</div>
               {filtered.length===0
-                ? <div style={{ textAlign:"center", padding:"80px 20px", color:"#65676B" }}>No listings found. Try adjusting the filters.</div>
+                ? <div style={{ textAlign:"center", padding:"70px 20px", color:"#65676B" }}>
+                    <div style={{ fontSize:38, marginBottom:12 }}>📦</div>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:6 }}>Nothing here yet</div>
+                    <div style={{ fontSize:13, marginBottom:18, maxWidth:340, margin:"0 auto 18px" }}>{search || category!=="all" ? "Try a different search, category, or a wider radius." : "Be one of the first in your area — list something and nearby neighbors will see it."}</div>
+                    <button onClick={()=>{ if(requireAuth()) setShowAddListing(true); }} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ List an item</button>
+                  </div>
                 : CardGrid()}
             </div>
           ) : (
             <>
               {filtered.length===0
                 ? <div style={{ textAlign:"center", padding:"60px 20px", color:C.muted, background:C.bg }}>
-                    <div style={{ fontSize:36, marginBottom:10 }}>🔍</div>
-                    <div style={{ fontWeight:700, color:"#1C1E21", marginBottom:4 }}>No listings found</div>
-                    <div style={{ fontSize:13 }}>Try a different category or location</div>
+                    <div style={{ fontSize:36, marginBottom:10 }}>📦</div>
+                    <div style={{ fontWeight:700, color:C.text, marginBottom:4 }}>Nothing here yet</div>
+                    <div style={{ fontSize:13, marginBottom:16, maxWidth:300, margin:"0 auto 16px" }}>{search || category!=="all" ? "Try a different search, category, or a wider radius." : "Be one of the first — list something and nearby neighbors will see it."}</div>
+                    <button onClick={()=>{ if(requireAuth()) setShowAddListing(true); }} style={{ background:"#00B894", color:"#fff", border:"none", borderRadius:10, padding:"10px 20px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>+ List an item</button>
                   </div>
                 : CardGrid()}
             </>
@@ -6893,9 +6930,10 @@ export default function Lendie() {
         darkMode={darkMode}
         onConfirmBooking={(s,e,delivery)=>{
           if (!s) return;
-          if (!requireAuth()) return;
-          handleDirectBookingRequest(selectedItem, s, e||s, !!delivery);
-          setSelectedItem(null);
+          const item = selectedItem;
+          const doBook = () => { handleDirectBookingRequest(item, s, e||s, !!delivery); setSelectedItem(null); };
+          if (!requireAuth("login", doBook)) return;
+          doBook();
         }}
         onBuyRequest={(item)=>{ setSelectedItem(null); handleBuyRequest(item); }}
         onMakeOfferRequest={(item, amt)=>{ setSelectedItem(null); handleMakeOfferRequest(item, amt); }}
@@ -7099,16 +7137,19 @@ export default function Lendie() {
         onUnblock={()=>unblockUser(ownerProfileId)}
         darkMode={darkMode}
         onMessage={owner=>{
-          if (!requireAuth()) return;
-          setOwnerProfileId(null);
-          const ex = messages.find(m=>m.fromId===owner.id || m.otherUserId===owner.id || (m.from||"").toLowerCase()===( owner.name||"").toLowerCase());
-          if (ex) { setActiveConvo(ex); }
-          else {
-            const convId = `conv_${Date.now()}`;
-            const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:owner.id, otherUserId:owner.id, avatar:owner.avatar, avatarUrl:owner.avatarUrl||null, item:"General inquiry", time:"Just now", unread:false, thread:[] };
-            setMessages(prev=>[...prev,nm]); setActiveConvo(nm);
-          }
-          setTab("messages");
+          const doMsg = () => {
+            setOwnerProfileId(null);
+            const ex = messages.find(m=>m.fromId===owner.id || m.otherUserId===owner.id || (m.from||"").toLowerCase()===( owner.name||"").toLowerCase());
+            if (ex) { setActiveConvo(ex); }
+            else {
+              const convId = `conv_${Date.now()}`;
+              const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:owner.id, otherUserId:owner.id, avatar:owner.avatar, avatarUrl:owner.avatarUrl||null, item:"General inquiry", time:"Just now", unread:false, thread:[] };
+              setMessages(prev=>[...prev,nm]); setActiveConvo(nm);
+            }
+            setTab("messages");
+          };
+          if (!requireAuth("login", doMsg)) return;
+          doMsg();
         }}
       />
       <PhotoBrowserModal data={photoBrowser} onClose={()=>setPhotoBrowser(null)} darkMode={darkMode}/>
