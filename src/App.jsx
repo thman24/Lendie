@@ -892,7 +892,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
               {/* Thumbnail */}
               <div style={{ width:52, height:52, borderRadius:12, background:(item.color||"#00B894")+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, overflow:"hidden", flexShrink:0 }}>
                 {item.uploadedImages?.[0]?.url
-                  ? <img src={thumbSrc(item.uploadedImages[0])} alt="" style={{ width:52, height:52, objectFit:"cover" }}/>
+                  ? <img src={thumbSrc(item.uploadedImages[0])} alt="" loading="lazy" decoding="async" style={{ width:52, height:52, objectFit:"cover" }}/>
                   : item.emoji}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -2624,7 +2624,7 @@ function CardPhotoCarousel({ item }) {
         onScroll={e=>{ const w = e.currentTarget.clientWidth || 1; const i = Math.round(e.currentTarget.scrollLeft / w); if (i !== idx) setIdx(Math.min(imgs.length-1, Math.max(0, i))); }}
         style={{ position:"absolute", inset:0, display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch" }}>
         {imgs.map((im,i)=>(
-          <img key={i} src={thumbSrc(im)} alt="" draggable={false} style={{ width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", scrollSnapStop:"always", flexShrink:0 }}/>
+          <img key={i} src={thumbSrc(im)} alt="" draggable={false} loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", scrollSnapStop:"always", flexShrink:0 }}/>
         ))}
       </div>
       {imgs.length > 1 && (

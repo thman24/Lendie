@@ -1,10 +1,13 @@
-import { StrictMode } from 'react'
+import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
-import AdminPage from './Admin.jsx'
 import ErrorBoundary, { installGlobalErrorHandlers } from './ErrorBoundary.jsx'
+
+// Admin is a separate ~800-line page only reachable at /admin — lazy-load it so
+// normal users never download it in the main bundle.
+const AdminPage = lazy(() => import('./Admin.jsx'))
 
 // Log uncaught errors / promise rejections (outside React's render tree).
 installGlobalErrorHandlers()
@@ -41,7 +44,7 @@ const isAdminRoute = window.location.pathname.startsWith('/admin');
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      {isAdminRoute ? <AdminPage /> : <App />}
+      {isAdminRoute ? <Suspense fallback={null}><AdminPage /></Suspense> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 )
