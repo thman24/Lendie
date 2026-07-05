@@ -69,7 +69,10 @@ Deno.serve(async (req) => {
         confirm: true,
         payment_method_types: ['card'],
         metadata: { flow: 'scheduled', booking_id: String(b.id), user_id: b.renter_id },
-      }, { idempotencyKey: `pi-scheduled-${b.id}` });
+        // Include the attempt number so a retry after a decline is a genuinely new
+        // charge, not Stripe replaying the cached decline for the same key. Still
+        // idempotent within a single attempt (guards double-charge on our retries).
+      }, { idempotencyKey: `pi-scheduled-${b.id}-${b.charge_attempts || 0}` });
 
       if (pi.status !== 'succeeded' && pi.status !== 'processing') {
         await markFailed(b, `PaymentIntent status ${pi.status}`);
@@ -172,6 +175,8 @@ Deno.serve(async (req) => {
     .from('booking_requests')
     .select(cols)
     .eq('payment_status', 'charging')
+    .neq('status', 'cancelled')
+    .neq('status', 'declined')
     .lte('charge_at', stuckBefore)
     .limit(25);
   for (const b of stuck ?? []) {
@@ -180,10 +185,15 @@ Deno.serve(async (req) => {
   }
 
   // ── Part B: sweep 'payment_failed' — retry, or auto-cancel by rental day ─────
+  // Exclude already-cancelled/declined bookings: a renter can cancel during the
+  // grace window (which leaves payment_status='payment_failed'), and we must not
+  // charge or re-cancel a booking that's already cancelled.
   const { data: stuckFailed } = await supabase
     .from('booking_requests')
     .select(cols)
     .eq('payment_status', 'payment_failed')
+    .neq('status', 'cancelled')
+    .neq('status', 'declined')
     .limit(50);
 
   for (const b of stuckFailed ?? []) {

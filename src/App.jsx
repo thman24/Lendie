@@ -2427,7 +2427,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
             {(() => {
               const isService = acceptedReq.item?.listingType === "service";
               const isOfferType = acceptedReq.dateStr?.startsWith("Offer:");
-              const offerPrice = isOfferType ? parseInt(acceptedReq.dateStr.split(":")[1]) : null;
+              const offerPrice = isOfferType ? parseFloat(acceptedReq.dateStr.split(":")[1]) : null;
               const isPurchase = acceptedReq.dateStr === "Purchase";
               // Services charge the agreed flat quote (never multiplied by dates).
               const nights = !isService && !isPurchase && !isOfferType && acceptedReq.start && acceptedReq.end
@@ -2651,7 +2651,7 @@ function dbToListing(row) {
     title: row.title,
     price: Number(row.price),
     priceUnit: row.price_unit || 'day',
-    category: (row.category === 'vehicles' || row.category === 'housing') ? 'other' : row.category,
+    category: (row.category === 'vehicles' || row.category === 'housing' || row.category === 'venues') ? 'other' : row.category,
     emoji: row.emoji || '📦',
     color: row.color,
     description: row.description || '',
@@ -4969,7 +4969,7 @@ export default function Lendie() {
     const isOffer = req.dateStr?.startsWith("Offer:");
     const isService = req.item?.listingType === "service";
     const offerPrice = isOffer
-      ? parseInt(req.dateStr.split(":")[1])
+      ? parseFloat(req.dateStr.split(":")[1])
       : (isService && req.quotedCents != null ? req.quotedCents / 100 : null);
     // Services charge a flat agreed amount — treat like a purchase so the
     // breakdown never multiplies by nights.
@@ -5308,6 +5308,9 @@ export default function Lendie() {
       setMessages(prev => prev.map(m => m.conversation_id === convo.conversation_id ? { ...m, otherUserId: toUserId } : m));
     }
 
+    const preview = body.length > 80 ? body.slice(0, 77) + '…' : body;
+    const threadLen = convo.thread?.length || 0;
+
     supabase.from('messages').insert({
       conversation_id: convo.conversation_id,
       from_name: senderName,
@@ -5320,21 +5323,26 @@ export default function Lendie() {
       read: false,
       from_user_id: user?.id || null,
       to_user_id: toUserId,
-    }).then(({ error }) => { if (error) console.error('[Chat] Save failed:', error.message); });
+    }).then(({ error }) => {
+      if (error) { console.error('[Chat] Save failed:', error.message); return; }
+      // Fire the counterparty-gated relays only AFTER the row is committed, so a
+      // first-contact message (where this row IS the relationship) passes the
+      // send-email/send-push counterparty check instead of losing a read race.
+      if (toUserId) {
+        sendPushToUser(toUserId, { title: `New message from ${senderName}`, body: preview, url: '/?tab=messages', tag: `msg-${convo.conversation_id}` });
+        if (threadLen <= 1) {
+          sendEmail(toUserId, `New message from ${senderName} — ${convo.item}`,
+            `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">💬 New message</h2>
+             <p style="margin:0 0 6px;color:#3A3B3C;font-size:15px"><strong>${senderName}</strong> sent you a message about <strong>${convo.item}</strong>:</p>
+             <blockquote style="margin:0 0 20px;padding:12px 16px;background:#f4f4f5;border-left:4px solid #00B894;border-radius:0 8px 8px 0;color:#3A3B3C;font-size:14px;font-style:italic">${preview}</blockquote>
+             ${emailBtn('Reply in Lendie')}`
+          );
+        }
+      }
+    });
 
     if (toUserId) {
       broadcastMessage(toUserId, { conversation_id: convo.conversation_id, listing_title: convo.item, content: body, image_url: imageUrl, from_user_id: user?.id, from_name: senderName, from_avatar: profilePhotoUrl || user?.user_metadata?.avatar_url || null, created_at: msgCreatedAt });
-      const preview = body.length > 80 ? body.slice(0, 77) + '…' : body;
-      sendPushToUser(toUserId, { title: `New message from ${senderName}`, body: preview, url: '/?tab=messages', tag: `msg-${convo.conversation_id}` });
-      const threadLen = convo.thread?.length || 0;
-      if (threadLen <= 1) {
-        sendEmail(toUserId, `New message from ${senderName} — ${convo.item}`,
-          `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">💬 New message</h2>
-           <p style="margin:0 0 6px;color:#3A3B3C;font-size:15px"><strong>${senderName}</strong> sent you a message about <strong>${convo.item}</strong>:</p>
-           <blockquote style="margin:0 0 20px;padding:12px 16px;background:#f4f4f5;border-left:4px solid #00B894;border-radius:0 8px 8px 0;color:#3A3B3C;font-size:14px;font-style:italic">${preview}</blockquote>
-           ${emailBtn('Reply in Lendie')}`
-        );
-      }
     }
   };
 
@@ -7215,7 +7223,7 @@ export default function Lendie() {
           darkMode={darkMode}
         />
       )}
-      <AuthModal show={showAuthModal} initialMode={authModalMode} onClose={()=>setShowAuthModal(false)} darkMode={darkMode}/>
+      <AuthModal show={showAuthModal} initialMode={authModalMode} onClose={()=>{ setShowAuthModal(false); pendingAction.current = null; }} darkMode={darkMode}/>
       <PasswordResetModal show={showPasswordReset} onDone={()=>{ setShowPasswordReset(false); showToast('Password updated! You\'re now signed in.'); }} darkMode={darkMode}/>
       <SecurityModal show={showSecurityModal} user={user} onClose={()=>setShowSecurityModal(false)} darkMode={darkMode}/>
 
