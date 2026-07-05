@@ -26,6 +26,17 @@ const wrap = (body: string) => `
 </body>
 </html>`;
 
+// Two users are "counterparties" if they share a booking or a conversation —
+// the only relationships that justify one emailing/notifying the other.
+const isCounterparty = async (db: any, a: string, b: string): Promise<boolean> => {
+  const { data: bk } = await db.from('booking_requests').select('id')
+    .or(`and(renter_id.eq.${a},owner_id.eq.${b}),and(renter_id.eq.${b},owner_id.eq.${a})`).limit(1);
+  if (bk && bk.length) return true;
+  const { data: msg } = await db.from('messages').select('id')
+    .or(`and(from_user_id.eq.${a},to_user_id.eq.${b}),and(from_user_id.eq.${b},to_user_id.eq.${a})`).limit(1);
+  return !!(msg && msg.length);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -46,6 +57,25 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Authorize the caller so this can't be used as an open phishing relay.
+    // Internal calls (edge functions / crons) use the service-role key and are
+    // trusted. Otherwise the caller must be a signed-in user emailing themselves
+    // or a genuine counterparty. Unauthorized sends are silently skipped.
+    const authHeader = req.headers.get('Authorization') || '';
+    const isInternal = authHeader === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`;
+    if (!isInternal) {
+      const { data: { user: caller } } = await supabaseAdmin.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
+      if (!caller) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+        return new Response(JSON.stringify({ error: 'Invalid recipient' }), { status: 400, headers: corsHeaders });
+      }
+      if (caller.id !== userId && !(await isCounterparty(supabaseAdmin, caller.id, userId))) {
+        return new Response(JSON.stringify({ skipped: true, reason: 'not a counterparty' }), { headers: corsHeaders });
+      }
+    }
 
     const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (userErr || !user?.email) {

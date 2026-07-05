@@ -5322,6 +5322,7 @@ export default function Lendie() {
     const listingId = typeof booking.item.id === 'number' ? booking.item.id : null;
     const { error } = await supabase.from('reviews').insert({
       listing_id: listingId,
+      reviewer_id: user?.id,
       reviewer_name: reviewerName,
       owner_name: booking.item.owner,
       rating: stars,
