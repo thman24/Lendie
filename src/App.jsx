@@ -2270,6 +2270,15 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
   );
   const offerable = !rentalChat && !!convoListing &&
     (convoListing.listingType === "sale" || convoListing.listingType === "both");
+  // True once an offer in this conversation has been agreed — used to freeze the
+  // offer bubbles so a settled deal's price can't be silently re-accepted/changed.
+  const offerAccepted = bookingRequests?.some(r =>
+    r.item?.title === activeConvo.item &&
+    ((r.ownerId === user?.id && r.renterId === activeConvo.otherUserId) ||
+     (r.renterId === user?.id && r.ownerId === activeConvo.otherUserId)) &&
+    r.dateStr?.startsWith("Offer") &&
+    ['accepted','confirmed','completed'].includes(r.status)
+  );
 
   const sendOffer = () => {
     const amt = parseFloat(offerInputAmt);
@@ -2348,20 +2357,27 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                   <div style={{ background: darkMode ? "#1F1F21" : "#F6FBF9", border:`1px solid ${darkMode ? "#2E4A40" : "#CDEFE2"}`, borderRadius:16, padding:"11px 13px", minWidth:200 }}>
                     <div style={{ fontSize:10, fontWeight:700, color:"#00B894", textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:2 }}>Offer</div>
                     <div style={{ fontSize:24, fontWeight:800, color:textPrimary, marginBottom: m.mine ? 2 : 9 }}>${offerAmt}</div>
+                    {/* Only the latest received offer is actionable, and only until
+                        the deal is settled — so an old/superseded offer bubble can't
+                        be re-accepted to silently overwrite the agreed price. */}
                     {!m.mine && (
-                      <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:`1px solid ${border}`, background:"transparent", color:textMuted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                          Decline
-                        </button>
-                        <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid #00B894", background:"transparent", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                          Counter
-                        </button>
-                        <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1.1, padding:"8px 0", borderRadius:9, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                          Accept
-                        </button>
-                      </div>
+                      (m === latestReceivedOffer && !offerAccepted) ? (
+                        <div style={{ display:"flex", gap:6 }}>
+                          <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:`1px solid ${border}`, background:"transparent", color:textMuted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            Decline
+                          </button>
+                          <button onClick={()=>setShowOfferInput(true)} style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid #00B894", background:"transparent", color:"#00B894", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            Counter
+                          </button>
+                          <button onClick={()=>onAcceptOffer&&onAcceptOffer(offerAmt)} style={{ flex:1.1, padding:"8px 0", borderRadius:9, border:"none", background:"#00B894", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            Accept
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>{offerAccepted ? "✓ Settled" : "No longer active"}</div>
+                      )
                     )}
-                    {m.mine && <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>Awaiting response…</div>}
+                    {m.mine && <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>{offerAccepted ? "✓ Settled" : "Awaiting response…"}</div>}
                   </div>
                 ) : m.image ? (
                   <div style={{ display:"flex", flexDirection:"column", alignItems:m.mine?"flex-end":"flex-start", gap: (m.text && m.text !== "📷 Photo") ? 4 : 0 }}>
@@ -4526,7 +4542,16 @@ export default function Lendie() {
       // saved a card but haven't been charged yet.
       ...(stripeData?.bookingDbId ? { dbId: stripeData.bookingDbId, payment_status: stripeData.scheduled ? 'scheduled' : 'paid', stripe_amount_cents: stripeData.amountCents, ...(stripeData.chargeAt ? { charge_at: stripeData.chargeAt } : {}) } : {}),
     };
-    setBookingRequests(prev => [...prev, req]);
+    // Paying for an already-accepted booking from chat: update that row in place.
+    // Appending a fresh 'pending' entry with the same dbId would leave two local
+    // records for one DB row (owner sees Accept again, renter state corrupts).
+    if (paymentModal?.existingBookingId) {
+      setBookingRequests(prev => prev.map(r => r.dbId === paymentModal.existingBookingId
+        ? { ...r, payment_status: stripeData?.scheduled ? 'scheduled' : 'paid', stripe_amount_cents: stripeData?.amountCents ?? r.stripe_amount_cents, ...(stripeData?.chargeAt ? { charge_at: stripeData.chargeAt } : {}) }
+        : r));
+    } else {
+      setBookingRequests(prev => [...prev, req]);
+    }
     setRequestSent(r => ({...r, [item.id]: "pending"}));
     setPaymentModal(null); setShowStripeModal(false); setPaymentStep(1); setWantsDelivery(false);
     setDeliveryAddress(""); setDeliveryCoords(null); setDeliveryCheck(null);
@@ -4937,6 +4962,19 @@ export default function Lendie() {
     const offerText = `💸 Offer: $${offerAmount}`;
     const reqId = Date.now();
     const req = { id: reqId, item, start: null, end: null, dateStr: "Offer", wantsDelivery: false, renterName: buyerName, renterId: user?.id, ownerId: item.ownerId, status: "pending", time: "Just now" };
+
+    // Supersede this buyer's prior un-resolved offer(s) for the same item, so old
+    // pending offer rows don't pile up as phantom "new offer" bell items.
+    const priorOffers = (bookingRequests || []).filter(r =>
+      r.renterId === user?.id && r.ownerId === item.ownerId &&
+      r.item?.title === item.title && r.status === 'pending' &&
+      (r.dateStr === 'Offer' || r.dateStr?.startsWith('Offer')));
+    if (priorOffers.length) {
+      const priorIds = new Set(priorOffers.map(p => p.id));
+      setBookingRequests(prev => prev.map(r => priorIds.has(r.id) ? { ...r, status: 'cancelled' } : r));
+      const dbIds = priorOffers.map(p => p.dbId).filter(Boolean);
+      if (dbIds.length) supabase.from('booking_requests').update({ status: 'cancelled', cancelled_by: user?.id, cancellation_reason: 'superseded_offer' }).in('id', dbIds).then(({ error }) => { if (error) console.error('[Offer] supersede failed:', error.message); });
+    }
 
     setBookingRequests(prev => [...prev, req]);
     setRequestSent(r => ({...r, [item.id]: "pending"}));
