@@ -31,3 +31,6 @@ dist-ssr
 
 # Supabase CLI local state (project ref, pooler url, versions)
 supabase/.temp
+
+# Office/Word temp lock files
+~$*
