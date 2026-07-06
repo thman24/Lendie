@@ -5505,15 +5505,14 @@ export default function Lendie() {
                 : <>${item.price}<span style={{ fontSize:11, fontWeight:400, color:C.faint }}>/{item.priceUnit||"day"}</span></>}
             </div>
             {formatDistance(item.distance) && <div style={{ fontSize:11, color:C.faint }}>{formatDistance(item.distance)}</div>}
-            {/* Trust signal: rating when reviewed, a neutral "New" badge otherwise
-                so a zero-review listing reads as new, not sketchy. */}
-            {item.rating > 0
-              ? <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
-                  <span style={{ color:"#F5A623", fontSize:12, lineHeight:1 }}>★</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:C.text }}>{item.rating}</span>
-                  <span style={{ fontSize:10, color:C.faint }}>({item.reviews})</span>
-                </div>
-              : <div style={{ fontSize:10, color:"#00B894", fontWeight:600, marginTop:3 }}>✦ New listing</div>}
+            {/* Star rating shown only when the listing has reviews. */}
+            {item.rating > 0 && (
+              <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
+                <span style={{ color:"#F5A623", fontSize:12, lineHeight:1 }}>★</span>
+                <span style={{ fontSize:11, fontWeight:700, color:C.text }}>{item.rating}</span>
+                <span style={{ fontSize:10, color:C.faint }}>({item.reviews})</span>
+              </div>
+            )}
           </div>
         </div>
       ))}
