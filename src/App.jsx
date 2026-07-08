@@ -6861,6 +6861,8 @@ export default function Lendie() {
                   <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.muted, textDecoration:"none" }}>Privacy Policy</a>
                   <span style={{ fontSize:12, color:C.borderFaint }}>·</span>
                   <a href="/terms.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.muted, textDecoration:"none" }}>Terms of Service</a>
+                  <span style={{ fontSize:12, color:C.borderFaint }}>·</span>
+                  <a href="/cookies.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.muted, textDecoration:"none" }}>Cookie Policy</a>
                 </div>
                 <div style={{ textAlign:"center", fontSize:11, color:C.faint, paddingTop:8 }}>Version {typeof __BUILD_TS__ !== 'undefined' ? __BUILD_TS__ : 'dev'}</div>
                 <button onClick={async()=>{
@@ -7343,6 +7345,7 @@ export default function Lendie() {
             <div style={{ display:"flex", gap:16, alignItems:"center" }}>
               <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.faint, textDecoration:"none" }}>Privacy Policy</a>
               <a href="/terms.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.faint, textDecoration:"none" }}>Terms of Service</a>
+              <a href="/cookies.html" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.faint, textDecoration:"none" }}>Cookie Policy</a>
             </div>
           </div>
         </footer>
