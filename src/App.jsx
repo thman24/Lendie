@@ -821,10 +821,11 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
   const firstName = ownerName.split(" ")[0];
   const ownerAvatar = first?.ownerAvatar || '👽';
   const ownerAvatarUrl = first?.ownerAvatarUrl || null;
-  const totalReviews = owned.reduce((s, i) => s + (i.reviews || 0), 0);
-  const avgRating = totalReviews > 0
-    ? Math.round(owned.reduce((s, i) => s + (i.rating || 0) * (i.reviews || 0), 0) / totalReviews * 10) / 10
-    : null;
+  // Rating is now person-level, so every one of this owner's listings carries the
+  // same aggregate — read it off one rather than summing (which would multiply).
+  const rated = owned.find(i => i.reviews > 0);
+  const totalReviews = rated?.reviews || 0;
+  const avgRating = rated?.rating || null;
   const owner = { id: ownerId, name: ownerName, avatar: ownerAvatar, avatarUrl: ownerAvatarUrl };
 
   return (
@@ -1133,12 +1134,8 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
                 <span style={{ fontWeight:700, fontSize:14, color:C.text }}>{item.owner || 'Neighbor'}</span>
               </div>
               {(() => {
-                const ownerListings = allItems.filter(x => x.ownerId === item.ownerId && x.reviews > 0);
-                const totalReviews = ownerListings.reduce((s, x) => s + (x.reviews || 0), 0);
-                const avgRating = totalReviews > 0
-                  ? Math.round(ownerListings.reduce((s, x) => s + (x.rating || 0) * (x.reviews || 0), 0) / totalReviews * 10) / 10
-                  : null;
-                return avgRating ? <StarRow rating={avgRating} count={totalReviews} size={12} darkMode={darkMode}/> : null;
+                // item.rating/reviews are the owner's person-level aggregate.
+                return item.reviews > 0 ? <StarRow rating={item.rating} count={item.reviews} size={12} darkMode={darkMode}/> : null;
               })()}
               {allItems.filter(x=>x.ownerId===item.ownerId&&x.id!==item.id).length > 0 && (
                 <div style={{ fontSize:11, color:"#00B894", fontWeight:600, marginTop:2 }}>
@@ -3123,7 +3120,7 @@ export default function Lendie() {
   const [openSections, setOpenSections] = useState({});
   const [earningsRange, setEarningsRange] = useState('all'); // all | year | month | week
   const [adminOpenSections, setAdminOpenSections] = useState({ stats: true });
-  const [listingRatings, setListingRatings] = useState({});
+  const [userRatings, setUserRatings] = useState({}); // reviewed_user_id -> {avg,count,sum}
   const [paymentModal, setPaymentModal] = useState(null);
   const [showStripeModal, setShowStripeModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
@@ -3920,21 +3917,22 @@ export default function Lendie() {
     setMyListings(prev => prev.map(l => l.id === selectedItem.id ? { ...l, views: (l.views || 0) + 1 } : l));
   }, [selectedItem?.id]);
 
-  // Fetch and aggregate per-listing ratings from Supabase reviews table
+  // Fetch and aggregate ratings PER USER (reviewed_user_id) — reputation follows
+  // the provider across all their listings, not any single listing.
   useEffect(() => {
-    supabase.from('reviews').select('listing_id, rating').then(({ data }) => {
+    supabase.from('reviews').select('reviewed_user_id, rating').then(({ data }) => {
       if (!data || data.length === 0) return;
       const agg = {};
-      data.filter(r => r.listing_id != null).forEach(r => {
-        if (!agg[r.listing_id]) agg[r.listing_id] = { sum: 0, count: 0 };
-        agg[r.listing_id].sum += Number(r.rating);
-        agg[r.listing_id].count += 1;
+      data.filter(r => r.reviewed_user_id != null).forEach(r => {
+        if (!agg[r.reviewed_user_id]) agg[r.reviewed_user_id] = { sum: 0, count: 0 };
+        agg[r.reviewed_user_id].sum += Number(r.rating);
+        agg[r.reviewed_user_id].count += 1;
       });
       const ratings = {};
-      Object.entries(agg).forEach(([id, { sum, count }]) => {
-        ratings[Number(id)] = { avg: Math.round(sum / count * 10) / 10, count, sum };
+      Object.entries(agg).forEach(([uid, { sum, count }]) => {
+        ratings[uid] = { avg: Math.round(sum / count * 10) / 10, count, sum };
       });
-      setListingRatings(ratings);
+      setUserRatings(ratings);
     });
   }, []);
 
@@ -4319,8 +4317,11 @@ export default function Lendie() {
       return extra ? { ...item, booked: extra } : item;
     };
     const enrich = item => {
-      const lr = listingRatings[item.id];
-      const base = lr ? { ...item, rating: lr.avg, reviews: lr.count } : item;
+      // Rating is the OWNER's person-level aggregate (same across all their
+      // listings), so reputation follows the provider and survives relisting.
+      const ownerKey = item.ownerId === 'me' ? user?.id : item.ownerId;
+      const ur = ownerKey ? userRatings[ownerKey] : null;
+      const base = { ...item, rating: ur ? ur.avg : undefined, reviews: ur ? ur.count : 0 };
       // Real distance from the viewer's location (GPS or the searched location).
       // null when we can't compute it (no location set, or the listing has no
       // coordinates) so the UI hides it instead of showing a misleading "0 mi".
@@ -4335,7 +4336,7 @@ export default function Lendie() {
         .filter(l => !myIds.has(l.id) && !blockedSet.has(l.ownerId))
         .map(l => enrich(merge({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
     ];
-  }, [myListings, publicListings, bookedOverrides, listingRatings, blocks, centerCoords]);
+  }, [myListings, publicListings, bookedOverrides, userRatings, blocks, centerCoords, user?.id]);
 
   // Refresh availability whenever a listing detail opens — booked dates change
   // owner-side (accepts, blocked dates), so renters need a fresh read mid-session
@@ -5388,26 +5389,29 @@ export default function Lendie() {
     const reviewerName = user?.user_metadata?.name || booking.renterName || "Anonymous";
     // Link review to listing when it has a numeric DB id (not a seed/demo item)
     const listingId = typeof booking.item.id === 'number' ? booking.item.id : null;
+    // The review is ABOUT the owner — reputation attaches to the person.
+    const reviewedUserId = booking.ownerId || booking.item?.ownerId || null;
     const { error } = await supabase.from('reviews').insert({
       listing_id: listingId,
       reviewer_id: user?.id,
+      reviewed_user_id: reviewedUserId,
       reviewer_name: reviewerName,
       owner_name: booking.item.owner,
       rating: stars,
       comment: comment || null,
     });
     if (error) { showToast("Failed to save review", "error"); return; }
-    // Update live ratings state
-    if (listingId) {
-      setListingRatings(prev => {
-        const ex = prev[listingId] || { sum: 0, count: 0 };
+    // Update the owner's live per-user rating (propagates to all their listings
+    // via enrich, since item.rating derives from userRatings[ownerId]).
+    if (reviewedUserId) {
+      setUserRatings(prev => {
+        const ex = prev[reviewedUserId] || { sum: 0, count: 0 };
         const newCount = ex.count + 1;
         const newSum = ex.sum + stars;
-        return { ...prev, [listingId]: { avg: Math.round(newSum / newCount * 10) / 10, count: newCount, sum: newSum } };
+        return { ...prev, [reviewedUserId]: { avg: Math.round(newSum / newCount * 10) / 10, count: newCount, sum: newSum } };
       });
-      // Also update selectedItem if it's this listing
       setSelectedItem(prev => {
-        if (!prev || prev.id !== listingId) return prev;
+        if (!prev || prev.ownerId !== reviewedUserId) return prev;
         const newCount = (prev.reviews || 0) + 1;
         const newSum = (prev.rating || 0) * (prev.reviews || 0) + stars;
         return { ...prev, rating: Math.round(newSum / newCount * 10) / 10, reviews: newCount };
@@ -6658,10 +6662,10 @@ export default function Lendie() {
                 <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{user.user_metadata?.name || "Lendie User"}</div>
                 <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>{user.email}</div>
                 {(() => {
-                  const totalReviews = myListings.reduce((s, l) => s + (l.reviews || 0), 0);
-                  const avgRating = totalReviews > 0
-                    ? Math.round(myListings.reduce((s, l) => s + (l.rating || 0) * (l.reviews || 0), 0) / totalReviews * 10) / 10
-                    : null;
+                  // Your own person-level rating (aggregated across all your listings).
+                  const myR = userRatings[user?.id];
+                  const totalReviews = myR?.count || 0;
+                  const avgRating = myR?.avg || null;
                   return avgRating
                     ? <div style={{ marginTop:6, display:"flex", justifyContent:"center" }}><StarRow rating={avgRating} count={totalReviews} size={14} darkMode={darkMode}/></div>
                     : <div style={{ fontSize:11, color:C.faint, marginTop:6 }}>No reviews yet</div>;
@@ -6672,8 +6676,9 @@ export default function Lendie() {
               {(()=>{
                 const totalViews = myListings.reduce((s,l)=>s+(l.views||0),0);
                 const totalRentals = bookingRequests.filter(r=>r.ownerId===user.id&&r.status==="accepted").length;
-                const totalReviews = myListings.reduce((s,l)=>s+(l.reviews||0),0);
-                const avgRating = totalReviews>0 ? (myListings.reduce((s,l)=>s+(l.rating||0)*(l.reviews||0),0)/totalReviews).toFixed(1) : null;
+                const myR = userRatings[user?.id];
+                const totalReviews = myR?.count || 0;
+                const avgRating = myR?.avg ? myR.avg.toFixed(1) : null;
                 const stats = [
                   ["Views", totalViews],
                   ["Rentals", totalRentals],
