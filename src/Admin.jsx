@@ -388,6 +388,41 @@ export default function AdminPage() {
     };
   })();
 
+  // ─── Traction: the metrics that actually tell you the marketplace is working —
+  // repeat behavior, velocity, and liquidity. A "transaction" = a booking that
+  // reached a real deal (accepted/confirmed/completed, or paid/cash).
+  const traction = (() => {
+    const txns = bookings.filter(b =>
+      ['accepted','confirmed','completed'].includes(b.status) ||
+      ['paid','cash'].includes(b.payment_status));
+    const countBy = (keyFn) => { const m = {}; txns.forEach(b => { const k = keyFn(b); if (k) m[k] = (m[k]||0)+1; }); return m; };
+    const byRenter = countBy(b => b.renter_id);
+    const byOwner  = countBy(b => b.owner_id);
+    const byItem   = countBy(b => b.item_json?.id);
+    const repeatCount = (m) => Object.values(m).filter(n => n >= 2).length;
+    const uniqRenters = Object.keys(byRenter).length;
+    const repeatRenters = repeatCount(byRenter);
+    const now = Date.now(), D = 86400000;
+    const at = (b) => new Date(b.created_at).getTime();
+    const last30 = txns.filter(b => at(b) >= now - 30*D).length;
+    const prev30 = txns.filter(b => at(b) >= now - 60*D && at(b) < now - 30*D).length;
+    const typeOf = (b) => b.item_json?.listingType || (b.date_str === 'Purchase' ? 'sale' : String(b.date_str||'').startsWith('Offer') ? 'sale' : 'rent');
+    const byType = countBy(typeOf);
+    return {
+      txns: txns.length,
+      last30, prev30,
+      growth: prev30 > 0 ? Math.round((last30 - prev30) / prev30 * 100) : null,
+      uniqRenters,
+      repeatRenters,
+      repeatRate: uniqRenters > 0 ? Math.round(repeatRenters / uniqRenters * 100) : null,
+      repeatProviders: repeatCount(byOwner),
+      repeatItems: repeatCount(byItem),
+      active30: new Set(txns.filter(b => at(b) >= now - 30*D).map(b => b.renter_id).filter(Boolean)).size,
+      liquidity: listings.length > 0 ? Math.round(new Set(txns.map(b => b.item_json?.id).filter(Boolean)).size / listings.length * 100) : null,
+      rent: byType.rent || 0, sale: byType.sale || 0, service: byType.service || 0,
+    };
+  })();
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -428,6 +463,29 @@ export default function AdminPage() {
                   <div style={{ fontSize:12, color: MU, marginTop:6, fontWeight:600 }}>{label}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ margin:'16px 16px 0' }}>
+              <div style={{ fontWeight:700, fontSize:13, color: G, textTransform:'uppercase', letterSpacing:0.7, marginBottom:4 }}>⭐ Traction — what actually matters</div>
+              <div style={{ fontSize:11, color: MU, marginBottom:10 }}>Repeat behavior + velocity are the signal that the marketplace is working. Chase these, not listing count.</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px,1fr))', gap:10 }}>
+                {[
+                  ['Repeat customers', loading ? '…' : `${traction.repeatRenters}`, traction.repeatRate==null ? 'buyers/renters with 2+ deals' : `${traction.repeatRate}% of ${traction.uniqRenters} came back`],
+                  ['Repeat items', loading ? '…' : `${traction.repeatItems}`, 'listings booked 2+ times'],
+                  ['Repeat providers', loading ? '…' : `${traction.repeatProviders}`, 'owners with 2+ deals (recurring)'],
+                  ['Transactions', loading ? '…' : `${traction.txns}`, 'accepted/paid deals all-time'],
+                  ['Last 30 days', loading ? '…' : `${traction.last30}`, traction.growth==null ? 'transactions this month' : `${traction.growth >= 0 ? '+' : ''}${traction.growth}% vs prior 30d`],
+                  ['Active customers', loading ? '…' : `${traction.active30}`, 'transacted in last 30d'],
+                  ['Liquidity', loading ? '…' : (traction.liquidity==null?'—':`${traction.liquidity}%`), 'of listings ever booked'],
+                  ['Rent / Sale / Service', loading ? '…' : `${traction.rent} / ${traction.sale} / ${traction.service}`, 'transactions by type'],
+                ].map(([label, value, hint]) => (
+                  <div key={label} style={{ border:`1px solid ${label.startsWith('Repeat') ? G+'66' : BD}`, borderRadius:10, padding:'12px 14px', background: label.startsWith('Repeat') ? G+'0F' : 'transparent' }}>
+                    <div style={{ fontSize:22, fontWeight:800, color: G, lineHeight:1 }}>{value}</div>
+                    <div style={{ fontSize:12, color: MU, marginTop:5, fontWeight:600 }}>{label}</div>
+                    {hint && <div style={{ fontSize:10.5, color: MU, opacity:0.75, marginTop:2 }}>{hint}</div>}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{ margin:'16px 16px 0' }}>
