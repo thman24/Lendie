@@ -3323,7 +3323,13 @@ export default function Lendie() {
     // Conversations this user has hidden from their inbox
     supabase.from('hidden_conversations').select('conversation_id').eq('user_id', user.id)
       .then(({ data }) => { if (data) setHiddenConvoIds(new Set(data.map(r => r.conversation_id))); });
-    supabase.from('messages').select('*').order('created_at', { ascending: true }).then(({ data, error }) => {
+    // Defense in depth: explicitly request only messages the current user sent or
+    // received. RLS should already enforce this server-side, but never rely on RLS
+    // alone — this guarantees the client can never fetch or render another user's
+    // conversation even if a server policy is misconfigured.
+    supabase.from('messages').select('*')
+      .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+      .order('created_at', { ascending: true }).then(({ data, error }) => {
       if (error) { console.error('[Messages] Load error:', error.message); return; }
       if (!data || data.length === 0) { setMessages([]); return; }
       const stored = (() => { try { return JSON.parse(localStorage.getItem('lendie_read') || '{}'); } catch { return {}; } })();
