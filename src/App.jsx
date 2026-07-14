@@ -430,7 +430,7 @@ function StarRow({ rating, count, size=13, darkMode }) {
 }
 
 // RangeCalendar
-function RangeCalendar({ booked=[], startDate, endDate, onRangeChange, darkMode }) {
+function RangeCalendar({ booked=[], startDate, endDate, onRangeChange, darkMode, readOnly=false }) {
   const rc = darkMode
     ? { bg:"#1C1C1E", border:"#2C2C2E", text:"#F2F2F7", muted:"#8E8E93", navBg:"#2C2C2E", pastClr:"#48484A", dayHdr:"#636366" }
     : { bg:"#fff", border:"#E4E6EB", text:"#1C1E21", muted:"#65676B", navBg:"#F0F2F5", pastClr:"#CDD0D4", dayHdr:"#8A8D91" };
@@ -458,7 +458,7 @@ function RangeCalendar({ booked=[], startDate, endDate, onRangeChange, darkMode 
   const handleDay = (e, d) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isPast(d) || isBooked(d)) return;
+    if (readOnly || isPast(d) || isBooked(d)) return;
     const scrollEl = e.currentTarget.closest('[style*="overflow"]');
     const savedTop = scrollEl ? scrollEl.scrollTop : 0;
     const k = toKey(d);
@@ -7026,6 +7026,19 @@ export default function Lendie() {
                 <button onClick={async()=>{ const next=!l.available; const{error}=await supabase.from('listings').update({available:next}).eq('id',l.id); if(!error){setMyListings(prev=>prev.map(x=>x.id===l.id?{...x,available:next}:x)); setManagingListing(p=>({...p,available:next}));} }} style={{ flex:1, padding:"10px 0", borderRadius:10, border:`1px solid ${C2.border}`, background:C2.card, color:C2.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{l.available?"Pause":"Resume"}</button>
                 <button onClick={()=>{ setDeletingId(l.id); setManagingListing(null); }} style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:"#FFF0F0", color:"#FA3E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
               </div>
+              {/* Availability calendar — rentals & dated services only (not sales) */}
+              {(l.listingType === 'rent' || l.listingType === 'both' || l.listingType === 'service') && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <div style={{ fontWeight:700, fontSize:14, color:C2.text }}>Availability</div>
+                    <button onClick={()=>{ setBlockingDatesFor(l.id); setManagingListing(null); }} style={{ padding:"6px 12px", borderRadius:8, border:`1px solid ${C2.border}`, background:C2.card, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Block dates</button>
+                  </div>
+                  <RangeCalendar booked={l.booked || []} onRangeChange={()=>{}} darkMode={darkMode} readOnly />
+                  <div style={{ fontSize:11, color:C2.muted, display:"flex", alignItems:"center", gap:6, marginTop:-6 }}>
+                    <span style={{ display:"inline-block", width:10, height:10, borderRadius:3, background:"#DC2626" }}/> Booked or blocked dates. Tap "Block dates" to make dates unavailable.
+                  </div>
+                </div>
+              )}
               {/* Bookings */}
               <div style={{ fontWeight:700, fontSize:14, color:C2.text, marginBottom:10 }}>Transactions</div>
               {listingBookings.length === 0
