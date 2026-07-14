@@ -4160,6 +4160,8 @@ export default function Lendie() {
   };
 
   const deleteConversation = async (convo) => {
+    const who = convo.from || convo.item || 'this conversation';
+    if (!window.confirm(`Delete your copy of the conversation with ${who}? This removes it from your inbox. The other person still keeps their copy.`)) return;
     setConvoDeleteId(null);
     // Hide for this user only — don't delete the shared messages (which would
     // also wipe the thread for the other person).
