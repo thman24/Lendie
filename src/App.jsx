@@ -7261,12 +7261,21 @@ export default function Lendie() {
         darkMode={darkMode}
         onMessage={owner=>{
           const doMsg = () => {
+            // If the user opened this profile from one of the owner's listings,
+            // message about THAT item; otherwise start/reuse a general thread.
+            // Match on person AND item so we never resurface an unrelated old
+            // thread with the same owner (which item is stored as the thread's
+            // `item`, so person-only matching opened the wrong conversation).
+            const contextItem = (selectedItem && selectedItem.ownerId === owner.id) ? selectedItem : null;
+            const wantTitle = contextItem ? contextItem.title : "General inquiry";
             setOwnerProfileId(null);
-            const ex = messages.find(m=>m.fromId===owner.id || m.otherUserId===owner.id || (m.from||"").toLowerCase()===( owner.name||"").toLowerCase());
+            setSelectedItem(null);
+            const matchesPerson = m => m.fromId===owner.id || m.otherUserId===owner.id || (m.from||"").toLowerCase()===(owner.name||"").toLowerCase();
+            const ex = messages.find(m => matchesPerson(m) && m.item === wantTitle);
             if (ex) { setActiveConvo(ex); }
             else {
               const convId = `conv_${Date.now()}`;
-              const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:owner.id, otherUserId:owner.id, avatar:owner.avatar, avatarUrl:owner.avatarUrl||null, item:"General inquiry", time:"Just now", unread:false, thread:[] };
+              const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:owner.id, otherUserId:owner.id, avatar:owner.avatar, avatarUrl:owner.avatarUrl||null, item:wantTitle, time:"Just now", unread:false, thread:[] };
               setMessages(prev=>[...prev,nm]); setActiveConvo(nm);
             }
             setTab("messages");
