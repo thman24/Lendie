@@ -3919,7 +3919,7 @@ export default function Lendie() {
     if (selectedItem.ownerId === 'me') return;
     if (viewedItemIds.current.has(selectedItem.id)) return;
     viewedItemIds.current.add(selectedItem.id);
-    supabase.from('listings').update({ views: (selectedItem.views || 0) + 1 }).eq('id', selectedItem.id).then(({ error }) => { if (error) console.error('[Views] update failed:', error.message); });
+    supabase.rpc('increment_listing_views', { listing_id: selectedItem.id }).then(({ error }) => { if (error) console.error('[Views] increment failed:', error.message); });
     setMyListings(prev => prev.map(l => l.id === selectedItem.id ? { ...l, views: (l.views || 0) + 1 } : l));
   }, [selectedItem?.id]);
 
