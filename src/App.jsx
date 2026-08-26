@@ -7274,8 +7274,13 @@ export default function Lendie() {
             const ex = messages.find(m => matchesPerson(m) && m.item === wantTitle);
             if (ex) { setActiveConvo(ex); }
             else {
+              // Inherit the avatar and the real recipient id from any existing
+              // thread with this person. The listing's ownerId can be an 'anon-…'
+              // placeholder when user_id is null, which yields no avatar and a bad
+              // recipient; a prior thread carries the true from_user_id + avatar.
+              const prior = messages.find(matchesPerson);
               const convId = `conv_${Date.now()}`;
-              const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:owner.id, otherUserId:owner.id, avatar:owner.avatar, avatarUrl:owner.avatarUrl||null, item:wantTitle, time:"Just now", unread:false, thread:[] };
+              const nm = { id:Date.now(), conversation_id:convId, from:owner.name, fromId:prior?.fromId||owner.id, otherUserId:prior?.otherUserId||owner.id, avatar:owner.avatar, avatarUrl:prior?.avatarUrl||owner.avatarUrl||contextItem?.ownerAvatarUrl||null, item:wantTitle, time:"Just now", unread:false, thread:[] };
               setMessages(prev=>[...prev,nm]); setActiveConvo(nm);
             }
             setTab("messages");
