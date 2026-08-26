@@ -1252,9 +1252,9 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         )}
         {!isMine && item.listingType==="sale" && item.available && (
           anyActiveRequest?.status === "pending"
-            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"1px solid #FFE0B2", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
+            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item, anyActiveRequest?.conversation_id)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"1px solid #FFE0B2", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
             : anyActiveRequest?.status === "accepted"
-            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"none", cursor:"pointer", fontFamily:"inherit" }}>✅ Confirmed — complete payment in Messages ›</button>
+            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item, anyActiveRequest?.conversation_id)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"none", cursor:"pointer", fontFamily:"inherit" }}>✅ Confirmed — complete payment in Messages ›</button>
             : <>
                 <div style={{ display:"flex", gap:8, marginBottom:showOfferEntry?8:10 }}>
                   <button style={{ flex:1, padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
@@ -1316,13 +1316,13 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             )}
             {alreadySent === "pending"
               ? <>
-                  <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", fontWeight:600, fontSize:13, border:"1px solid #FFE0B2", marginBottom:8, textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
+                  <button onClick={()=>onOpenConversation&&onOpenConversation(item, myRequest?.conversation_id)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", fontWeight:600, fontSize:13, border:"1px solid #FFE0B2", marginBottom:8, textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
                   <button style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:(!startDate||rangeBooked)?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#00B894", color:"#fff", opacity:(!startDate||rangeBooked)?0.55:1 }} onClick={()=>{ if(!rangeBooked&&startDate) onConfirmBooking(startDate,endDate,wantsDelivery); }} disabled={!startDate||rangeBooked}>
                     {!startDate?"Select new dates to request again":rangeBooked?"Already booked — select different dates":"Request "+n+" "+(item.category==="housing"?"night":"day")+(n>1?"s":"")}
                   </button>
                 </>
               : alreadySent === "accepted"
-              ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", fontWeight:600, fontSize:13, border:"1px solid #B2EFE3", textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>✅ Owner approved — complete payment in Messages ›</button>
+              ? <button onClick={()=>onOpenConversation&&onOpenConversation(item, myRequest?.conversation_id)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", fontWeight:600, fontSize:13, border:"1px solid #B2EFE3", textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>✅ Owner approved — complete payment in Messages ›</button>
               : <button
                   style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:(!startDate||rangeBooked)?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#00B894", color:"#fff", opacity:(!startDate||rangeBooked)?0.55:1 }}
                   onClick={()=>{ if(!rangeBooked&&startDate) onConfirmBooking(startDate,endDate,wantsDelivery); }} disabled={!startDate||rangeBooked}>
@@ -3665,7 +3665,7 @@ export default function Lendie() {
         if (!row || (row.renter_id !== user.id && row.owner_id !== user.id)) return;
         supabase.from('booking_requests').select('*').or(`renter_id.eq.${user.id},owner_id.eq.${user.id}`).order('created_at', { ascending: false }).then(({ data }) => {
           if (data) setBookingRequests(data.map(r => ({
-            id: r.id, dbId: r.id, item: r.item_json, start: r.start_date, end: r.end_date,
+            id: r.id, dbId: r.id, conversation_id: r.conversation_id, item: r.item_json, start: r.start_date, end: r.end_date,
             dateStr: r.date_str, wantsDelivery: r.wants_delivery, deliveryAddress: r.delivery_address,
             deliveryFee: r.delivery_fee, renterName: r.renter_name, renterId: r.renter_id,
             ownerId: r.owner_id, status: r.status, payment_status: r.payment_status,
@@ -3781,6 +3781,7 @@ export default function Lendie() {
         setBookingRequests(data.map(row => ({
           id: row.id,
           dbId: row.id,
+          conversation_id: row.conversation_id,
           item: row.item_json,
           start: row.start_date,
           end: row.end_date,
@@ -4537,25 +4538,35 @@ export default function Lendie() {
     return convo;
   };
 
+  // Persist the conversation id on a booking so its status banner can later reopen
+  // the EXACT thread deterministically — no title guessing, no orphaned orders.
+  const linkBookingToConversation = (localReqId, dbId, conversationId) => {
+    if (!conversationId) return;
+    if (localReqId != null) setBookingRequests(prev => prev.map(r => r.id === localReqId ? { ...r, conversation_id: conversationId } : r));
+    if (dbId) supabase.from('booking_requests').update({ conversation_id: conversationId }).eq('id', dbId)
+      .then(({ error }) => { if (error) console.error('[Booking] link conversation failed:', error.message); });
+  };
+
   // Reopen the conversation tied to a listing (used by the status banners on the
-  // item sheet). Un-hides the thread first if the user had deleted it — otherwise
-  // a confirmed order is trapped: the banner points to a thread the user can no
-  // longer reach to complete or cancel.
-  const openConversationForItem = (item) => {
+  // item sheet). Prefers the booking's stored conversation_id for an exact match;
+  // falls back to person+title for legacy bookings created before that link
+  // existed. Never falls back to owner-only — that opens an unrelated thread for a
+  // different item from the same seller. Un-hides the thread first if the user had
+  // deleted it — otherwise a confirmed order is trapped: the banner points to a
+  // thread the user can no longer reach to complete or cancel.
+  const openConversationForItem = (item, conversationId = null) => {
     if (!item) return;
-    // Match the exact conversation for this listing: same person AND same title.
-    // Never fall back to owner-only — that opens an unrelated thread for a
-    // different item from the same seller. If no exact thread exists (e.g. an
-    // orphaned booking with no conversation), just land on the inbox.
     const existing =
+      (conversationId && messages.find(m => m.conversation_id === conversationId)) ||
       (item.ownerId && item.ownerId !== 'me' && messages.find(m => m.otherUserId === item.ownerId && m.item === item.title)) ||
       messages.find(m => m.item === item.title) ||
       null;
-    if (!existing) console.warn('[Inbox] no exact thread to reopen for listing:', item.title, 'owner:', item.ownerId);
-    if (existing?.conversation_id && hiddenConvoIds.has(existing.conversation_id)) {
-      setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(existing.conversation_id); return next; });
+    if (!existing) console.warn('[Inbox] no thread to reopen for listing:', item.title, 'conv:', conversationId, 'owner:', item.ownerId);
+    const cid = existing?.conversation_id;
+    if (cid && hiddenConvoIds.has(cid)) {
+      setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(cid); return next; });
       if (user) supabase.from('hidden_conversations').delete()
-        .eq('user_id', user.id).eq('conversation_id', existing.conversation_id)
+        .eq('user_id', user.id).eq('conversation_id', cid)
         .then(({ error }) => { if (error) console.error('[Inbox] unhide failed:', error.message); });
     }
     setSelectedItem(null);
@@ -4581,6 +4592,7 @@ export default function Lendie() {
       // saved a card but haven't been charged yet.
       ...(stripeData?.bookingDbId ? { dbId: stripeData.bookingDbId, payment_status: stripeData.scheduled ? 'scheduled' : 'paid', stripe_amount_cents: stripeData.amountCents, ...(stripeData.chargeAt ? { charge_at: stripeData.chargeAt } : {}) } : {}),
     };
+    let freshBookingDbId = null;
     // Paying for an already-accepted booking from chat: update that row in place.
     // Appending a fresh 'pending' entry with the same dbId would leave two local
     // records for one DB row (owner sees Accept again, renter state corrupts).
@@ -4636,7 +4648,7 @@ export default function Lendie() {
         status: 'pending',
       }).select('id').single();
       if (insertErr) { console.error('[BookingRequest] insert error:', insertErr.message); return; }
-      if (data) setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, dbId: data.id } : r));
+      if (data) { freshBookingDbId = data.id; setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, dbId: data.id } : r)); }
       const renterName = user?.user_metadata?.name || 'Someone';
 
       sendPushToUser(item.ownerId, {
@@ -4681,7 +4693,8 @@ export default function Lendie() {
           initialText += `. Let me know if you have any questions!`;
         }
       }
-      sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, dateStr, initialText);
+      const convo = sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, dateStr, initialText);
+      if (!paymentModal?.existingBookingId) linkBookingToConversation(req.id, stripeData?.bookingDbId || freshBookingDbId, convo?.conversation_id);
     }
   };
 
@@ -4818,18 +4831,19 @@ export default function Lendie() {
     const renterName = req?.renterName || ((renterId === user?.id) ? (user?.user_metadata?.name || 'Buyer') : (activeConvo?.from || 'Buyer'));
     if (!ownerId || !renterId) { showToast('Failed to accept offer', 'error'); return; }
     if (req?.dbId) {
-      const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr }).eq('id', req.dbId);
+      const { error } = await supabase.from('booking_requests').update({ status: 'accepted', payment_status: 'delivery_confirmed', date_str: newDateStr, conversation_id: activeConvo?.conversation_id || null }).eq('id', req.dbId);
       if (error) { showToast('Failed to accept offer', 'error'); return; }
-      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr } : r));
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr, conversation_id: activeConvo?.conversation_id || r.conversation_id } : r));
       req = { ...req, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr };
     } else {
       const { data, error } = await supabase.from('booking_requests').insert({
         renter_id: renterId, owner_id: ownerId, item_title: listing.title, item_json: listing,
         date_str: newDateStr, start_date: null, end_date: null,
         status: 'accepted', payment_status: 'delivery_confirmed', renter_name: renterName,
+        conversation_id: activeConvo?.conversation_id || null,
       }).select('id').single();
       if (error || !data) { console.error('[AcceptOffer] create failed:', error?.message); showToast('Failed to accept offer', 'error'); return; }
-      req = { id: data.id, dbId: data.id, item: listing, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
+      req = { id: data.id, dbId: data.id, conversation_id: activeConvo?.conversation_id || null, item: listing, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
       setBookingRequests(prev => [...prev, req]);
     }
     const isOwner = req.ownerId === user?.id;
@@ -4916,7 +4930,8 @@ export default function Lendie() {
     const initialText = wantsDelivery
       ? `Hi! I'd like to rent "${item.title}" for ${dateStr}. I'm hoping for delivery — let me know if that works and we can sort out the details!`
       : `Hi! I'd like to rent "${item.title}" for ${dateStr}. When and where works for pickup?`;
-    sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, dateStr, initialText);
+    const convo = sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, dateStr, initialText);
+    linkBookingToConversation(req.id, data?.id, convo?.conversation_id);
 
     sendPushToUser(item.ownerId, { title: 'New rental request', body: `${renterName} wants to rent ${item.title}`, url: '/?tab=messages', tag: `booking-req-${data?.id || req.id}` });
     sendEmail(item.ownerId, `New rental request — ${item.title}`,
@@ -4949,7 +4964,8 @@ export default function Lendie() {
 
     const buyerName = user?.user_metadata?.name || 'Someone';
     const initialText = `Hi! I'd like to buy your "${item.title}" for $${salePrice}. Is it still available?`;
-    sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, "Purchase", initialText);
+    const convo = sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, "Purchase", initialText);
+    linkBookingToConversation(req.id, data?.id, convo?.conversation_id);
     sendPushToUser(item.ownerId, { title: 'New purchase request', body: `${buyerName} wants to buy ${item.title}`, url: '/?tab=messages', tag: `buy-req-${data?.id || req.id}` });
     sendEmail(item.ownerId, `New purchase request — ${item.title}`,
       `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">🛒 New purchase request</h2>
@@ -4983,7 +4999,8 @@ export default function Lendie() {
     const requesterName = user?.user_metadata?.name || 'Someone';
     const whenText = start ? ` for ${dateStr}` : '';
     const initialText = `Hi! I'd like to book your "${item.title}" service ($${item.price}/${unit})${whenText}. Are you available?`;
-    sendItemMessage(item.ownerId, item.owner || "Provider", item.ownerAvatarUrl, item.title, "Service", initialText);
+    const convo = sendItemMessage(item.ownerId, item.owner || "Provider", item.ownerAvatarUrl, item.title, "Service", initialText);
+    linkBookingToConversation(reqId, data?.id, convo?.conversation_id);
     sendPushToUser(item.ownerId, { title: 'New service request', body: `${requesterName} wants to book ${item.title}${whenText}`, url: '/?tab=messages', tag: `svc-req-${data?.id || reqId}` });
     sendEmail(item.ownerId, `New service request — ${item.title}`,
       `<h2 style="margin:0 0 12px;font-size:20px;color:#1C1E21">🧰 New service request</h2>
@@ -5017,7 +5034,8 @@ export default function Lendie() {
 
     setBookingRequests(prev => [...prev, req]);
     setRequestSent(r => ({...r, [item.id]: "pending"}));
-    sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, "Offer", offerText);
+    const convo = sendItemMessage(item.ownerId, item.owner || "Owner", item.ownerAvatarUrl, item.title, "Offer", offerText);
+    setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, conversation_id: convo?.conversation_id } : r));
     showToast("Offer sent!");
     setTab("messages");
 
@@ -5027,6 +5045,7 @@ export default function Lendie() {
       date_str: "Offer", start_date: null, end_date: null,
       wants_delivery: false, delivery_fee: null,
       renter_name: buyerName, status: "pending",
+      conversation_id: convo?.conversation_id || null,
     }).select('id').single();
     if (data) setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, dbId: data.id } : r));
 
