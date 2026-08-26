@@ -4543,14 +4543,15 @@ export default function Lendie() {
   // longer reach to complete or cancel.
   const openConversationForItem = (item) => {
     if (!item) return;
-    // Prefer an exact person+listing match. Fall back to the listing title alone:
-    // test-data re-seeds and legacy rows can leave a message's stored other-user id
-    // out of sync with the listing's current owner id, but the title is stable.
+    // Match the exact conversation for this listing: same person AND same title.
+    // Never fall back to owner-only — that opens an unrelated thread for a
+    // different item from the same seller. If no exact thread exists (e.g. an
+    // orphaned booking with no conversation), just land on the inbox.
     const existing =
       (item.ownerId && item.ownerId !== 'me' && messages.find(m => m.otherUserId === item.ownerId && m.item === item.title)) ||
       messages.find(m => m.item === item.title) ||
-      (item.ownerId && item.ownerId !== 'me' ? messages.find(m => m.otherUserId === item.ownerId) : null);
-    if (!existing) console.warn('[Inbox] no thread found to reopen for listing:', item.title, 'owner:', item.ownerId);
+      null;
+    if (!existing) console.warn('[Inbox] no exact thread to reopen for listing:', item.title, 'owner:', item.ownerId);
     if (existing?.conversation_id && hiddenConvoIds.has(existing.conversation_id)) {
       setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(existing.conversation_id); return next; });
       if (user) supabase.from('hidden_conversations').delete()
