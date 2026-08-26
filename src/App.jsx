@@ -919,7 +919,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
 }
 
 // ItemDetailSheet - top-level component so hooks work correctly
-function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking, onBuyRequest, onMakeOfferRequest, onServiceRequest, isDesktop, darkMode }) {
+function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, allItems, OWNERS, setOwnerProfileId, setPhotoBrowser, onDismiss, setPaymentModal, setPaymentStep, onConfirmBooking, onBuyRequest, onMakeOfferRequest, onServiceRequest, onOpenConversation, isDesktop, darkMode }) {
   const C = darkMode ? { bg:'#000000', card:'#1C1C1E', border:'#2C2C2E', borderFaint:'#242426', text:'#F2F2F7', muted:'#AEAEB2', faint:'#8E8E93', inputBg:'#2C2C2E' } : { bg:'#fff', card:'#fff', border:'#E4E6EB', borderFaint:'#F0F2F5', text:'#1C1E21', muted:'#65676B', faint:'#8A8D91', inputBg:'#fff' };
   const CAT_MAP = { tools:"Tools", trailers:"Trailers", construction:"Equipment", kitchen:"Kitchen", garden:"Garden", outdoors:"Outdoors", venues:"Venues", party:"Party", tech:"Tech", ...SERVICE_CAT_LABELS };
   const isService = item?.listingType === "service";
@@ -1252,9 +1252,9 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
         )}
         {!isMine && item.listingType==="sale" && item.available && (
           anyActiveRequest?.status === "pending"
-            ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"1px solid #FFE0B2" }}>⏳ Request sent — check your messages</div>
+            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"1px solid #FFE0B2", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
             : anyActiveRequest?.status === "accepted"
-            ? <div style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10 }}>✅ Confirmed — complete payment in Messages</div>
+            ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", textAlign:"center", fontWeight:700, fontSize:15, marginBottom:10, border:"none", cursor:"pointer", fontFamily:"inherit" }}>✅ Confirmed — complete payment in Messages ›</button>
             : <>
                 <div style={{ display:"flex", gap:8, marginBottom:showOfferEntry?8:10 }}>
                   <button style={{ flex:1, padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff" }} onClick={()=>onBuyRequest&&onBuyRequest(item)}>
@@ -1316,13 +1316,13 @@ function ItemDetailSheet({ item, bookingRequests, user, favorites, toggleFav, al
             )}
             {alreadySent === "pending"
               ? <>
-                  <div style={{ padding:"11px 14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", fontWeight:600, fontSize:13, border:"1px solid #FFE0B2", marginBottom:8, textAlign:"center" }}>⏳ Request sent — check your messages</div>
+                  <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#FFF7ED", color:"#E87722", fontWeight:600, fontSize:13, border:"1px solid #FFE0B2", marginBottom:8, textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>⏳ Request sent — open messages ›</button>
                   <button style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:(!startDate||rangeBooked)?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#00B894", color:"#fff", opacity:(!startDate||rangeBooked)?0.55:1 }} onClick={()=>{ if(!rangeBooked&&startDate) onConfirmBooking(startDate,endDate,wantsDelivery); }} disabled={!startDate||rangeBooked}>
                     {!startDate?"Select new dates to request again":rangeBooked?"Already booked — select different dates":"Request "+n+" "+(item.category==="housing"?"night":"day")+(n>1?"s":"")}
                   </button>
                 </>
               : alreadySent === "accepted"
-              ? <div style={{ padding:"11px 14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", fontWeight:600, fontSize:13, border:"1px solid #B2EFE3", textAlign:"center" }}>✅ Owner approved — complete payment in Messages</div>
+              ? <button onClick={()=>onOpenConversation&&onOpenConversation(item)} style={{ width:"100%", padding:"11px 14px", borderRadius:8, background:"#E8FBF6", color:"#00B894", fontWeight:600, fontSize:13, border:"1px solid #B2EFE3", textAlign:"center", cursor:"pointer", fontFamily:"inherit" }}>✅ Owner approved — complete payment in Messages ›</button>
               : <button
                   style={{ width:"100%", padding:"14px", borderRadius:8, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:(!startDate||rangeBooked)?"not-allowed":"pointer", background: rangeBooked?"#DC2626":"#00B894", color:"#fff", opacity:(!startDate||rangeBooked)?0.55:1 }}
                   onClick={()=>{ if(!rangeBooked&&startDate) onConfirmBooking(startDate,endDate,wantsDelivery); }} disabled={!startDate||rangeBooked}>
@@ -4537,6 +4537,24 @@ export default function Lendie() {
     return convo;
   };
 
+  // Reopen the conversation tied to a listing (used by the status banners on the
+  // item sheet). Un-hides the thread first if the user had deleted it — otherwise
+  // a confirmed order is trapped: the banner points to a thread the user can no
+  // longer reach to complete or cancel.
+  const openConversationForItem = (item) => {
+    if (!item?.ownerId || item.ownerId === 'me') return;
+    const existing = messages.find(m => m.otherUserId === item.ownerId && m.item === item.title);
+    if (existing?.conversation_id && hiddenConvoIds.has(existing.conversation_id)) {
+      setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(existing.conversation_id); return next; });
+      if (user) supabase.from('hidden_conversations').delete()
+        .eq('user_id', user.id).eq('conversation_id', existing.conversation_id)
+        .then(({ error }) => { if (error) console.error('[Inbox] unhide failed:', error.message); });
+    }
+    setSelectedItem(null);
+    setTab("messages");
+    if (existing) setActiveConvo(existing);
+  };
+
   const handlePaymentConfirm = async (stripeData = null) => {
     const { item, start, end } = paymentModal;
     const dateStr = formatDate(start) + (end && end !== start ? " - " + formatDate(end) : "");
@@ -7002,6 +7020,7 @@ export default function Lendie() {
         onBuyRequest={(item)=>{ setSelectedItem(null); handleBuyRequest(item); }}
         onMakeOfferRequest={(item, amt)=>{ setSelectedItem(null); handleMakeOfferRequest(item, amt); }}
         onServiceRequest={(item, s, e)=>{ setSelectedItem(null); handleServiceRequest(item, s, e); }}
+        onOpenConversation={openConversationForItem}
       />
 
       {/* Listing management sheet — opens when owner taps their own listing */}
