@@ -4542,8 +4542,15 @@ export default function Lendie() {
   // a confirmed order is trapped: the banner points to a thread the user can no
   // longer reach to complete or cancel.
   const openConversationForItem = (item) => {
-    if (!item?.ownerId || item.ownerId === 'me') return;
-    const existing = messages.find(m => m.otherUserId === item.ownerId && m.item === item.title);
+    if (!item) return;
+    // Prefer an exact person+listing match. Fall back to the listing title alone:
+    // test-data re-seeds and legacy rows can leave a message's stored other-user id
+    // out of sync with the listing's current owner id, but the title is stable.
+    const existing =
+      (item.ownerId && item.ownerId !== 'me' && messages.find(m => m.otherUserId === item.ownerId && m.item === item.title)) ||
+      messages.find(m => m.item === item.title) ||
+      (item.ownerId && item.ownerId !== 'me' ? messages.find(m => m.otherUserId === item.ownerId) : null);
+    if (!existing) console.warn('[Inbox] no thread found to reopen for listing:', item.title, 'owner:', item.ownerId);
     if (existing?.conversation_id && hiddenConvoIds.has(existing.conversation_id)) {
       setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(existing.conversation_id); return next; });
       if (user) supabase.from('hidden_conversations').delete()
