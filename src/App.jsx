@@ -2099,6 +2099,18 @@ function MapView({ items, onSelectItem, centerCoords, radius, onRadiusChange, on
   );
 }
 
+// Message-bubble avatar. Defined at module scope (NOT inside ChatView) so its
+// component identity stays stable across ChatView re-renders — otherwise every
+// keystroke in the message box would remount the <img> and make the avatar flicker.
+function AvatarSmall({ mine, myAvatarUrl, avatarUrl, darkMode }) {
+  if (mine) return myAvatarUrl
+    ? <img src={myAvatarUrl} alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
+    : <div style={{ width:28, height:28, borderRadius:"50%", background:"#007AFF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>👽</div>;
+  return avatarUrl
+    ? <img src={avatarUrl} alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
+    : <div style={{ width:28, height:28, borderRadius:"50%", background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>👽</div>;
+}
+
 function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, setMessages, msgEndRef, user, onSend, isDesktop, profilePhotoUrl, onReport, isBlocked, onBlock, onUnblock, darkMode, bookingRequests, onAccept, onDecline, onCheckout, onCancelRequest, onOwnerCancel, onAcceptOffer, onDeclineOffer, allItems }) {
   if (!activeConvo) return null;
   const [showMenu, setShowMenu] = useState(false);
@@ -2190,14 +2202,6 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
     : { position:"fixed", inset:0, background:bg, zIndex:600, display:"flex", flexDirection:"column", maxWidth:430, margin:"0 auto", boxSizing:"border-box" };
 
   const myAvatarUrl = profilePhotoUrl || user?.user_metadata?.avatar_url || null;
-  const AvatarSmall = ({ mine }) => {
-    if (mine) return myAvatarUrl
-      ? <img src={myAvatarUrl} alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
-      : <div style={{ width:28, height:28, borderRadius:"50%", background:"#007AFF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>👽</div>;
-    return activeConvo.avatarUrl
-      ? <img src={activeConvo.avatarUrl} alt="" style={{ width:28, height:28, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}/>
-      : <div style={{ width:28, height:28, borderRadius:"50%", background: darkMode?"#2C2C2E":"#E8FBF6", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>👽</div>;
-  };
 
   // Pending booking request linked to this conversation (owner sees this)
   const pendingReq = bookingRequests?.find(r =>
@@ -2347,7 +2351,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           return (
             <div key={i} style={{ display:"flex", flexDirection:m.mine?"row-reverse":"row", alignItems:"flex-end", gap:6, marginBottom:groupLast?10:2 }}>
               <div style={{ width:28, flexShrink:0, alignSelf:"flex-end" }}>
-                {!m.mine && showAvatar && <AvatarSmall mine={false}/>}
+                {!m.mine && showAvatar && <AvatarSmall mine={false} myAvatarUrl={myAvatarUrl} avatarUrl={activeConvo.avatarUrl} darkMode={darkMode}/>}
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:m.mine?"flex-end":"flex-start", maxWidth:"75%" }}>
                 {isOfferMsg ? (
