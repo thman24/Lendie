@@ -4442,7 +4442,7 @@ export default function Lendie() {
   } : {
     bg: '#fff', card: '#fff', surface: '#fff', border: '#E4E6EB', borderFaint: '#F0F2F5',
     text: '#1C1E21', muted: '#65676B', faint: '#8A8D91', accent: '#00B894',
-    inputBg: '#fff', chip: '#fff', chipText: '#1C1E21', searchBg: '#F0F2F5',
+    inputBg: '#fff', chip: '#fff', chipText: '#1C1E21', searchBg: '#E4E6EB',
   };
   const S = {
     app:{ fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Arial,sans-serif", background:C.bg, minHeight:"100dvh", width:"100%", maxWidth: isDesktop ? "none" : 430, margin: isDesktop ? 0 : "0 auto", color:C.text, paddingBottom: isDesktop ? 0 : "calc(56px + env(safe-area-inset-bottom, 0px))", paddingTop: isDesktop ? 64 : 0 },
@@ -5937,7 +5937,7 @@ export default function Lendie() {
             </div>
             {/* Search bar — prominent, always visible */}
             <div style={{ padding:"0 12px 10px" }}>
-              <div style={{ background: darkMode ? "#2C2D2E" : "#F0F2F5", borderRadius:14, display:"flex", alignItems:"center", padding:"10px 14px", gap:10, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+              <div style={{ background: darkMode ? "#2C2D2E" : "#E4E6EB", border: darkMode ? "1px solid #3A3B3C" : "1px solid #D5D8DD", borderRadius:14, display:"flex", alignItems:"center", padding:"10px 14px", gap:10, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.faint} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input style={{ flex:1, background:"none", border:"none", outline:"none", color:C.text, fontSize:15, fontFamily:"inherit" }} placeholder="Search Lendie..." value={search} autoComplete="off" autoCorrect="off" spellCheck="false" onClick={e=>e.stopPropagation()} onChange={e=>{ e.stopPropagation(); setSearch(e.target.value); }}/>
                 {search && <div onClick={()=>setSearch("")} style={{ cursor:"pointer", width:20, height:20, borderRadius:"50%", background:"#8A8D91", display:"flex", alignItems:"center", justifyContent:"center" }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>}
@@ -5991,7 +5991,7 @@ export default function Lendie() {
           {showLocationPicker && (
             <div style={{ background:C.card, borderBottom:`1px solid ${C.border}`, padding:"14px" }}>
               <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-                <div style={{ flex:1, background: darkMode ? "#2C2D2E" : "#F0F2F5", borderRadius:14, display:"flex", alignItems:"center", padding:"0 14px", gap:10, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+                <div style={{ flex:1, background: darkMode ? "#2C2D2E" : "#E4E6EB", border: darkMode ? "1px solid #3A3B3C" : "1px solid #D5D8DD", borderRadius:14, display:"flex", alignItems:"center", padding:"0 14px", gap:10, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.faint} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   <PlacesAutocompleteInput
                     key={locationPickerKey}
@@ -6058,7 +6058,7 @@ export default function Lendie() {
               </div>
               {/* Search + radius + sort row */}
               <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:14, flexWrap:"wrap" }}>
-                <div style={{ flex:1, minWidth:160, background:C.searchBg, borderRadius:10, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
+                <div style={{ flex:1, minWidth:160, background:C.searchBg, border: darkMode ? "1px solid #3A3B3C" : "1px solid #D5D8DD", borderRadius:10, display:"flex", alignItems:"center", padding:"8px 12px", gap:8 }}>
                   <Search size={14} strokeWidth={2} color={C.faint}/>
                   <input style={{ flex:1, background:"none", border:"none", outline:"none", color:C.text, fontSize:13, fontFamily:"inherit" }} placeholder="Search..." value={search} autoComplete="off" onChange={e=>setSearch(e.target.value)}/>
                   {search && <span onClick={()=>setSearch("")} style={{ cursor:"pointer", color:C.faint, fontSize:13 }}>✕</span>}
