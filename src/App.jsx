@@ -4221,20 +4221,6 @@ export default function Lendie() {
   };
 
   const visibleMessages = useMemo(() => messages.filter(m => (!m.otherUserId || !blocks.includes(m.otherUserId)) && !(m.conversation_id && hiddenConvoIds.has(m.conversation_id))), [messages, blocks, hiddenConvoIds]);
-
-  // Best avatar for the profile being viewed. Listings only carry the owner's
-  // avatar when their user_id is set (the sync keys on user_id), so anon-owned
-  // listings show no avatar — but the person's avatar still lives on their message
-  // rows. Resolve from listings first, then any existing thread with them.
-  const ownerProfileAvatarUrl = useMemo(() => {
-    if (!ownerProfileId) return null;
-    const nm = (allItems.find(i => i.ownerId === ownerProfileId)?.owner || ownerProfileName || '').toLowerCase();
-    return (
-      allItems.find(i => i.ownerId === ownerProfileId && i.ownerAvatarUrl)?.ownerAvatarUrl ||
-      messages.find(m => ((m.otherUserId === ownerProfileId || m.fromId === ownerProfileId) || (nm && (m.from || '').toLowerCase() === nm)) && m.avatarUrl)?.avatarUrl ||
-      null
-    );
-  }, [ownerProfileId, ownerProfileName, allItems, messages]);
   // Most-recent-activity timestamp for a conversation — used to sort the inbox so
   // the newest message is always at the top.
   const convoTs = (m) => {
@@ -4364,6 +4350,20 @@ export default function Lendie() {
         .map(l => enrich(merge({ ...l, reviews:l.reviews||0, uploadedImages:l.uploadedImages||[] }))),
     ];
   }, [myListings, publicListings, bookedOverrides, userRatings, blocks, centerCoords, user?.id]);
+
+  // Best avatar for the profile being viewed. Listings only carry the owner's
+  // avatar when their user_id is set (the sync keys on user_id), so anon-owned
+  // listings show no avatar — but the person's avatar still lives on their message
+  // rows. Resolve from listings first, then any existing thread with them.
+  const ownerProfileAvatarUrl = useMemo(() => {
+    if (!ownerProfileId) return null;
+    const nm = (allItems.find(i => i.ownerId === ownerProfileId)?.owner || ownerProfileName || '').toLowerCase();
+    return (
+      allItems.find(i => i.ownerId === ownerProfileId && i.ownerAvatarUrl)?.ownerAvatarUrl ||
+      messages.find(m => ((m.otherUserId === ownerProfileId || m.fromId === ownerProfileId) || (nm && (m.from || '').toLowerCase() === nm)) && m.avatarUrl)?.avatarUrl ||
+      null
+    );
+  }, [ownerProfileId, ownerProfileName, allItems, messages]);
 
   // Refresh availability whenever a listing detail opens — booked dates change
   // owner-side (accepts, blocked dates), so renters need a fresh read mid-session
