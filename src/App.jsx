@@ -812,7 +812,7 @@ function ReportModal({ target, user, onClose, darkMode }) {
 }
 
 // OwnerProfileModal
-function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage, user, onReport, isBlocked, onBlock, onUnblock, darkMode, fallbackName }) {
+function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage, user, onReport, isBlocked, onBlock, onUnblock, darkMode, fallbackName, resolvedAvatarUrl }) {
   const C = darkMode ? { bg:'#000000', card:'#1C1C1E', border:'#2C2C2E', borderFaint:'#242426', text:'#F2F2F7', muted:'#AEAEB2', faint:'#8E8E93', inputBg:'#2C2C2E' } : { bg:'#fff', card:'#fff', border:'#E4E6EB', borderFaint:'#F0F2F5', text:'#1C1E21', muted:'#65676B', faint:'#8A8D91', inputBg:'#fff' };
   if (!ownerId) return null;
   const owned = allItems.filter(i => i.ownerId === ownerId);
@@ -820,7 +820,7 @@ function OwnerProfileModal({ ownerId, allItems, onClose, onSelectItem, onMessage
   const ownerName = first?.owner || fallbackName || 'Neighbor';
   const firstName = ownerName.split(" ")[0];
   const ownerAvatar = first?.ownerAvatar || '👽';
-  const ownerAvatarUrl = first?.ownerAvatarUrl || null;
+  const ownerAvatarUrl = resolvedAvatarUrl || first?.ownerAvatarUrl || null;
   // Rating is now person-level, so every one of this owner's listings carries the
   // same aggregate — read it off one rather than summing (which would multiply).
   const rated = owned.find(i => i.reviews > 0);
@@ -4221,6 +4221,20 @@ export default function Lendie() {
   };
 
   const visibleMessages = useMemo(() => messages.filter(m => (!m.otherUserId || !blocks.includes(m.otherUserId)) && !(m.conversation_id && hiddenConvoIds.has(m.conversation_id))), [messages, blocks, hiddenConvoIds]);
+
+  // Best avatar for the profile being viewed. Listings only carry the owner's
+  // avatar when their user_id is set (the sync keys on user_id), so anon-owned
+  // listings show no avatar — but the person's avatar still lives on their message
+  // rows. Resolve from listings first, then any existing thread with them.
+  const ownerProfileAvatarUrl = useMemo(() => {
+    if (!ownerProfileId) return null;
+    const nm = (allItems.find(i => i.ownerId === ownerProfileId)?.owner || ownerProfileName || '').toLowerCase();
+    return (
+      allItems.find(i => i.ownerId === ownerProfileId && i.ownerAvatarUrl)?.ownerAvatarUrl ||
+      messages.find(m => ((m.otherUserId === ownerProfileId || m.fromId === ownerProfileId) || (nm && (m.from || '').toLowerCase() === nm)) && m.avatarUrl)?.avatarUrl ||
+      null
+    );
+  }, [ownerProfileId, ownerProfileName, allItems, messages]);
   // Most-recent-activity timestamp for a conversation — used to sort the inbox so
   // the newest message is always at the top.
   const convoTs = (m) => {
@@ -7252,6 +7266,7 @@ export default function Lendie() {
         allItems={allItems}
         fallbackName={ownerProfileName}
         onClose={()=>{ setOwnerProfileId(null); setOwnerProfileName(null); }}
+        resolvedAvatarUrl={ownerProfileAvatarUrl}
         onSelectItem={item=>{ setSelectedItem(item); setOwnerProfileId(null); setOwnerProfileName(null); }}
         user={user}
         onReport={()=>{ const owned=allItems.filter(i=>i.ownerId===ownerProfileId); const name=owned[0]?.owner||'Unknown'; openReport(ownerProfileId?.startsWith('anon-')?null:ownerProfileId, name, 'profile'); }}
