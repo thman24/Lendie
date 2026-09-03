@@ -2332,7 +2332,9 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
       <div style={{ flex:1, overflowY:"auto", padding:"12px 16px 8px", background:bg, display:"flex", flexDirection:"column" }}>
         {thread.length===0 && (
           <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:textMuted, gap:6 }}>
-            <div style={{ fontSize:40 }}>{activeConvo.avatar || "💬"}</div>
+            {activeConvo.avatarUrl
+              ? <img src={activeConvo.avatarUrl} alt="" style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover" }}/>
+              : <div style={{ fontSize:40 }}>💬</div>}
             <div style={{ fontSize:14, fontWeight:500, color:textPrimary }}>{activeConvo.from}</div>
             <div style={{ fontSize:13 }}>Send a message to get started</div>
           </div>
