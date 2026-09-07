@@ -4863,7 +4863,11 @@ export default function Lendie() {
     // listing was paused and dropped from the public list), else the public listing.
     const listing = req?.item || allItems?.find(l => l.title === activeConvo?.item);
     if (!listing) { showToast('Could not find this listing', 'error'); return; }
-    const ownerId = req?.ownerId || listing.ownerId;
+    // On the owner's own client their listing carries the sentinel ownerId "me",
+    // not their real id — resolve it, or accepting an in-chat offer (which has no
+    // pre-created booking row to read the real ownerId from) mistakes the owner
+    // for the buyer and swaps the roles.
+    const ownerId = req?.ownerId || (listing.ownerId === 'me' ? user?.id : listing.ownerId);
     const renterId = req?.renterId || ((user?.id === ownerId) ? activeConvo?.otherUserId : user?.id);
     const renterName = req?.renterName || ((renterId === user?.id) ? (user?.user_metadata?.name || 'Buyer') : (activeConvo?.from || 'Buyer'));
     if (!ownerId || !renterId) { showToast('Failed to accept offer', 'error'); return; }
@@ -4873,14 +4877,17 @@ export default function Lendie() {
       setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr, conversation_id: activeConvo?.conversation_id || r.conversation_id } : r));
       req = { ...req, status: 'accepted', payment_status: 'delivery_confirmed', dateStr: newDateStr };
     } else {
+      // Normalize the snapshot's ownerId off the "me" sentinel so the renter's
+      // side doesn't load the booking as their own item.
+      const itemSnap = { ...listing, ownerId };
       const { data, error } = await supabase.from('booking_requests').insert({
-        renter_id: renterId, owner_id: ownerId, item_title: listing.title, item_json: listing,
+        renter_id: renterId, owner_id: ownerId, item_title: listing.title, item_json: itemSnap,
         date_str: newDateStr, start_date: null, end_date: null,
         status: 'accepted', payment_status: 'delivery_confirmed', renter_name: renterName,
         conversation_id: activeConvo?.conversation_id || null,
       }).select('id').single();
       if (error || !data) { console.error('[AcceptOffer] create failed:', error?.message); showToast('Failed to accept offer', 'error'); return; }
-      req = { id: data.id, dbId: data.id, conversation_id: activeConvo?.conversation_id || null, item: listing, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
+      req = { id: data.id, dbId: data.id, conversation_id: activeConvo?.conversation_id || null, item: itemSnap, dateStr: newDateStr, status: 'accepted', payment_status: 'delivery_confirmed', renterId, ownerId, renterName };
       setBookingRequests(prev => [...prev, req]);
     }
     const isOwner = req.ownerId === user?.id;
