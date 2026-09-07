@@ -4568,8 +4568,9 @@ export default function Lendie() {
   // falls back to person+title for legacy bookings created before that link
   // existed. Never falls back to owner-only — that opens an unrelated thread for a
   // different item from the same seller. Un-hides the thread first if the user had
-  // deleted it — otherwise a confirmed order is trapped: the banner points to a
-  // thread the user can no longer reach to complete or cancel.
+  // deleted it. If no thread exists at all (deleted copy, or a legacy booking whose
+  // conversation was never created), it STARTS one so a confirmed order can always
+  // be completed — never trapped.
   const openConversationForItem = (item, conversationId = null) => {
     if (!item) return;
     const existing =
@@ -4577,17 +4578,37 @@ export default function Lendie() {
       (item.ownerId && item.ownerId !== 'me' && messages.find(m => m.otherUserId === item.ownerId && m.item === item.title)) ||
       messages.find(m => m.item === item.title) ||
       null;
-    if (!existing) console.warn('[Inbox] no thread to reopen for listing:', item.title, 'conv:', conversationId, 'owner:', item.ownerId);
-    const cid = existing?.conversation_id;
-    if (cid && hiddenConvoIds.has(cid)) {
-      setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(cid); return next; });
-      if (user) supabase.from('hidden_conversations').delete()
-        .eq('user_id', user.id).eq('conversation_id', cid)
-        .then(({ error }) => { if (error) console.error('[Inbox] unhide failed:', error.message); });
+    if (existing) {
+      const cid = existing.conversation_id;
+      if (cid && hiddenConvoIds.has(cid)) {
+        setHiddenConvoIds(prev => { const next = new Set(prev); next.delete(cid); return next; });
+        if (user) supabase.from('hidden_conversations').delete()
+          .eq('user_id', user.id).eq('conversation_id', cid)
+          .then(({ error }) => { if (error) console.error('[Inbox] unhide failed:', error.message); });
+      }
+      setSelectedItem(null);
+      setTab("messages");
+      setActiveConvo(existing);
+      return;
     }
+    // No thread found — the user deleted their copy, or it's a legacy booking whose
+    // conversation was never created. Start one so they can still complete the
+    // transaction, and link it to the booking so future taps open it directly.
+    if (!item.ownerId || item.ownerId === 'me') { setSelectedItem(null); setTab("messages"); return; }
+    // Inherit the real recipient from any prior thread with this person — the
+    // listing ownerId can be an 'anon-…' placeholder that isn't a valid recipient.
+    const prior = messages.find(m => m.otherUserId === item.ownerId || (item.owner && (m.from || '').toLowerCase() === (item.owner || '').toLowerCase()));
+    const recipientId = prior?.otherUserId || item.ownerId;
+    const recipientName = item.owner || prior?.from || 'Owner';
+    const recipientAvatar = prior?.avatarUrl || item.ownerAvatarUrl || null;
+    const sub = item.listingType === 'sale' ? 'Purchase' : 'Booking';
     setSelectedItem(null);
+    const convo = sendItemMessage(recipientId, recipientName, recipientAvatar, item.title, sub, `Hi! I'd like to complete payment for "${item.title}". How would you like to handle it?`);
     setTab("messages");
-    if (existing) setActiveConvo(existing);
+    const booking = bookingRequests.find(r => r.item?.title === item.title
+      && (r.renterId === user?.id || r.ownerId === user?.id)
+      && !['cancelled', 'declined', 'completed'].includes(r.status));
+    if (booking && convo?.conversation_id) linkBookingToConversation(booking.id, booking.dbId, convo.conversation_id);
   };
 
   const handlePaymentConfirm = async (stripeData = null) => {
