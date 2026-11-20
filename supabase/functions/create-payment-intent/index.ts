@@ -208,7 +208,9 @@ Deno.serve(async (req) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
-      automatic_payment_methods: { enabled: true },
+      // Cards only: async methods (ACH, etc.) can fail after we've scheduled a
+      // transfer, and the app confirms with confirmCardPayment anyway.
+      payment_method_types: ['card'],
       metadata: {
         user_id: user.id,
         listing_id: String(listingId),

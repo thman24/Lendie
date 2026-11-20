@@ -49,7 +49,13 @@ a live transaction.** Treat it as a dedicated test-mode day.
 Prereqs:
 - [ ] Attorney sign-off on the **stored-card mandate** (ATTORNEY_BRIEF §C) and cancellation policy.
 - [ ] **Sales-tax** registration plan (ATTORNEY_BRIEF §D) + Stripe Tax configured.
-- [ ] **Ask Stripe support** (Connect, separate charges & transfers) and get answers in writing:
+- [x] **Asked Stripe support bot** (2026-11-20). Answers: no max hold when there's a clear
+  precondition (rentals are Stripe's own example); no time limit on `source_transaction`
+  transfers; refunds come from our platform balance whatever the owner account's status;
+  reversals need the owner's balance to cover them (so we now refuse in-app refunds after
+  payout); processing fee not returned on refund; no approval needed for off-session saved
+  cards, but disclosure + consent + a record are required (now stored on the SetupIntent).
+  Still worth getting a human/docs confirmation of the "no max hold" answer. Original questions:
   1. How long can captured funds sit in our platform balance before we transfer to the
      connected account? Our longest hold is the rental length + ~2 days, or 14 days for
      purchases (backstop).

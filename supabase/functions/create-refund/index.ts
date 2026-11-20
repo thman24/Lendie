@@ -160,6 +160,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Payout already gone to the owner: refunding now would need a transfer
+    // reversal, which Stripe only allows if the owner's Stripe balance still covers
+    // it — otherwise Lendie eats the refund. With handoff-based escrow this is only
+    // reachable by an owner cancelling after being paid, so route it to support.
+    if (booking.payout_status === 'released') {
+      return new Response(JSON.stringify({
+        error: 'The payout for this transaction has already been released, so it can no longer be refunded in the app. Please contact Lendie support.',
+      }), { status: 400, headers: corsHeaders });
+    }
+
     // Refund the renter from the platform balance.
     let refund;
     try {

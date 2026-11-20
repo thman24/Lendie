@@ -39,7 +39,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId } = await req.json();
+    const { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId, consentAccepted } = await req.json();
+
+    // Card-network rules require explicit consent to store and later charge a card
+    // off-session, and a record of it. The checkout checkbox must be ticked.
+    if (consentAccepted !== true) {
+      return new Response(JSON.stringify({ error: 'Please accept the card authorization to continue.' }), { status: 400, headers: corsHeaders });
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -207,6 +213,13 @@ Deno.serve(async (req) => {
         listing_title: listing.title,
         start_date: startDate,
         end_date: endDate ?? '',
+        // Consent record (kept by Stripe with the SetupIntent).
+        consent_accepted_at: new Date().toISOString(),
+        consent_terms_version: '2026-11-20',
+        consent_charge_at: new Date(chargeAtMs).toISOString(),
+        consent_amount_cents: String(amountCents),
+        consent_ip: (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim().slice(0, 64),
+        consent_text: 'Renter ticked: I authorize Lendie to securely save this card and charge the booking total on the scheduled charge date (~24h before the rental). Free cancellation before then; after that the 8% service fee is non-refundable. ToS 6.2.',
       },
     });
 
