@@ -16,7 +16,7 @@ cash-only today, so nothing below is in effect for users yet.
      account. It is not a temporary authorization hold on the card.
 2. **Reporting a problem.** Either party can report a problem until the payout releases,
    with the exact deadlines spelled out. A renter can report once a dated booking has
-   started; before that they cancel instead. That
+   started; before that they cancel instead. A report
    freezes the payout until Lendie reviews it and decides to release, refund in full, or
    partially refund (deducted from the held payout). The clause says our review is not
    arbitration and doesn't limit chargebacks or legal remedies.
