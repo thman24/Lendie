@@ -9,6 +9,9 @@ import { supabase } from './supabase';
 // the Vercel env at go-live) AND a VITE_STRIPE_PUBLISHABLE_KEY. Production has
 // neither today, so it stays cash-only.
 const CASH_ONLY_LAUNCH = import.meta.env.VITE_ENABLE_CARD_PAYMENTS !== 'true';
+// Offers / counter-offers expire 24h after they're sent (UI + hourly
+// expire_stale_offers() job, migration 20240149).
+const OFFER_TTL_MS = 24 * 60 * 60 * 1000;
 const STRIPE_KEY = CASH_ONLY_LAUNCH ? '' : (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 const OWNER_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -2418,6 +2421,10 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
           const offerMatch = m.text?.match(/💸 Offer: \$(\d+(?:\.\d+)?)/);
           const isOfferMsg = !!offerMatch;
           const offerAmt = isOfferMsg ? parseFloat(offerMatch[1]) : null;
+          // Offers expire 24h after they're sent (server job closes them too).
+          const offerAgeMs = isOfferMsg && m.created_at ? Date.now() - new Date(m.created_at).getTime() : 0;
+          const offerExpired = isOfferMsg && offerAgeMs >= OFFER_TTL_MS;
+          const offerHoursLeft = isOfferMsg ? Math.max(1, Math.ceil((OFFER_TTL_MS - offerAgeMs) / 3600000)) : 0;
           return (
             <div key={i} style={{ display:"flex", flexDirection:m.mine?"row-reverse":"row", alignItems:"flex-end", gap:6, marginBottom:groupLast?10:2 }}>
               <div style={{ width:28, flexShrink:0, alignSelf:"flex-end" }}>
@@ -2431,8 +2438,11 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                     {/* Only the latest received offer is actionable, and only until
                         the deal is settled — so an old/superseded offer bubble can't
                         be re-accepted to silently overwrite the agreed price. */}
+                    {m.mine && !offerAccepted && (
+                      <div style={{ fontSize:11, color:textMuted, marginTop:2 }}>{offerExpired ? "Expired" : `Expires in ${offerHoursLeft}h`}</div>
+                    )}
                     {!m.mine && (
-                      (m === latestReceivedOffer && !offerAccepted) ? (
+                      (m === latestReceivedOffer && !offerAccepted && !offerExpired) ? (
                         <div style={{ display:"flex", gap:6 }}>
                           <button onClick={()=>onDeclineOffer&&onDeclineOffer()} style={{ flex:1, padding:"8px 0", borderRadius:9, border:`1px solid ${border}`, background:"transparent", color:textMuted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                             Decline
@@ -2445,7 +2455,7 @@ function ChatView({ activeConvo, setActiveConvo, chatMsg, setChatMsg, messages, 
                           </button>
                         </div>
                       ) : (
-                        <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>{offerAccepted ? "✓ Settled" : "No longer active"}</div>
+                        <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>{offerAccepted ? "✓ Settled" : offerExpired && m === latestReceivedOffer ? "Expired — no reply within 24h" : "No longer active"}</div>
                       )
                     )}
                     {m.mine && <div style={{ fontSize:12, color:textMuted, marginTop:2 }}>{offerAccepted ? "✓ Settled" : "Awaiting response…"}</div>}
@@ -4925,6 +4935,12 @@ export default function Lendie() {
   const handleAcceptOffer = async (offerAmount) => {
     // Works for both sides: seller accepting buyer's offer, or buyer accepting seller's counter
     if (!activeConvo || !offerAmount) return;
+    // Offers expire 24h after they're sent — refuse a stale screen's Accept.
+    const lastOffer = [...(activeConvo.thread || [])].reverse().find(m => !m.mine && /💸 Offer: \$\d/.test(m.text));
+    if (lastOffer?.created_at && Date.now() - new Date(lastOffer.created_at).getTime() >= OFFER_TTL_MS) {
+      showToast('This offer expired (no reply within 24 hours). Make a new offer instead.', 'error');
+      return;
+    }
     const newDateStr = `Offer:${offerAmount}`;
     // Reuse ANY live offer record for this conversation (pending or a prior
     // counter/accept) so re-accepting never creates duplicates.
