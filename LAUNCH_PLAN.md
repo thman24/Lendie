@@ -55,7 +55,7 @@ Go-live sequence (full detail in LAUNCH.md → "Stripe go-live"):
 2. `STRIPE_CONNECT_ENABLED = true`.
 3. Register the **live webhook** — subscribe to `payment_intent.succeeded/payment_failed/
    canceled`, **`setup_intent.succeeded`**, `account.updated`.
-4. Turn on both crons: `release-payouts-hourly` and `charge-due-bookings-hourly`.
+4. Crons are already on (`release-payouts-hourly`, `charge-due-bookings-hourly`, `booking-reminders-hourly`; vault secrets set 2026-11-20) — just confirm they return 200 in `net._http_response`.
 5. Verify all edge functions deployed (incl. `create-setup-intent`, `charge-due-bookings`,
    `release-payouts`, `booking-escrow`).
 

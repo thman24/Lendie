@@ -1,0 +1,20 @@
+# Supabase CLI config — only the settings that matter for deploying edge functions.
+# NOTE: never run `supabase db push` against prod: the remote migration history is
+# empty (migrations were applied by hand in the SQL editor), so it would re-run all
+# of them. Apply new migrations in the SQL editor / Management API instead.
+project_id = "roehykgfltnghsvcvter"
+
+# These functions authenticate callers themselves, so the gateway JWT check must be
+# off: Stripe sends no JWT, and the pg_cron jobs authenticate with the new-style
+# sb_secret key (not a JWT), compared in-function against SUPABASE_SERVICE_ROLE_KEY.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.release-payouts]
+verify_jwt = false
+
+[functions.charge-due-bookings]
+verify_jwt = false
+
+[functions.booking-reminders]
+verify_jwt = false
