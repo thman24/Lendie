@@ -71,7 +71,7 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
       Subscribe to at least: `payment_intent.succeeded`, `payment_intent.payment_failed`,
       `payment_intent.canceled`, **`setup_intent.succeeded`** (needed for delayed charging —
       it flips a saved-card booking to `scheduled`), and `account.updated`.
-- [ ] **Turn on the payout-release cron** (deliberately not auto-applied — `20240126_payout_release_cron.sql`):
+- [x] **Turn on the payout-release cron** — DONE 2026-11-20 (vault secrets set with the `sb_secret` key; harmless while cash-only, nothing is paid). Original steps:
   1. `create extension pg_cron; create extension pg_net;`
   2. Store Vault secrets (in the Supabase SQL editor, NOT in git):
      `select vault.create_secret('https://roehykgfltnghsvcvter.supabase.co','project_url');`
@@ -104,7 +104,7 @@ the scheduled charge costs **zero** Stripe fees because no charge ever happened.
 **Delayed-charge go-live checklist (do in Stripe TEST mode first):**
 - [ ] Webhook subscribes to **`setup_intent.succeeded`** (see webhook step above) — without it,
       saved-card bookings never become `scheduled` and never charge.
-- [ ] Confirm the **`charge-due-bookings-hourly`** cron exists (`select * from cron.job;`) — it was
+- [x] Confirm the **`charge-due-bookings-hourly`** cron exists (verified 2026-11-20, returns 200) (`select * from cron.job;`) — it was
       scheduled by `20240138` and reuses the release-payouts Vault secrets.
 - [ ] TEST the happy path: book a rental >24h out → card saved ($0, `scheduled`) → move `charge_at`
       back / wait → cron charges → `paid` → payout hold → release.
