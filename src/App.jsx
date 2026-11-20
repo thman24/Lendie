@@ -677,6 +677,7 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
           listingId: item.id, startDate: start, endDate: end,
           wantsDelivery, deliveryAddress: wantsDelivery ? deliveryAddress : null,
           existingBookingId: paymentModal?.existingBookingId ?? null,
+          purchase: isPurchase,
         }),
       });
       const { clientSecret, bookingDbId, breakdown: bd, error: fnErr } = await res.json();

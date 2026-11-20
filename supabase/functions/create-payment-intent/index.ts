@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     }
 
     // `let`: for an existing booking these are overwritten from the booking row below.
-    let { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId } = await req.json();
+    let { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId, purchase } = await req.json();
 
     // Use service role to read authoritative listing data — never trust client-supplied prices
     const supabaseAdmin = createClient(
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
     const { data: listing, error: listingErr } = await supabaseAdmin
       .from('listings')
-      .select('id, title, price, price_unit, delivery_fee, delivery_radius_miles, offers_delivery, user_id, emoji, color, listing_type')
+      .select('id, title, price, price_unit, sale_price, delivery_fee, delivery_radius_miles, offers_delivery, user_id, emoji, color, listing_type')
       .eq('id', listingId)
       .single();
 
@@ -105,6 +105,11 @@ Deno.serve(async (req) => {
     }
     // Accepted offer/counter — date_str is "Offer:<amount>".
     const offerMatch = bookingRow?.date_str?.match(/^Offer:(\d+(?:\.\d+)?)$/);
+    // A purchase (Buy) — from the booking row when paying an existing one, else
+    // the client's choice for a new checkout. Only listings that are for sale.
+    const forSale = listing.listing_type === 'sale' || listing.listing_type === 'both';
+    const isPurchase = forSale && !isService && (existingBookingId ? bookingRow?.date_str === 'Purchase' : purchase === true);
+    if (isPurchase) { startDate = null; endDate = null; }
 
     // Services charge the provider's agreed flat quote; accepted offers charge the
     // agreed offer amount; both are flat (no date multiplier, no delivery).
@@ -117,6 +122,17 @@ Deno.serve(async (req) => {
     } else if (offerMatch) {
       rentalTotal = Number(offerMatch[1]);
       deliveryTotal = 0;
+    } else if (isPurchase) {
+      // Flat sale price: "Rent or Buy" listings keep it in sale_price; "Sale"
+      // listings use the main price. No per-day multiplier.
+      const sale = listing.listing_type === 'both' ? Number(listing.sale_price) : Number(listing.price);
+      if (!(sale > 0)) {
+        return new Response(JSON.stringify({ error: 'This item has no sale price.' }), { status: 400, headers: corsHeaders });
+      }
+      rentalTotal = sale;
+      deliveryTotal = (wantsDelivery && listing.offers_delivery && listing.delivery_fee)
+        ? Number(listing.delivery_fee)
+        : 0;
     } else {
       const unitMultiplier: Record<string, number> = { hour: 1, day: days, night: days, week: Math.ceil(days / 7) };
       rentalTotal = listing.price * (unitMultiplier[listing.price_unit] ?? days);
@@ -207,7 +223,7 @@ Deno.serve(async (req) => {
             priceUnit: listing.price_unit,
             deliveryFee: listing.delivery_fee,
           },
-          date_str: dateStr,
+          date_str: isPurchase ? 'Purchase' : dateStr,
           start_date: startDate || null,
           end_date: endDate || null,
           wants_delivery: wantsDelivery || false,
