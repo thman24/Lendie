@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (accountId) {
       try { await stripe.accounts.retrieve(accountId); }
       catch (e: any) {
-        if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
+        if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || e?.code === 'platform_account_required' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
           console.warn(`[create-connect-account] stored account ${accountId} not usable with this key (${e?.code}) — creating a new one`);
           accountId = null;
         } else { throw e; }

@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     } catch (e: any) {
       // Account from the other Stripe mode (test vs live) or deleted: report
       // "not connected" so the app offers setup, which creates a usable one.
-      if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
+      if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || e?.code === 'platform_account_required' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
         return new Response(JSON.stringify({ connected: false, chargesEnabled: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
