@@ -735,8 +735,8 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
             I agree to Lendie's terms. {willSchedule
               ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel <strong style={{ color:C.text }}>free of charge</strong> any time before then; after that the 8% service fee is non-refundable.</>
               : isPurchase
-              ? "Lendie holds your payment until you confirm you received the item (or 72 hours), so you can report a problem first. You can cancel within 24 hours for a refund, minus the non-refundable 8% service fee."
-              : "Lendie holds your payment until 24 hours after the booking ends, so you can report a problem. You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
+              ? "Lendie holds your payment for up to 72 hours (or 24 hours after you confirm you received the item), and you can report a problem until the seller is paid. You can cancel within 24 hours for a refund, minus the non-refundable 8% service fee."
+              : "Lendie holds your payment until 24 hours after the booking ends, and you can report a problem until then. You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
           </span>
         </label>
 
@@ -5479,12 +5479,12 @@ export default function Lendie() {
   const fmtCents = c => `$${((c || 0) / 100).toFixed(2)}`;
 
   const handleConfirmReceipt = async (req) => {
-    if (!window.confirm(`Confirm you received ${req.item?.title || 'this'} and it's as described? This releases payment to the seller — you won't be able to cancel or report a problem afterwards.`)) return;
+    if (!window.confirm(`Confirm you received ${req.item?.title || 'this'} and it's as described? The seller will be paid in 24 hours. You can still report a problem until then, but you can no longer cancel.`)) return;
     try {
-      await callEscrow({ action: 'confirm_receipt', bookingId: req.dbId });
+      const j = await callEscrow({ action: 'confirm_receipt', bookingId: req.dbId });
       const now = new Date().toISOString();
-      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, buyer_confirmed_at: now, payout_release_at: now } : r));
-      showToast('Thanks! Payment released to the seller.');
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, buyer_confirmed_at: now, payout_release_at: j.payoutReleaseAt || r.payout_release_at } : r));
+      showToast('Thanks! The seller will be paid in 24 hours.');
     } catch (e) { showToast(e.message, 'error'); }
   };
 

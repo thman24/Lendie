@@ -4,7 +4,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // Escrow actions on a card-paid booking whose owner payout is still held.
 //
 //   confirm_receipt  (buyer of an undated purchase/service)
-//       "Received — all good": releases the seller's payout now (next cron run).
+//       "Received — all good": brings the seller's payout forward to 24h after
+//       confirmation (never later than the original 72h). The buyer can still
+//       Report a problem until the payout actually releases.
 //   report_problem   (renter/buyer or owner, while the payout is held)
 //       Freezes the payout (payout_status pending -> disputed) and alerts admins.
 //   list_disputes    (admin)  open disputes for the admin panel
@@ -87,14 +89,17 @@ Deno.serve(async (req) => {
       if (!isRenter) return json({ error: 'Forbidden' }, 403);
       if (b.start_date) return json({ error: 'Only purchases and undated services can be confirmed early.' }, 400);
       if (!held) return json({ error: 'This payment is no longer being held.' }, 400);
-      const now = new Date().toISOString();
+      const now = new Date();
+      const in24h = now.getTime() + 24 * 3600 * 1000;
+      const current = b.payout_release_at ? new Date(b.payout_release_at).getTime() : in24h;
+      const releaseAt = new Date(Math.min(current, in24h)).toISOString();
       const { data: won } = await db.from('booking_requests')
-        .update({ buyer_confirmed_at: now, payout_release_at: now })
+        .update({ buyer_confirmed_at: now.toISOString(), payout_release_at: releaseAt })
         .eq('id', b.id).eq('payout_status', 'pending').is('dispute_status', null)
         .select('id');
       if (!won?.length) return json({ error: 'This payment is no longer being held.' }, 409);
-      await notify(b.owner_id, `Buyer confirmed: ${b.item_title}`, 'Your payout is being released now');
-      return json({ success: true });
+      await notify(b.owner_id, `Buyer confirmed: ${b.item_title}`, `Your payout releases ${new Date(releaseAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+      return json({ success: true, payoutReleaseAt: releaseAt });
     }
 
     // ── Either party reports a problem ────────────────────────────────────────
