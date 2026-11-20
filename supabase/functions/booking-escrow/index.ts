@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     const bookingId = body.bookingId;
     if (!bookingId) return json({ error: 'Missing bookingId' }, 400);
     const { data: b, error: bErr } = await db.from('booking_requests')
-      .select('id, renter_id, owner_id, renter_name, item_title, start_date, end_date, status, payment_status, payment_intent_id, stripe_amount_cents, renter_fee_cents, payout_amount_cents, payout_status, payout_release_at, buyer_confirmed_at, handed_over_at, dispute_status')
+      .select('id, renter_id, owner_id, renter_name, item_title, start_date, end_date, status, payment_status, payment_intent_id, stripe_amount_cents, renter_fee_cents, payout_amount_cents, payout_status, payout_release_at, buyer_confirmed_at, handed_over_at, dispute_status, dispute_reason')
       .eq('id', bookingId).single();
     if (bErr || !b) return json({ error: 'Booking not found' }, 404);
 
@@ -176,6 +176,10 @@ Deno.serve(async (req) => {
     if (action === 'resolve') {
       if (!(await isAdmin())) return json({ error: 'Forbidden' }, 403);
       if (b.dispute_status !== 'open' || b.payout_status !== 'disputed') return json({ error: 'This dispute is not open.' }, 400);
+      // Card chargebacks are decided by the bank: refunding in-app would refund the
+      // customer twice, and releasing would pay the owner before we know if we lose.
+      // They settle automatically on charge.dispute.closed (stripe-webhook).
+      if (b.dispute_reason === 'chargeback') return json({ error: 'This is a card chargeback — respond in the Stripe Dashboard. It settles automatically when the bank decides.' }, 400);
       const now = new Date().toISOString();
 
       if (body.resolution === 'release') {
@@ -207,7 +211,7 @@ Deno.serve(async (req) => {
         try {
           const refund = await stripe.refunds.create(
             { payment_intent: b.payment_intent_id, amount: refundCents, metadata: { booking_id: String(b.id), reason: 'dispute' } },
-            { idempotencyKey: `dispute-refund-${b.id}` },
+            { idempotencyKey: `dispute-refund-${b.id}-${refundCents}` },
           );
           if (refund.status !== 'succeeded' && refund.status !== 'pending') throw new Error(`refund status ${refund.status}`);
         } catch (e) {

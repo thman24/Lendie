@@ -1,4 +1,4 @@
-import webpush from 'npm:web-push';
+import webpush from 'npm:web-push@3.6.7'; // pinned: 4.0.0 (Nov 2026) fails to boot on Deno
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY')!;

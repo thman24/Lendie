@@ -18,3 +18,12 @@ verify_jwt = false
 
 [functions.booking-reminders]
 verify_jwt = false
+
+# Called internally with the sb_secret key (booking-reminders → send-push;
+# stripe-webhook / charge-due-bookings → send-email); both verify the caller
+# themselves (internal key, or a user JWT via auth.getUser + counterparty check).
+[functions.send-email]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false

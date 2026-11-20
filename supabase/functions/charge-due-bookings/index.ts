@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
           payout_release_at: releaseAt,
           paid_at: new Date().toISOString(),
           charge_last_error: null,
+          charging_started_at: null,
         })
         .eq('id', b.id)
         .eq('payment_status', 'charging')
@@ -112,23 +113,35 @@ Deno.serve(async (req) => {
       }
       return 'paid';
     } catch (e: any) {
-      await markFailed(b, e?.code || e?.message || 'charge failed');
+      // authentication_required (bank wants 3-D Secure) and hard declines can only
+      // be fixed by the renter on-session (pay-now link) — don't burn retries.
+      const HARD = ['lost_card', 'stolen_card', 'expired_card', 'pickup_card', 'fraudulent', 'restricted_card', 'revocation_of_authorization', 'stop_payment_order'];
+      const decline = e?.decline_code || e?.raw?.decline_code || '';
+      const noRetry = e?.code === 'authentication_required' || HARD.includes(decline);
+      await markFailed(b, [e?.code, decline].filter(Boolean).join(':') || e?.message || 'charge failed', noRetry);
       return 'failed';
     }
   };
 
   // Move a booking into the notify+grace window and ping the renter.
-  const markFailed = async (b: any, reason: string) => {
+  const markFailed = async (b: any, reason: string, noRetry = false) => {
     const firstFail = !b.payment_failed_at;
-    await supabase
+    // Guarded on 'charging': if another run already recorded this booking as paid
+    // (or it changed otherwise), never overwrite it with a failure — that would
+    // make the next retry a genuinely new, second charge.
+    const { data: marked } = await supabase
       .from('booking_requests')
       .update({
         payment_status: 'payment_failed',
-        charge_attempts: (b.charge_attempts || 0) + 1,
+        charge_attempts: noRetry ? MAX_ATTEMPTS : (b.charge_attempts || 0) + 1,
         charge_last_error: reason,
         payment_failed_at: b.payment_failed_at || nowIso,
+        charging_started_at: null,
       })
-      .eq('id', b.id);
+      .eq('id', b.id)
+      .eq('payment_status', 'charging')
+      .select('id');
+    if (!marked?.length) return;
 
     // Only notify on the first failure — retries shouldn't spam.
     if (firstFail) {
@@ -161,7 +174,7 @@ Deno.serve(async (req) => {
     // Atomically claim scheduled→charging so overlapping runs can't double-charge.
     const { data: claimed } = await supabase
       .from('booking_requests')
-      .update({ payment_status: 'charging' })
+      .update({ payment_status: 'charging', charging_started_at: new Date().toISOString() })
       .eq('id', b.id)
       .eq('payment_status', 'scheduled')
       .neq('status', 'cancelled')
@@ -180,7 +193,9 @@ Deno.serve(async (req) => {
     .eq('payment_status', 'charging')
     .neq('status', 'cancelled')
     .neq('status', 'declined')
-    .lte('charge_at', stuckBefore)
+    // Keyed on when a run CLAIMED the row (not charge_at, which can be hours old
+    // on a retry) so we never grab a row another run is charging right now.
+    .lte('charging_started_at', stuckBefore)
     .limit(25);
   for (const b of stuck ?? []) {
     const res = await attemptCharge(b);
@@ -191,10 +206,14 @@ Deno.serve(async (req) => {
   // Exclude already-cancelled/declined bookings: a renter can cancel during the
   // grace window (which leaves payment_status='payment_failed'), and we must not
   // charge or re-cancel a booking that's already cancelled.
+  // Also 'pending' rows that were scheduled (charge_at set): the renter opened the
+  // pay-now link after a decline (create-payment-intent moved it to 'pending') but
+  // never finished — without this they'd hold the dates forever.
   const { data: stuckFailed } = await supabase
     .from('booking_requests')
     .select(cols)
-    .eq('payment_status', 'payment_failed')
+    .in('payment_status', ['payment_failed', 'pending'])
+    .not('charge_at', 'is', null)
     .neq('status', 'cancelled')
     .neq('status', 'declined')
     .limit(50);
@@ -212,7 +231,7 @@ Deno.serve(async (req) => {
       await supabase.from('booking_requests')
         .update({ status: 'cancelled', payment_status: 'cancelled', cancellation_reason: 'payment_failed_autocancel' })
         .eq('id', b.id)
-        .eq('payment_status', 'payment_failed');
+        .eq('payment_status', b.payment_status);
       await supabase.from('notifications').insert([
         { user_id: b.renter_id, icon: '🚫', text: `Booking cancelled — ${b.item_title}`, sub: 'Payment could not be completed in time.', time_label: 'Just now', unread: true, type: 'cancel' },
         { user_id: b.owner_id, icon: '🚫', text: `Booking cancelled — ${b.item_title}`, sub: "The renter's payment could not be completed; dates are free again.", time_label: 'Just now', unread: true, type: 'cancel' },
@@ -224,12 +243,13 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Still before the deadline — retry while we have attempts left.
-    if ((b.charge_attempts || 0) < MAX_ATTEMPTS) {
+    // Still before the deadline — retry while we have attempts left. A 'pending'
+    // row is the renter paying on-session right now: leave it alone.
+    if (b.payment_status === 'payment_failed' && (b.charge_attempts || 0) < MAX_ATTEMPTS) {
       // Re-claim payment_failed→charging so attemptCharge's guarded paid-transition works.
       const { data: claimed } = await supabase
         .from('booking_requests')
-        .update({ payment_status: 'charging' })
+        .update({ payment_status: 'charging', charging_started_at: new Date().toISOString() })
         .eq('id', b.id)
         .eq('payment_status', 'payment_failed')
         .select('id');

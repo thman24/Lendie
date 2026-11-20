@@ -28,13 +28,44 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId } = await req.json();
+    // `let`: for an existing booking these are overwritten from the booking row below.
+    let { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId } = await req.json();
 
     // Use service role to read authoritative listing data — never trust client-supplied prices
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Paying an EXISTING booking (from chat / after the owner accepted): the booking
+    // row — never the request body — decides WHAT is being paid for (listing,
+    // dates, delivery), and it must be in a payable state. Otherwise a renter could
+    // send a cheaper listing or shorter dates, or re-open a booking that is already
+    // paid / mid-charge / paid out and get charged (or the owner paid) twice.
+    const PAYABLE = ['pending', 'delivery_confirmed', 'failed', 'payment_failed', 'cancelled'];
+    const payableFilter = `payment_status.is.null,payment_status.in.(${PAYABLE.join(',')})`;
+    let existingRow: any = null;
+    if (existingBookingId) {
+      const { data: ex } = await supabaseAdmin
+        .from('booking_requests')
+        .select('id, renter_id, owner_id, item_json, start_date, end_date, wants_delivery, delivery_address, status, payment_status, payout_status, stripe_customer_id')
+        .eq('id', existingBookingId)
+        .single();
+      if (!ex) return new Response(JSON.stringify({ error: 'Booking not found' }), { status: 404, headers: corsHeaders });
+      if (ex.renter_id !== user.id) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: corsHeaders });
+      if (['cancelled', 'declined', 'completed'].includes(ex.status)) {
+        return new Response(JSON.stringify({ error: 'This booking is no longer active.' }), { status: 400, headers: corsHeaders });
+      }
+      if ((ex.payment_status && !PAYABLE.includes(ex.payment_status)) || (ex.payout_status && ex.payout_status !== 'pending')) {
+        return new Response(JSON.stringify({ error: 'This booking is already paid, or its payment is being processed.' }), { status: 409, headers: corsHeaders });
+      }
+      existingRow = ex;
+      listingId = ex.item_json?.id ?? null;
+      startDate = ex.start_date ?? null;
+      endDate = ex.end_date ?? null;
+      wantsDelivery = !!ex.wants_delivery;
+      deliveryAddress = ex.delivery_address ?? null;
+    }
 
     const { data: listing, error: listingErr } = await supabaseAdmin
       .from('listings')
@@ -48,6 +79,10 @@ Deno.serve(async (req) => {
 
     if (listing.user_id === user.id) {
       return new Response(JSON.stringify({ error: 'Cannot book your own listing' }), { status: 400, headers: corsHeaders });
+    }
+
+    if (existingRow && existingRow.owner_id !== listing.user_id) {
+      return new Response(JSON.stringify({ error: 'Booking does not match this listing' }), { status: 400, headers: corsHeaders });
     }
 
     // Calculate price server-side using DB values only
@@ -135,20 +170,10 @@ Deno.serve(async (req) => {
 
     // Reuse existing accepted booking if the renter is paying from chat, otherwise create a new one
     let booking: { id: number } | null = null;
-    if (existingBookingId) {
-      const { data: existing, error: fetchErr } = await supabaseAdmin
-        .from('booking_requests')
-        .select('id, renter_id, owner_id')
-        .eq('id', existingBookingId)
-        .single();
-      if (fetchErr || !existing) {
-        console.error('[create-payment-intent] existing booking not found:', fetchErr?.message);
-        return new Response(JSON.stringify({ error: 'Booking not found' }), { status: 404, headers: corsHeaders });
-      }
-      if (existing.renter_id !== user.id) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: corsHeaders });
-      }
-      await supabaseAdmin
+    if (existingRow) {
+      // Guarded: only while still payable, so this can't race the scheduled-charge
+      // cron (which claims payment_failed->charging) or overwrite a paid booking.
+      const { data: claimed } = await supabaseAdmin
         .from('booking_requests')
         .update({
           stripe_amount_cents: amountCents,
@@ -157,8 +182,13 @@ Deno.serve(async (req) => {
           renter_fee_cents: renterFeeCents,
           payout_status: 'pending',
         })
-        .eq('id', existingBookingId);
-      booking = { id: existing.id };
+        .eq('id', existingRow.id)
+        .or(payableFilter)
+        .select('id');
+      if (!claimed?.length) {
+        return new Response(JSON.stringify({ error: 'This booking is already paid, or its payment is being processed.' }), { status: 409, headers: corsHeaders });
+      }
+      booking = { id: existingRow.id };
     } else {
       // Create booking record before charging — guarantees a record even if client crashes after payment
       const { data: newBooking, error: bookingErr } = await supabaseAdmin

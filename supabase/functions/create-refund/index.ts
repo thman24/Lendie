@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from('booking_requests')
-      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents, payout_release_at, paid_at, buyer_confirmed_at, dispute_status')
+      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents, payout_release_at, paid_at, buyer_confirmed_at, dispute_status, dispute_reason')
       .eq('id', bookingId)
       .single();
 
@@ -71,6 +71,12 @@ Deno.serve(async (req) => {
     const started = booking.start_date && String(booking.start_date).slice(0, 10) <= today;
     if (user.id !== booking.owner_id && started) {
       return new Response(JSON.stringify({ error: 'This rental has already started, so cancellations are no longer refundable.' }), { status: 400, headers: corsHeaders });
+    }
+
+    // A card chargeback is in progress: the bank, not us, decides the money. A
+    // refund now would refund the customer twice if the chargeback is lost.
+    if (booking.dispute_status === 'open' && booking.dispute_reason === 'chargeback') {
+      return new Response(JSON.stringify({ error: 'This payment is under a card dispute with the bank and cannot be refunded in the app.' }), { status: 400, headers: corsHeaders });
     }
 
     // While a problem report is open, the buyer/renter can't also one-tap cancel —
@@ -176,7 +182,8 @@ Deno.serve(async (req) => {
       refund = await stripe.refunds.create({
         payment_intent: booking.payment_intent_id,
         ...(refundCents != null ? { amount: refundCents } : {}),
-      });
+        metadata: { booking_id: String(booking.id), source: 'create-refund' },
+      }, { idempotencyKey: `refund-${booking.id}-${refundCents ?? 'full'}` });
       if (refund.status !== 'succeeded' && refund.status !== 'pending') {
         throw new Error(`refund status ${refund.status}`);
       }

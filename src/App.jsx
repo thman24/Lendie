@@ -7179,16 +7179,18 @@ export default function Lendie() {
                           <div key={d.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
                             <div style={{ fontWeight:700, fontSize:14, color:C.text }}>{d.item_title} <span style={{ color:C.muted, fontWeight:500 }}>#{d.id}</span></div>
                             <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>
-                              {byRenter ? `Reported by renter/buyer (${d.renter_name || 'renter'})` : 'Reported by owner/seller'} · {({not_as_described:'Not as described', not_received:'Not received / no-show', damaged:'Damaged', other:'Other'})[d.dispute_reason] || d.dispute_reason} · {d.disputed_at ? new Date(d.disputed_at).toLocaleString() : ''}
+                              {byRenter ? `Reported by renter/buyer (${d.renter_name || 'renter'})` : 'Reported by owner/seller'} · {({not_as_described:'Not as described', not_received:'Not received / no-show', damaged:'Damaged', other:'Other', chargeback:'Card chargeback (bank dispute)'})[d.dispute_reason] || d.dispute_reason} · {d.disputed_at ? new Date(d.disputed_at).toLocaleString() : ''}
                             </div>
                             <div style={{ fontSize:13, color:C.text, background:darkMode?"#2C2C2E":"#F4F4F5", borderRadius:8, padding:"8px 10px", marginTop:8, whiteSpace:"pre-wrap" }}>{d.dispute_note}</div>
                             <div style={{ fontSize:12, color:C.muted, marginTop:8 }}>Buyer paid {fmtCents(d.stripe_amount_cents)} (incl. {fmtCents(d.renter_fee_cents)} fee) · Owner payout held {fmtCents(d.payout_amount_cents)}{d.date_str ? ` · ${d.date_str}` : ''}</div>
-                            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:10, alignItems:"center" }}>
+                            {d.dispute_reason === 'chargeback'
+                              ? <div style={{ fontSize:12, color:"#E87722", fontWeight:600, marginTop:10 }}>Respond in the Stripe Dashboard → Payments → Disputes. This settles automatically when the bank decides; no in-app action.</div>
+                              : <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:10, alignItems:"center" }}>
                               {abtn('Release to owner', ()=>resolveDispute(d, 'release'), '#00B894')}
                               {abtn('Full refund', ()=>resolveDispute(d, 'refund'), '#FA3E3E')}
                               <input id={inputId} type="number" min="0.01" step="0.01" placeholder="$ partial" style={{ width:90, padding:"6px 8px", borderRadius:8, border:`1px solid ${C.border}`, background:C.inputBg, color:C.text, fontFamily:"inherit", fontSize:12 }}/>
                               {abtn('Partial refund', ()=>{ const v = parseFloat(document.getElementById(inputId)?.value); if (!(v > 0)) { showToast('Enter a refund amount', 'error'); return; } resolveDispute(d, 'refund', Math.round(v * 100)); }, '#E87722')}
-                            </div>
+                            </div>}
                           </div>
                         );
                       })}

@@ -39,7 +39,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId, consentAccepted } = await req.json();
+    // `let`: for an existing booking these are overwritten from the booking row below.
+    let { listingId, startDate, endDate, wantsDelivery, deliveryAddress, existingBookingId, consentAccepted } = await req.json();
 
     // Card-network rules require explicit consent to store and later charge a card
     // off-session, and a record of it. The checkout checkbox must be ticked.
@@ -52,6 +53,36 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Paying an EXISTING booking (from chat / after the owner accepted): the booking
+    // row — never the request body — decides WHAT is being paid for (listing,
+    // dates, delivery), and it must be in a payable state. Otherwise a renter could
+    // send a cheaper listing or shorter dates, or re-open a booking that is already
+    // paid / mid-charge / paid out and get charged (or the owner paid) twice.
+    const PAYABLE = ['pending', 'delivery_confirmed', 'failed', 'payment_failed', 'cancelled'];
+    const payableFilter = `payment_status.is.null,payment_status.in.(${PAYABLE.join(',')})`;
+    let existingRow: any = null;
+    if (existingBookingId) {
+      const { data: ex } = await supabaseAdmin
+        .from('booking_requests')
+        .select('id, renter_id, owner_id, item_json, start_date, end_date, wants_delivery, delivery_address, status, payment_status, payout_status, stripe_customer_id')
+        .eq('id', existingBookingId)
+        .single();
+      if (!ex) return new Response(JSON.stringify({ error: 'Booking not found' }), { status: 404, headers: corsHeaders });
+      if (ex.renter_id !== user.id) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: corsHeaders });
+      if (['cancelled', 'declined', 'completed'].includes(ex.status)) {
+        return new Response(JSON.stringify({ error: 'This booking is no longer active.' }), { status: 400, headers: corsHeaders });
+      }
+      if ((ex.payment_status && !PAYABLE.includes(ex.payment_status)) || (ex.payout_status && ex.payout_status !== 'pending')) {
+        return new Response(JSON.stringify({ error: 'This booking is already paid, or its payment is being processed.' }), { status: 409, headers: corsHeaders });
+      }
+      existingRow = ex;
+      listingId = ex.item_json?.id ?? null;
+      startDate = ex.start_date ?? null;
+      endDate = ex.end_date ?? null;
+      wantsDelivery = !!ex.wants_delivery;
+      deliveryAddress = ex.delivery_address ?? null;
+    }
+
     const { data: listing, error: listingErr } = await supabaseAdmin
       .from('listings')
       .select('id, title, price, price_unit, delivery_fee, delivery_radius_miles, offers_delivery, user_id, emoji, color, listing_type')
@@ -63,6 +94,10 @@ Deno.serve(async (req) => {
     }
     if (listing.user_id === user.id) {
       return new Response(JSON.stringify({ error: 'Cannot book your own listing' }), { status: 400, headers: corsHeaders });
+    }
+
+    if (existingRow && existingRow.owner_id !== listing.user_id) {
+      return new Response(JSON.stringify({ error: 'Booking does not match this listing' }), { status: 400, headers: corsHeaders });
     }
 
     // Scheduling only applies to dated bookings whose charge point is still in
@@ -143,20 +178,9 @@ Deno.serve(async (req) => {
     // ── Reuse or create the booking row ───────────────────────────────────────
     let bookingId: number;
     let existingCustomerId: string | null = null;
-    if (existingBookingId) {
-      const { data: existing, error: fetchErr } = await supabaseAdmin
-        .from('booking_requests')
-        .select('id, renter_id, stripe_customer_id')
-        .eq('id', existingBookingId)
-        .single();
-      if (fetchErr || !existing) {
-        return new Response(JSON.stringify({ error: 'Booking not found' }), { status: 404, headers: corsHeaders });
-      }
-      if (existing.renter_id !== user.id) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: corsHeaders });
-      }
-      existingCustomerId = existing.stripe_customer_id;
-      bookingId = existing.id;
+    if (existingRow) {
+      existingCustomerId = existingRow.stripe_customer_id;
+      bookingId = existingRow.id;
     } else {
       const { data: newBooking, error: bookingErr } = await supabaseAdmin
         .from('booking_requests')
@@ -225,7 +249,7 @@ Deno.serve(async (req) => {
 
     // Park the booking: 'saving' until setup_intent.succeeded confirms the card,
     // then the webhook flips it to 'scheduled'. Store the amounts + charge_at now.
-    await supabaseAdmin
+    const { data: parked } = await supabaseAdmin
       .from('booking_requests')
       .update({
         payment_status: 'saving',
@@ -236,7 +260,14 @@ Deno.serve(async (req) => {
         renter_fee_cents: renterFeeCents,
         payout_status: 'pending',
       })
-      .eq('id', bookingId);
+      .eq('id', bookingId)
+      .or(payableFilter)
+      .select('id');
+    if (!parked?.length) {
+      // Booking moved on (paid / charging) since we checked: don't save a card for it.
+      await stripe.setupIntents.cancel(setupIntent.id).catch(() => {});
+      return new Response(JSON.stringify({ error: 'This booking is already paid, or its payment is being processed.' }), { status: 409, headers: corsHeaders });
+    }
 
     return new Response(JSON.stringify({
       clientSecret: setupIntent.client_secret,

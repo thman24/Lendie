@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const origin = body.origin || 'https://www.lendie.app';
+    // Only send owners back to our own sites after Stripe onboarding (never an
+    // arbitrary URL from the request body — that would be an open redirect).
+    const ALLOWED_ORIGINS = ['https://www.lendie.app', 'https://lendie.app', 'http://localhost:5173'];
+    const origin = ALLOWED_ORIGINS.includes(body.origin) ? body.origin : 'https://www.lendie.app';
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,

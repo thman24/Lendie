@@ -70,8 +70,21 @@ Prereqs:
 Go-live sequence (full detail in LAUNCH.md → "Stripe go-live"):
 1. Swap test keys → **live Stripe keys**; set `CASH_ONLY_LAUNCH = false`.
 2. `STRIPE_CONNECT_ENABLED = true`.
-3. Register the **live webhook** — subscribe to `payment_intent.succeeded/payment_failed/
-   canceled`, **`setup_intent.succeeded`**, `account.updated`.
+3. Register **TWO live webhook destinations**, both pointing at the `stripe-webhook` function URL:
+   - **"Your account"** events: `payment_intent.succeeded`, `payment_intent.payment_failed`,
+     `payment_intent.canceled`, `setup_intent.succeeded`, `charge.refunded`, `refund.failed`,
+     `charge.dispute.created`, `charge.dispute.closed`. Put its signing secret in Supabase
+     secret `STRIPE_WEBHOOK_SECRET`.
+   - **"Connected accounts"** events: `account.updated`. Put ITS signing secret in
+     `STRIPE_CONNECT_WEBHOOK_SECRET` (each destination has its own secret).
+   Stripe Dashboard settings to do the same day:
+   - Connect → settings: platform profile, Express branding (name, icon, colour), support email.
+   - Public details: statement descriptor `LENDIE`, support phone + URL.
+   - Connect → Tax reporting: turn on 1099-K filing for Express accounts (you're responsible).
+   - Radar: review default rules; consider blocking when CVC or ZIP check fails.
+   - Keep a buffer in the platform balance (chargebacks + failed reversals come out of it).
+   - Optional: request only the `transfers` capability for new Express accounts (we never use
+     `card_payments`; dropping it lightens owner KYC). Test onboarding in test mode first.
 4. Crons are already on (`release-payouts-hourly`, `charge-due-bookings-hourly`, `booking-reminders-hourly`; vault secrets set 2026-11-20) — just confirm they return 200 in `net._http_response`.
 5. Verify all edge functions deployed (incl. `create-setup-intent`, `charge-due-bookings`,
    `release-payouts`, `booking-escrow`).
