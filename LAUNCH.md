@@ -41,7 +41,7 @@ Living checklist of admin/legal/infra tasks to complete **before going fully liv
 - [ ] **Register the DMCA agent** (item above) — the safe-harbor isn't active until filed.
 - [ ] **Service-provider insurance** — decide whether providers (lawn care, handyman, moving)
       must carry their own liability insurance, or whether to restrict high-risk service types.
-- [ ] **Trademark** — hire a flat-fee trademark attorney to clear + file **LENDIE**
+- [x] **Trademark** — FILED via IP attorney (application pending) — was: clear + file **LENDIE**
       (clearance concern: **LENDIO**, an existing fintech in classes 35/36/42). Don't gate launch
       on it, but resolve early — a forced rebrand only gets more painful with growth.
 

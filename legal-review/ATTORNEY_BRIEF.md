@@ -18,8 +18,9 @@ drafted in-house (not by an attorney) and need your review before we rely on the
   vet, or background-check users.
 - **Money:** We charge a **platform fee** — 8% to the renter/buyer + 4% taken from the
   owner's payout (≈12% total). Payments will be processed by **Stripe** (Stripe Connect for
-  owner payouts; funds held in our platform balance and released ~24h after the rental
-  begins). **We never touch or store card numbers — Stripe does.**
+  owner payouts; funds held in our platform balance as buyer protection — released ~24h
+  after a rental/service ends, or for purchases when the buyer confirms receipt / 72h after
+  payment; either party can "Report a problem" to freeze the payout for our review). **We never touch or store card numbers — Stripe does.**
 - **Current status:** Live at **www.lendie.app**, operating **cash-only** today (card
   payments are built but disabled behind a flag). Nationwide-capable but launching in one
   local area (WV panhandle) first.
@@ -64,6 +65,12 @@ Both are already fairly built out. Key sections we specifically want checked are
 7. **Cancellation policy (ToS §6.4):** Free cancellation before the card is charged; after
    charge, refund minus a non-refundable 8% service fee; owners always refund fully. Is this
    fair/enforceable and adequately disclosed?
+7b. **Payment hold & dispute review (ToS §6.3):** We hold buyer funds in our Stripe platform
+   balance for days (until ~24h after a rental ends; up to 72h for purchases) and, on a
+   "Report a problem", decide whether to release, refund, or partially refund. Does holding
+   funds this long, and adjudicating disputes, create **money-transmitter / escrow-licensing**
+   exposure (or is the agent-of-payee / Stripe Connect model sufficient)? Is the §6.3 language
+   (our review is not arbitration; chargebacks unaffected) adequate?
 
 ### D. Sales tax
 8. **Marketplace-facilitator obligations:** As a marketplace that takes a fee on sales, what
@@ -84,11 +91,11 @@ Both are already fairly built out. Key sections we specifically want checked are
     the U.S. Copyright Office for the safe harbor to apply — please confirm and flag anything
     else needed.
 
-### G. Trademark (may need a separate IP/trademark attorney)
-12. We want to clear and file the mark **LENDIE**. There is a known potentially-conflicting
-    mark, **LENDIO** (an existing fintech, roughly classes 35/36/42). We'd like a **clearance
-    opinion** and, if viable, filing in the appropriate classes. If you don't handle trademark
-    prosecution, a referral to a flat-fee trademark attorney would help.
+### G. Trademark — FILED (context, not a question)
+12. The application for **LENDIE** has been filed through an IP attorney and is pending. A
+    potentially-conflicting mark, **LENDIO** (fintech, roughly classes 35/36/42), exists; our
+    trademark counsel is handling any office action or opposition. No action needed here unless
+    you see an issue with how the mark is used in the Terms.
 
 ## 4. Related items we're already handling (context, not questions)
 - **General liability / marketplace insurance** — evaluating a policy.

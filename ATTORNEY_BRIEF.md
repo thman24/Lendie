@@ -91,11 +91,11 @@ Both are already fairly built out. Key sections we specifically want checked are
     the U.S. Copyright Office for the safe harbor to apply — please confirm and flag anything
     else needed.
 
-### G. Trademark (may need a separate IP/trademark attorney)
-12. We want to clear and file the mark **LENDIE**. There is a known potentially-conflicting
-    mark, **LENDIO** (an existing fintech, roughly classes 35/36/42). We'd like a **clearance
-    opinion** and, if viable, filing in the appropriate classes. If you don't handle trademark
-    prosecution, a referral to a flat-fee trademark attorney would help.
+### G. Trademark — FILED (context, not a question)
+12. The application for **LENDIE** has been filed through an IP attorney and is pending. A
+    potentially-conflicting mark, **LENDIO** (fintech, roughly classes 35/36/42), exists; our
+    trademark counsel is handling any office action or opposition. No action needed here unless
+    you see an issue with how the mark is used in the Terms.
 
 ## 4. Related items we're already handling (context, not questions)
 - **General liability / marketplace insurance** — evaluating a policy.
