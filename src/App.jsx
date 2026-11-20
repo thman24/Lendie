@@ -427,6 +427,18 @@ function purchaseWindowClosed(req) {
   return !!req.paid_at && Date.now() >= new Date(req.paid_at).getTime() + 24 * 3600 * 1000;
 }
 
+// A booking whose payment isn't settled yet (mirrors booking_payment_open() in
+// migration 20240150): accepted but unpaid, card saved/charging/failed, paid but
+// payout still held, or a dispute open. Cash bookings settle outside Lendie.
+function paymentOpen(r) {
+  if (!r || ['cancelled', 'declined'].includes(r.status)) return false;
+  const ps = r.payment_status || 'unpaid';
+  return (['accepted', 'confirmed'].includes(r.status) && ['unpaid', 'pending', 'delivery_confirmed'].includes(ps))
+    || ['saving', 'scheduled', 'charging', 'payment_failed', 'processing'].includes(ps)
+    || (ps === 'paid' && ['pending', 'disputed', 'releasing'].includes(r.payout_status))
+    || r.dispute_status === 'open';
+}
+
 // Escrow: a card-paid booking whose owner payout Lendie is still holding
 // (pending = waiting for its release time, disputed = frozen by a report).
 function inEscrow(req) {
@@ -4252,7 +4264,20 @@ export default function Lendie() {
     showToast("Profile photo updated!");
   };
 
+  // Bookings tied to a conversation: by conversation_id, else (older rows) by the
+  // item + the other person.
+  const convoHasOpenPayment = (convo) => (bookingRequests || []).some(r =>
+    paymentOpen(r) && (
+      (convo.conversation_id && r.conversation_id === convo.conversation_id) ||
+      (!r.conversation_id && r.item?.title === convo.item &&
+        (r.renterId === convo.otherUserId || r.ownerId === convo.otherUserId))));
+
   const deleteConversation = async (convo) => {
+    if (convoHasOpenPayment(convo)) {
+      setConvoDeleteId(null);
+      showToast("This conversation has a payment that's still open — you can delete it once it's settled.", 'error');
+      return;
+    }
     const who = convo.from || convo.item || 'this conversation';
     if (!window.confirm(`Delete your copy of the conversation with ${who}? This removes it from your inbox. The other person still keeps their copy.`)) return;
     setConvoDeleteId(null);
@@ -4276,7 +4301,11 @@ export default function Lendie() {
   };
 
   const clearAllConversations = async () => {
-    const ids = [...new Set(visibleMessages.map(m => m.conversation_id).filter(Boolean))];
+    // Conversations with an open payment are kept.
+    const kept = visibleMessages.filter(convoHasOpenPayment);
+    const keptIds = new Set(kept.map(m => m.conversation_id));
+    if (kept.length) showToast(`Kept ${kept.length} conversation${kept.length > 1 ? 's' : ''} with an open payment.`);
+    const ids = [...new Set(visibleMessages.filter(m => !keptIds.has(m.conversation_id)).map(m => m.conversation_id).filter(Boolean))];
     setInboxEditMode(false);
     setConvoDeleteId(null);
     // Drop ephemeral local-only convos (no server id) outright.
@@ -7427,6 +7456,11 @@ export default function Lendie() {
               disabled={deletingAccount}
               onClick={async () => {
                 if (!user) return;
+                const openPays = (bookingRequests || []).filter(r => (r.renterId === user.id || r.ownerId === user.id) && paymentOpen(r));
+                if (openPays.length) {
+                  showToast(`You have ${openPays.length} booking${openPays.length > 1 ? 's' : ''} with an open payment. Settle or cancel ${openPays.length > 1 ? 'them' : 'it'} before deleting your account.`, 'error');
+                  return;
+                }
                 setDeletingAccount(true);
                 try {
                   const uid = user.id;
