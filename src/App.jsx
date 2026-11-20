@@ -628,7 +628,13 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
   const unitMul = { hour: 1, day: days, night: days, week: Math.ceil(days / 7) };
   // A flat agreed amount (service quote or accepted offer) overrides the per-unit math.
   const flatPrice = paymentModal.offerPrice != null ? Number(paymentModal.offerPrice) : null;
-  const rentalTotal = flatPrice != null ? flatPrice : item.price * (unitMul[item.priceUnit || 'day'] ?? days);
+  // A purchase charges the flat sale price ("Rent or Buy" keeps it in salePrice;
+  // "Sale" listings use price) — never the per-day rental rate. Mirrors the server.
+  const salePrice = item.listingType === 'both' ? Number(item.salePrice) : Number(item.salePrice || item.price);
+  const purchaseFlat = flatPrice == null && paymentModal.purchase && salePrice > 0 ? salePrice : null;
+  const rentalTotal = flatPrice != null ? flatPrice
+    : purchaseFlat != null ? purchaseFlat
+    : item.price * (unitMul[item.priceUnit || 'day'] ?? days);
   const deliveryTotal = (flatPrice == null && wantsDelivery && item.deliveryFee) ? Number(item.deliveryFee) : 0;
   const serviceFee = Math.round(rentalTotal * 0.08 * 100) / 100;
   const grandTotal = rentalTotal + deliveryTotal + serviceFee;
