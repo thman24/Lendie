@@ -49,6 +49,17 @@ a live transaction.** Treat it as a dedicated test-mode day.
 Prereqs:
 - [ ] Attorney sign-off on the **stored-card mandate** (ATTORNEY_BRIEF §C) and cancellation policy.
 - [ ] **Sales-tax** registration plan (ATTORNEY_BRIEF §D) + Stripe Tax configured.
+- [ ] **Ask Stripe support** (Connect, separate charges & transfers) and get answers in writing:
+  1. How long can captured funds sit in our platform balance before we transfer to the
+     connected account? Our longest hold is the rental length + ~2 days, or 14 days for
+     purchases (backstop).
+  2. Is there a limit on using `source_transaction` for a transfer made weeks after the charge?
+  3. What happens to held funds if the owner's connected account is restricted or closed
+     before release?
+  4. Refunds and partial refunds before the transfer: any limits? Refunds after it (transfer
+     reversal): any time limit?
+  5. Do rentals of 60+ days need a different structure (e.g. charging in installments)?
+  6. Our actual processing rate (we assume 2.9% + 30¢), and is it kept on refunds?
 
 Go-live sequence (full detail in LAUNCH.md → "Stripe go-live"):
 1. Swap test keys → **live Stripe keys**; set `CASH_ONLY_LAUNCH = false`.

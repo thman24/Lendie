@@ -735,7 +735,7 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
             I agree to Lendie's terms. {willSchedule
               ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel <strong style={{ color:C.text }}>free of charge</strong> any time before then; after that the 8% service fee is non-refundable.</>
               : isPurchase
-              ? "Lendie holds your payment for up to 72 hours (or 24 hours after you confirm you received the item), and you can report a problem until the seller is paid. You can cancel within 24 hours for a refund, minus the non-refundable 8% service fee."
+              ? "Lendie holds your payment until you have the item: the seller is paid 24 hours after you confirm you received it, or 72 hours after they mark it handed over. You can report a problem until then, and cancel within 24 hours of paying for a refund, minus the non-refundable 8% service fee."
               : "Lendie holds your payment until 24 hours after the booking ends, and you can report a problem until then. You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
           </span>
         </label>
@@ -3742,7 +3742,7 @@ export default function Lendie() {
             createdAt: r.created_at,
             payout_amount_cents: r.payout_amount_cents, payout_status: r.payout_status,
             payout_release_at: r.payout_release_at, payout_released_at: r.payout_released_at,
-            paid_at: r.paid_at, buyer_confirmed_at: r.buyer_confirmed_at, dispute_status: r.dispute_status, disputed_by: r.disputed_by,
+            paid_at: r.paid_at, buyer_confirmed_at: r.buyer_confirmed_at, handed_over_at: r.handed_over_at, dispute_status: r.dispute_status, disputed_by: r.disputed_by,
             renter_fee_cents: r.renter_fee_cents, quotedCents: r.quoted_cents,
           })));
         });
@@ -3872,6 +3872,7 @@ export default function Lendie() {
           payout_release_at: row.payout_release_at,
           paid_at: row.paid_at,
           buyer_confirmed_at: row.buyer_confirmed_at,
+          handed_over_at: row.handed_over_at,
           dispute_status: row.dispute_status,
           disputed_by: row.disputed_by,
           payout_released_at: row.payout_released_at,
@@ -5514,6 +5515,15 @@ export default function Lendie() {
     } catch (e) { showToast(e.message, 'error'); }
   };
 
+  // Seller marked a purchase complete = handed over: buyer gets 72h to report a
+  // problem, then the seller is paid (booking-escrow). No-op for dated/unpaid.
+  const markHandedOver = (req) => {
+    if (!req?.dbId || req.start || !inEscrow(req) || req.handed_over_at) return;
+    callEscrow({ action: 'mark_handed_over', bookingId: req.dbId })
+      .then(j => { if (j.payoutReleaseAt) setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, handed_over_at: new Date().toISOString(), payout_release_at: j.payoutReleaseAt } : r)); })
+      .catch(e => console.error('[escrow] mark_handed_over failed:', e.message));
+  };
+
   // Escrow buttons/status for a booking card. asOwner = viewing as owner/seller.
   const escrowActions = (req, asOwner) => {
     if (!inEscrow(req) || !req.dbId) return null;
@@ -6314,14 +6324,14 @@ export default function Lendie() {
           {user && (()=>{
             const TODAY = new Date().toISOString().slice(0,10);
             const endOf = r => r.end || r.start || '';
-            const myAccepted    = bookingRequests.filter(r=>r.renterId===user.id&&(r.status==="accepted"||r.status==="confirmed"));
+            const myAccepted    = bookingRequests.filter(r=>r.renterId===user.id&&(r.status==="accepted"||r.status==="confirmed"||(r.status==="completed"&&inEscrow(r))));
             // Escrow-held bookings stay "current" until the payout releases, so the
             // buyer/renter can still confirm receipt or report a problem.
             const activeRentals = myAccepted.filter(r=>endOf(r)>=TODAY || inEscrow(r));
             const pastRentals   = myAccepted.filter(r=>endOf(r)<TODAY && !inEscrow(r));
             const pendingMine   = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="pending");
             // Bookings other people have on MY listings — owner side
-            const upcomingBookings = bookingRequests.filter(r=>r.ownerId===user.id&&(r.status==="accepted"||r.status==="confirmed")&&(endOf(r)>=TODAY||inEscrow(r)));
+            const upcomingBookings = bookingRequests.filter(r=>r.ownerId===user.id&&(((r.status==="accepted"||r.status==="confirmed")&&endOf(r)>=TODAY)||((r.status==="accepted"||r.status==="confirmed"||r.status==="completed")&&inEscrow(r))));
             const savedItems    = allItems.filter(i=>favorites.includes(i.id));
             const toggleSec = id => setOpenSections(prev=>({...prev,[id]:!prev[id]}));
             const isOpen = id => openSections[id] === undefined ? id==="mylistings" : !!openSections[id];
@@ -6411,7 +6421,7 @@ export default function Lendie() {
                             <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
                               <button onClick={()=>{ openRequestConvo(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message Renter</button>
                               {req.status==="confirmed" && endOf(req)<=TODAY && (
-                                <button onClick={async()=>{ const svc=req.item?.listingType==="service"; if(!window.confirm(`Mark ${req.renterName}'s ${svc?"service as complete":"rental as returned"}?`)) return; if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r)); showToast(svc?"Marked as complete!":"Marked as returned!"); }} style={{ padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:C.bg, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.item?.listingType==="service"?"✓ Complete":"✓ Returned"}</button>
+                                <button onClick={async()=>{ const svc=req.item?.listingType==="service"; if(!window.confirm(`Mark ${req.renterName}'s ${svc?"service as complete":"rental as returned"}?`)) return; if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); markHandedOver(req); setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r)); showToast(svc?"Marked as complete!":"Marked as returned!"); }} style={{ padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:C.bg, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.item?.listingType==="service"?"✓ Complete":"✓ Returned"}</button>
                               )}
                               <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction${reqWhen(req.dateStr, ' for ')}?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:C.bg, color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}</button>
                               {escrowActions(req, true)}
@@ -6589,7 +6599,7 @@ export default function Lendie() {
                                 <button onClick={async () => {
                                   const svc = item?.listingType === "service";
                                   if (!window.confirm(`Mark ${req.renterName}'s ${svc ? `${item?.title} service as complete` : `rental of ${item?.title} as returned`}?`)) return;
-                                  if (req.dbId) await supabase.from('booking_requests').update({ status: 'completed' }).eq('id', req.dbId);
+                                  if (req.dbId) await supabase.from('booking_requests').update({ status: 'completed' }).eq('id', req.dbId); markHandedOver(req);
                                   setBookingRequests(prev => prev.map(r => r.id === req.id ? {...r, status:'completed'} : r));
                                   showToast(svc ? "Marked as complete!" : "Marked as returned — item is available again!");
                                 }} style={{ padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
@@ -7343,7 +7353,7 @@ export default function Lendie() {
                             return (
                               <button onClick={async()=>{
                                 if(!window.confirm(isSvc ? `Mark ${req.renterName}'s service as complete?` : isSale ? `Mark ${req.renterName}'s purchase as complete?` : `Mark ${req.renterName}'s rental as returned?`)) return;
-                                if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId);
+                                if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); markHandedOver(req);
                                 setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r));
                                 if (req.renterId && req.renterId !== user?.id) {
                                   supabase.from('notifications').insert({ user_id: req.renterId, icon:"🎉", text: (isSvc?"Service complete: ":isSale?"Purchase complete: ":"Rental complete: ")+req.item?.title, sub:"Thanks for using Lendie — leave a review in My Items!", time_label:"Just now", unread:true, type:"confirm" }).then(({ error }) => { if (error) console.error('[Complete] notif failed:', error.message); });

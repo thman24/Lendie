@@ -11,7 +11,9 @@ cash-only today, so nothing below is in effect for users yet.
    before the owner/provider is paid:
    - dated rentals/services: released ~24h after the last day of the booking;
    - purchases and undated services: released 24h after the buyer confirms receipt, or
-     72h after payment, whichever comes first.
+     72h after the seller marks it handed over (the buyer is notified), whichever comes
+     first. If neither happens, it's released 14 days after payment. The clock starts at
+     the handoff, not at payment, because local pickups can be days after paying.
    - States that the card is charged in full and the money is held in our platform
      account. It is not a temporary authorization hold on the card.
 2. **Reporting a problem.** Either party can report a problem until the payout releases,
@@ -41,13 +43,18 @@ cash-only today, so nothing below is in effect for users yet.
   owner's payout.
 - **§6.4, cash:** Lendie can still act on fraud or misconduct, and suspend accounts,
   whatever the payment method.
+- **§6.3, start date:** a dated booking starts on its first booked day. A renter can
+  report the owner not handing the item over.
+- **§6.4, "no refunds after start":** now says this doesn't limit refunds granted through
+  an approved problem report (owner no-show, item unusable or not as described).
 - **§6.4, timing:** refunds "typically" take 5–10 business days; we no longer promise a
   bank's processing time.
 
 ## Disclosure at checkout (for consistency review)
-- **Purchases:** "Lendie holds your payment for up to 72 hours (or 24 hours after you
-  confirm you received the item), and you can report a problem until the seller is paid.
-  You can cancel within 24 hours for a refund, minus the non-refundable 8% service fee."
+- **Purchases:** "Lendie holds your payment until you have the item: the seller is paid 24
+  hours after you confirm you received it, or 72 hours after they mark it handed over. You
+  can report a problem until then, and cancel within 24 hours of paying for a refund, minus
+  the non-refundable 8% service fee."
 - **Rentals/services:** "Lendie holds your payment until 24 hours after the booking ends, and
   you can report a problem until then. You can cancel for a refund, minus the non-refundable 8% service
   fee, until the booking starts (or within 24 hours of payment if it has no date)."

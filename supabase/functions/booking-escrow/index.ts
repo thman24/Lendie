@@ -5,8 +5,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 //
 //   confirm_receipt  (buyer of an undated purchase/service)
 //       "Received — all good": brings the seller's payout forward to 24h after
-//       confirmation (never later than the original 72h). The buyer can still
-//       Report a problem until the payout actually releases.
+//       confirmation. The buyer can still Report a problem until it releases.
+//   mark_handed_over (seller of an undated purchase/service)
+//       Seller says the buyer has it: buyer is notified and the payout moves to
+//       72h later, so the buyer has 3 days to report a problem if they don't.
+//   (Neither happens -> the 14-day-after-payment backstop set at payment.)
 //   report_problem   (renter/buyer or owner, while the payout is held)
 //       Freezes the payout (payout_status pending -> disputed) and alerts admins.
 //   list_disputes    (admin)  open disputes for the admin panel
@@ -76,7 +79,7 @@ Deno.serve(async (req) => {
     const bookingId = body.bookingId;
     if (!bookingId) return json({ error: 'Missing bookingId' }, 400);
     const { data: b, error: bErr } = await db.from('booking_requests')
-      .select('id, renter_id, owner_id, renter_name, item_title, start_date, end_date, status, payment_status, payment_intent_id, stripe_amount_cents, renter_fee_cents, payout_amount_cents, payout_status, payout_release_at, buyer_confirmed_at, dispute_status')
+      .select('id, renter_id, owner_id, renter_name, item_title, start_date, end_date, status, payment_status, payment_intent_id, stripe_amount_cents, renter_fee_cents, payout_amount_cents, payout_status, payout_release_at, buyer_confirmed_at, handed_over_at, dispute_status')
       .eq('id', bookingId).single();
     if (bErr || !b) return json({ error: 'Booking not found' }, 404);
 
@@ -99,6 +102,25 @@ Deno.serve(async (req) => {
         .select('id');
       if (!won?.length) return json({ error: 'This payment is no longer being held.' }, 409);
       await notify(b.owner_id, `Buyer confirmed: ${b.item_title}`, `Your payout releases ${new Date(releaseAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+      return json({ success: true, payoutReleaseAt: releaseAt });
+    }
+
+    // ── Seller marks a purchase handed over ───────────────────────────────────
+    if (action === 'mark_handed_over') {
+      if (!isOwner) return json({ error: 'Forbidden' }, 403);
+      if (b.start_date) return json({ success: true, skipped: 'dated booking' });
+      if (!held || b.handed_over_at) return json({ success: true, skipped: 'not held or already marked' });
+      const now = new Date();
+      const in72h = now.getTime() + 72 * 3600 * 1000;
+      const current = b.payout_release_at ? new Date(b.payout_release_at).getTime() : in72h;
+      const releaseAt = new Date(Math.min(current, in72h)).toISOString();
+      const { data: won } = await db.from('booking_requests')
+        .update({ handed_over_at: now.toISOString(), payout_release_at: releaseAt })
+        .eq('id', b.id).eq('payout_status', 'pending').is('handed_over_at', null)
+        .select('id');
+      if (!won?.length) return json({ success: true, skipped: 'changed' });
+      const when = new Date(releaseAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      await notify(b.renter_id, `Seller marked handed over: ${b.item_title}`, `Didn't get it, or something's wrong? Report a problem before ${when}`);
       return json({ success: true, payoutReleaseAt: releaseAt });
     }
 

@@ -102,13 +102,15 @@ Deno.serve(async (req) => {
         // Escrow: hold the owner's payout in the platform balance until the
         // buyer/renter has had a chance to report a problem. Dated bookings:
         // 24h after the last day (end_date + 1 day 00:00 UTC + 24h). Purchases /
-        // undated: 72h after payment, or sooner if the buyer confirms receipt.
+        // undated: the clock starts at the HANDOFF (booking-escrow pulls this in to
+        // 24h after the buyer confirms, or 72h after the seller marks it handed
+        // over); this 14-day value is only the backstop if neither happens.
         // The release-payouts job transfers it then (never while 'disputed').
         const HOUR = 60 * 60 * 1000;
         const lastDay = endDate || startDate;
         const releaseAt = lastDay
           ? new Date(new Date(`${String(lastDay).slice(0, 10)}T00:00:00Z`).getTime() + 48 * HOUR)
-          : new Date(Date.now() + 72 * HOUR);
+          : new Date(Date.now() + 14 * 24 * HOUR);
         // latest_charge is the charge we transfer from (source_transaction) and
         // reverse against on refund.
         const chargeId = typeof pi.latest_charge === 'string'
