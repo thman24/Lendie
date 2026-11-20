@@ -4,9 +4,11 @@ import { supabase } from './supabase';
 
 // Soft-launch switch: when true, card payments are OFF (cash only) — the build
 // tree-shakes the Stripe key out entirely, so users see "card coming soon" and
-// the Payouts dashboard is hidden. To enable card payments: set this to false
-// AND add the LIVE VITE_STRIPE_PUBLISHABLE_KEY in Vercel.
-const CASH_ONLY_LAUNCH = true;
+// the Payouts dashboard is hidden. Cards turn on ONLY when the build has
+// VITE_ENABLE_CARD_PAYMENTS=true (e.g. .env.local for a local test-mode run, or
+// the Vercel env at go-live) AND a VITE_STRIPE_PUBLISHABLE_KEY. Production has
+// neither today, so it stays cash-only.
+const CASH_ONLY_LAUNCH = import.meta.env.VITE_ENABLE_CARD_PAYMENTS !== 'true';
 const STRIPE_KEY = CASH_ONLY_LAUNCH ? '' : (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 const OWNER_ID = '8f7af82b-b44e-436f-995a-530eb24925e8';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
