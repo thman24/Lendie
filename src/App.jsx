@@ -413,6 +413,14 @@ function hasStarted(req) {
   return String(req.start).slice(0, 10) <= new Date().toISOString().slice(0, 10);
 }
 
+// Undated purchases/services: buyers can cancel for a refund only until the
+// seller's payout releases (24h after payment). Mirrors create-refund.
+function purchaseWindowClosed(req) {
+  if (!req || req.start) return false;
+  if (['releasing', 'released', 'reversed'].includes(req.payout_status)) return true;
+  return !!req.payout_release_at && new Date(req.payout_release_at).getTime() <= Date.now();
+}
+
 // Toast
 function Toast({ toast }) {
   if (!toast) return null;
@@ -720,8 +728,8 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
             I agree to Lendie's terms. {willSchedule
               ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel <strong style={{ color:C.text }}>free of charge</strong> any time before then; after that the 8% service fee is non-refundable.</>
               : isPurchase
-              ? "The 8% service fee is non-refundable if you cancel a purchase."
-              : "The 8% service fee is non-refundable if you cancel."}
+              ? "You can cancel within 24 hours of payment for a refund, minus the non-refundable 8% service fee."
+              : "You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
           </span>
         </label>
 
@@ -5362,6 +5370,7 @@ export default function Lendie() {
     if (!req.dbId) return;
     if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
     if (hasStarted(req)) { showToast("This rental has already started, so cancellations are no longer refundable. Message the owner if there's a problem.", 'error'); return; }
+    if (purchaseWindowClosed(req)) { showToast("The 24-hour cancellation window has passed. Contact support if there's a problem with your order.", 'error'); return; }
     // Mirror the server's gentle refund policy so the renter sees the real
     // numbers before confirming: once a booking has been charged, a renter/buyer
     // cancel refunds everything except the 8% service fee. (Cancellations before

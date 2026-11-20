@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from('booking_requests')
-      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents')
+      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents, payout_release_at')
       .eq('id', bookingId)
       .single();
 
@@ -70,6 +70,19 @@ Deno.serve(async (req) => {
     const started = booking.start_date && String(booking.start_date).slice(0, 10) <= today;
     if (user.id !== booking.owner_id && started) {
       return new Response(JSON.stringify({ error: 'This rental has already started, so cancellations are no longer refundable.' }), { status: 400, headers: corsHeaders });
+    }
+
+    // Undated purchases/services: the buyer may cancel for a refund only until the
+    // seller is paid (payout_release_at = 24h after payment). After that money and
+    // goods have changed hands, so a one-tap refund would claw the seller's payout
+    // back while the buyer keeps the item; disputes go through support instead.
+    // Sellers/providers may still cancel and refund at any time.
+    if (user.id !== booking.owner_id && !booking.start_date) {
+      const payoutDue = booking.payout_release_at && new Date(booking.payout_release_at).getTime() <= Date.now();
+      const payoutGone = ['releasing', 'released', 'reversed'].includes(booking.payout_status);
+      if (payoutDue || payoutGone) {
+        return new Response(JSON.stringify({ error: 'The 24-hour cancellation window for this purchase has passed. Please contact support if there is a problem with your order.' }), { status: 400, headers: corsHeaders });
+      }
     }
 
     if (!booking.payment_intent_id) {
