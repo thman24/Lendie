@@ -406,6 +406,13 @@ function isPastTransaction(req) {
   return false;
 }
 
+// A dated booking has started once its start date is today or earlier (UTC,
+// matching the server). Renter cancels from then on aren't refundable (ToS §6.4).
+function hasStarted(req) {
+  if (!req?.start) return false;
+  return String(req.start).slice(0, 10) <= new Date().toISOString().slice(0, 10);
+}
+
 // Toast
 function Toast({ toast }) {
   if (!toast) return null;
@@ -5354,6 +5361,7 @@ export default function Lendie() {
   const handleRefundRequest = async (req) => {
     if (!req.dbId) return;
     if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
+    if (hasStarted(req)) { showToast("This rental has already started, so cancellations are no longer refundable. Message the owner if there's a problem.", 'error'); return; }
     // Mirror the server's gentle refund policy so the renter sees the real
     // numbers before confirming: once a booking has been charged, a renter/buyer
     // cancel refunds everything except the 8% service fee. (Cancellations before

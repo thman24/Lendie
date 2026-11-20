@@ -62,6 +62,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'This transaction has ended and can no longer be refunded.' }), { status: 400, headers: corsHeaders });
     }
 
+    // Renter/buyer cancels are not refundable once a dated booking has started
+    // (ToS §6.4) — otherwise a renter could use most of the rental, cancel, and
+    // claw back the owner's already-released payout. Owners may still cancel and
+    // refund at any time. Undated sales/services have no start_date and are unaffected.
+    const today = new Date().toISOString().slice(0, 10);
+    const started = booking.start_date && String(booking.start_date).slice(0, 10) <= today;
+    if (user.id !== booking.owner_id && started) {
+      return new Response(JSON.stringify({ error: 'This rental has already started, so cancellations are no longer refundable.' }), { status: 400, headers: corsHeaders });
+    }
+
     if (!booking.payment_intent_id) {
       return new Response(JSON.stringify({ error: 'No payment to refund' }), { status: 400, headers: corsHeaders });
     }
