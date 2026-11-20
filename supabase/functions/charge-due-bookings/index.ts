@@ -18,7 +18,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // stripe-webhook ignores them — this cron owns their outcome + notifications, so
 // there's no double-processing.
 
-const RELEASE_DELAY_MS = 24 * 60 * 60 * 1000; // owner payout held until start + 24h
+const RELEASE_DELAY_MS = 24 * 60 * 60 * 1000; // one day; payout held until end_date + 1 day + 24h
 const MAX_ATTEMPTS = 4;
 const STUCK_CHARGING_MS = 2 * 60 * 60 * 1000;  // reclaim a 'charging' row abandoned >2h
 
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
   const nowIso = new Date().toISOString();
 
-  const cols = 'id, renter_id, owner_id, item_title, start_date, stripe_amount_cents, payout_amount_cents, stripe_customer_id, stripe_payment_method_id, charge_attempts, payment_failed_at, payment_status';
+  const cols = 'id, renter_id, owner_id, item_title, start_date, end_date, stripe_amount_cents, payout_amount_cents, stripe_customer_id, stripe_payment_method_id, charge_attempts, payment_failed_at, payment_status';
 
   // Attempt an off-session charge for a booking. Returns 'paid' | 'failed'.
   // Idempotency key makes re-attempts (including a recovered 'charging' row whose
@@ -80,8 +80,10 @@ Deno.serve(async (req) => {
       }
 
       const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id ?? null;
-      // Hold the owner's payout until 24h after the rental begins.
-      const releaseAt = new Date(new Date(`${b.start_date}T00:00:00Z`).getTime() + RELEASE_DELAY_MS).toISOString();
+      // Escrow: hold the owner's payout until 24h after the last rental day
+      // (end_date + 1 day 00:00 UTC + 24h) so either side can report a problem.
+      const lastDay = String(b.end_date || b.start_date).slice(0, 10);
+      const releaseAt = new Date(new Date(`${lastDay}T00:00:00Z`).getTime() + 2 * RELEASE_DELAY_MS).toISOString();
 
       // Guarded transition: only the run that flips charging→paid notifies.
       const { data: won } = await supabase
@@ -91,6 +93,7 @@ Deno.serve(async (req) => {
           payment_intent_id: pi.id,
           stripe_charge_id: chargeId,
           payout_release_at: releaseAt,
+          paid_at: new Date().toISOString(),
           charge_last_error: null,
         })
         .eq('id', b.id)

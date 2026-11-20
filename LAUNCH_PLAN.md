@@ -56,7 +56,8 @@ Go-live sequence (full detail in LAUNCH.md → "Stripe go-live"):
 3. Register the **live webhook** — subscribe to `payment_intent.succeeded/payment_failed/
    canceled`, **`setup_intent.succeeded`**, `account.updated`.
 4. Turn on both crons: `release-payouts-hourly` and `charge-due-bookings-hourly`.
-5. Verify all edge functions deployed (incl. `create-setup-intent`, `charge-due-bookings`).
+5. Verify all edge functions deployed (incl. `create-setup-intent`, `charge-due-bookings`,
+   `release-payouts`, `booking-escrow`).
 
 **Test in Stripe TEST mode before real cards:**
 - [ ] Happy path: pay a rental → 24h payout hold → payout releases.
@@ -67,6 +68,13 @@ Go-live sequence (full detail in LAUNCH.md → "Stripe go-live"):
 - [ ] **Refund path** on a paid booking (gentle policy: full minus 8% for renter cancels;
       full for owner cancels).
 - [ ] Cancel a `scheduled` booking → confirm the cron does **not** later charge it.
+- [ ] **Escrow hold**: rental payout releases ~24h after the END date (not start); purchase
+      releases on "Received — all good" or 72h after payment.
+- [ ] **Report a problem** (buyer and owner side) → payout frozen (`disputed`), admin email +
+      bell arrive → Admin → Disputes: test Release, Full refund, Partial refund.
+- [ ] Purchase: cancel within 24h (refund minus 8%) works; after 24h / after confirm is refused.
+- [ ] Money-field guard: a client `update` of `payout_status`/`payout_release_at` is rejected.
+- [ ] `stripe-webhook` must be deployed with **`--no-verify-jwt`** (Stripe sends no JWT).
 
 ---
 

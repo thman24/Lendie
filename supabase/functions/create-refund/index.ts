@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from('booking_requests')
-      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents, payout_release_at')
+      .select('id, renter_id, owner_id, payment_intent_id, payment_status, item_title, renter_name, transfer_id, payout_status, status, start_date, end_date, stripe_amount_cents, renter_fee_cents, payout_release_at, paid_at, buyer_confirmed_at, dispute_status')
       .eq('id', bookingId)
       .single();
 
@@ -53,12 +53,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Booking is not in a paid state' }), { status: 400, headers: corsHeaders });
     }
 
-    // Past transactions cannot be refunded: already completed, or (for rentals)
-    // the rental window has elapsed. Sales/services have no dates and are only
-    // blocked once completed. This is the authoritative server-side enforcement.
+    // Past transactions cannot be refunded: a dated booking that's completed or
+    // whose last day has passed. Undated purchases/services are governed by the
+    // buyer's 24h window below instead — the seller marking a purchase
+    // "complete" must not be able to cut the buyer's cancellation window short.
     const lastDay = booking.end_date || booking.start_date;
     const rentalEnded = lastDay && String(lastDay).slice(0, 10) < new Date().toISOString().slice(0, 10);
-    if (booking.status === 'completed' || rentalEnded) {
+    if ((booking.status === 'completed' && booking.start_date) || rentalEnded) {
       return new Response(JSON.stringify({ error: 'This transaction has ended and can no longer be refunded.' }), { status: 400, headers: corsHeaders });
     }
 
@@ -72,16 +73,22 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'This rental has already started, so cancellations are no longer refundable.' }), { status: 400, headers: corsHeaders });
     }
 
-    // Undated purchases/services: the buyer may cancel for a refund only until the
-    // seller is paid (payout_release_at = 24h after payment). After that money and
-    // goods have changed hands, so a one-tap refund would claw the seller's payout
-    // back while the buyer keeps the item; disputes go through support instead.
-    // Sellers/providers may still cancel and refund at any time.
+    // While a problem report is open, the buyer/renter can't also one-tap cancel —
+    // Lendie resolves the dispute (the seller may still cancel and refund).
+    if (user.id !== booking.owner_id && booking.dispute_status === 'open') {
+      return new Response(JSON.stringify({ error: 'You have an open problem report for this transaction — Lendie support will resolve it.' }), { status: 400, headers: corsHeaders });
+    }
+
+    // Undated purchases/services: the buyer may cancel for a refund (minus the 8%
+    // fee) within 24h of payment and before confirming receipt. After that the
+    // escrow hold protects them instead: "Report a problem" until the payout
+    // releases. Sellers/providers may still cancel and refund at any time.
     if (user.id !== booking.owner_id && !booking.start_date) {
-      const payoutDue = booking.payout_release_at && new Date(booking.payout_release_at).getTime() <= Date.now();
+      const windowOver = !!booking.paid_at
+        && Date.now() >= new Date(booking.paid_at).getTime() + 24 * 3600 * 1000;
       const payoutGone = ['releasing', 'released', 'reversed'].includes(booking.payout_status);
-      if (payoutDue || payoutGone) {
-        return new Response(JSON.stringify({ error: 'The 24-hour cancellation window for this purchase has passed. Please contact support if there is a problem with your order.' }), { status: 400, headers: corsHeaders });
+      if (booking.buyer_confirmed_at || windowOver || payoutGone) {
+        return new Response(JSON.stringify({ error: "The 24-hour cancellation window for this purchase has passed. If something's wrong with your order, use Report a problem before the seller is paid." }), { status: 400, headers: corsHeaders });
       }
     }
 
@@ -110,12 +117,13 @@ Deno.serve(async (req) => {
     // updates (where payout_status=<expected>) are atomic; a 0-row match means
     // another actor changed the row, so we re-read and react.
     let claimedToSkipped = false;
-    if (booking.payout_status === 'pending') {
+    const claimedFrom = booking.payout_status;
+    if (claimedFrom === 'pending' || claimedFrom === 'disputed') {
       const { data: claimed } = await supabaseAdmin
         .from('booking_requests')
         .update({ payout_status: 'skipped' })
         .eq('id', bookingId)
-        .eq('payout_status', 'pending')
+        .eq('payout_status', claimedFrom)
         .select('id');
       if (claimed && claimed.length > 0) {
         booking.payout_status = 'skipped';
@@ -167,7 +175,7 @@ Deno.serve(async (req) => {
       if (claimedToSkipped) {
         await supabaseAdmin
           .from('booking_requests')
-          .update({ payout_status: 'pending' })
+          .update({ payout_status: claimedFrom })
           .eq('id', bookingId)
           .eq('payout_status', 'skipped');
       }
@@ -201,7 +209,9 @@ Deno.serve(async (req) => {
       // payoutUpdate overrides it to 'reversed'. cancelled_by attributes the
       // cancellation to whoever initiated it (this fn runs as service_role, so
       // the DB trigger's auth.uid() fallback would be null without this).
-      .update({ payment_status: 'refunded', status: 'cancelled', payout_status: 'skipped', cancelled_by: user.id, cancellation_reason: isOwner ? 'owner_cancelled' : 'renter_cancelled', ...payoutUpdate })
+      .update({ payment_status: 'refunded', status: 'cancelled', payout_status: 'skipped', cancelled_by: user.id, cancellation_reason: isOwner ? 'owner_cancelled' : 'renter_cancelled',
+        ...(booking.dispute_status === 'open' ? { dispute_status: 'resolved', dispute_resolution: 'refunded', dispute_resolved_at: new Date().toISOString() } : {}),
+        ...payoutUpdate })
       .eq('id', bookingId);
 
     // Notify the other party

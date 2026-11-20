@@ -413,12 +413,19 @@ function hasStarted(req) {
   return String(req.start).slice(0, 10) <= new Date().toISOString().slice(0, 10);
 }
 
-// Undated purchases/services: buyers can cancel for a refund only until the
-// seller's payout releases (24h after payment). Mirrors create-refund.
+// Undated purchases/services: buyers can cancel for a refund (minus the 8% fee)
+// within 24h of payment and before confirming receipt. Mirrors create-refund.
 function purchaseWindowClosed(req) {
   if (!req || req.start) return false;
+  if (req.buyer_confirmed_at) return true;
   if (['releasing', 'released', 'reversed'].includes(req.payout_status)) return true;
-  return !!req.payout_release_at && new Date(req.payout_release_at).getTime() <= Date.now();
+  return !!req.paid_at && Date.now() >= new Date(req.paid_at).getTime() + 24 * 3600 * 1000;
+}
+
+// Escrow: a card-paid booking whose owner payout Lendie is still holding
+// (pending = waiting for its release time, disputed = frozen by a report).
+function inEscrow(req) {
+  return req?.payment_status === 'paid' && ['pending', 'disputed'].includes(req.payout_status);
 }
 
 // Toast
@@ -728,8 +735,8 @@ function StripePaymentModal({ paymentModal, user, wantsDelivery, deliveryAddress
             I agree to Lendie's terms. {willSchedule
               ? <>I authorize Lendie to securely save this card and charge {fmt(grandTotal)} on <strong style={{ color:C.text }}>{chargeDateLabel}</strong> (24 hours before my rental). I can cancel <strong style={{ color:C.text }}>free of charge</strong> any time before then; after that the 8% service fee is non-refundable.</>
               : isPurchase
-              ? "You can cancel within 24 hours of payment for a refund, minus the non-refundable 8% service fee."
-              : "You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
+              ? "Lendie holds your payment until you confirm you received the item (or 72 hours), so you can report a problem first. You can cancel within 24 hours for a refund, minus the non-refundable 8% service fee."
+              : "Lendie holds your payment until 24 hours after the booking ends, so you can report a problem. You can cancel for a refund, minus the non-refundable 8% service fee, until the booking starts (or within 24 hours of payment if it has no date)."}
           </span>
         </label>
 
@@ -1445,6 +1452,49 @@ function BlockDatesModal({ listing, lockedDates = [], onClose, onSave, darkMode 
         <div style={{ fontSize:12, color:C.muted, marginBottom:14, textAlign:"center" }}>{blocked.length} date{blocked.length!==1?"s":""} blocked</div>
         <button style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:"pointer", background:"#00B894", color:"#fff", marginBottom:10 }} onClick={()=>onSave([...new Set([...blocked, ...lockedDates])])}>Save availability</button>
         <button style={{ width:"100%", padding:"13px", borderRadius:12, border:`1px solid ${C.border}`, fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:C.card, color:C.text }} onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function DisputeModal({ booking, asOwner, onClose, onSubmit, darkMode }) {
+  const [reason, setReason] = useState(asOwner ? "damaged" : "not_as_described");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const C = darkMode ? { card:'#1C1C1E', border:'#2C2C2E', text:'#F2F2F7', muted:'#AEAEB2', inputBg:'#2C2C2E' } : { card:'#fff', border:'#E4E6EB', text:'#1C1E21', muted:'#65676B', inputBg:'#fff' };
+  const reasons = asOwner
+    ? [["damaged","Item damaged or not returned"],["not_received","Renter no-show"],["other","Something else"]]
+    : [["not_as_described","Not as described"],["not_received","Didn't receive it / owner no-show"],["damaged","Arrived damaged"],["other","Something else"]];
+  const ok = note.trim().length >= 5 && !submitting;
+  const submit = async () => { if (!ok) return; setSubmitting(true); await onSubmit(booking, reason, note.trim()); setSubmitting(false); };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:600, display:"flex", alignItems:"flex-end" }} onClick={onClose}>
+      <div style={{ background:C.card, borderRadius:"16px 16px 0 0", padding:"20px 16px 40px", width:"100%", maxWidth:430, margin:"0 auto", boxSizing:"border-box" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ width:40, height:5, borderRadius:3, background:C.border, margin:"0 auto 16px" }}/>
+        <div style={{ fontSize:17, fontWeight:800, color:C.text }}>Report a problem</div>
+        <div style={{ fontSize:13, color:C.muted, marginTop:4, marginBottom:16, lineHeight:1.5 }}>
+          {booking.item?.title} · The payment stays on hold — {asOwner ? "it won't be refunded or released" : "the seller isn't paid"} until Lendie reviews it. We'll message you both.
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+          {reasons.map(([k,label]) => (
+            <label key={k} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${reason===k?"#00B894":C.border}`, cursor:"pointer", fontSize:14, color:C.text }}>
+              <input type="radio" name="dispute-reason" checked={reason===k} onChange={()=>setReason(k)} style={{ accentColor:"#00B894" }}/>
+              {label}
+            </label>
+          ))}
+        </div>
+        <textarea
+          placeholder="What happened? Include details that help us decide (photos can be sent in Messages)."
+          value={note}
+          onChange={e=>setNote(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1.5px solid ${C.border}`, fontFamily:"inherit", fontSize:13, resize:"none", outline:"none", boxSizing:"border-box", color:C.text, background:C.inputBg, marginBottom:16 }}
+        />
+        <button onClick={submit} disabled={!ok} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontFamily:"inherit", fontWeight:700, fontSize:15, cursor:ok?"pointer":"not-allowed", background:"#E87722", color:"#fff", opacity:ok?1:0.45, marginBottom:10 }}>
+          {submitting ? "Sending…" : "Send report"}
+        </button>
+        <button onClick={onClose} style={{ width:"100%", padding:"13px", borderRadius:12, border:`1px solid ${C.border}`, fontFamily:"inherit", fontWeight:600, fontSize:14, cursor:"pointer", background:C.card, color:C.text }}>Cancel</button>
       </div>
     </div>
   );
@@ -3135,6 +3185,8 @@ export default function Lendie() {
   const [blockingDatesFor, setBlockingDatesFor] = useState(null);
   const [bookedOverrides, setBookedOverrides] = useState({});
   const [reviewingBooking, setReviewingBooking] = useState(null);
+  const [disputeReq, setDisputeReq] = useState(null);      // booking being reported (escrow)
+  const [adminDisputes, setAdminDisputes] = useState(null);  // admin panel: open disputes
   const [reviewedBookings, setReviewedBookings] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lendie_reviewed') || '{}'); } catch { return {}; }
   });
@@ -3690,6 +3742,7 @@ export default function Lendie() {
             createdAt: r.created_at,
             payout_amount_cents: r.payout_amount_cents, payout_status: r.payout_status,
             payout_release_at: r.payout_release_at, payout_released_at: r.payout_released_at,
+            paid_at: r.paid_at, buyer_confirmed_at: r.buyer_confirmed_at, dispute_status: r.dispute_status, disputed_by: r.disputed_by,
             renter_fee_cents: r.renter_fee_cents, quotedCents: r.quoted_cents,
           })));
         });
@@ -3817,6 +3870,10 @@ export default function Lendie() {
           payout_amount_cents: row.payout_amount_cents,
           payout_status: row.payout_status,
           payout_release_at: row.payout_release_at,
+          paid_at: row.paid_at,
+          buyer_confirmed_at: row.buyer_confirmed_at,
+          dispute_status: row.dispute_status,
+          disputed_by: row.disputed_by,
           payout_released_at: row.payout_released_at,
           renter_fee_cents: row.renter_fee_cents,
           quotedCents: row.quoted_cents,
@@ -5368,9 +5425,10 @@ export default function Lendie() {
 
   const handleRefundRequest = async (req) => {
     if (!req.dbId) return;
-    if (isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
+    if (req.start && isPastTransaction(req)) { showToast("This transaction has ended and can no longer be refunded.", 'error'); return; }
+    if (req.dispute_status === 'open') { showToast("You have an open problem report — Lendie support will resolve it.", 'error'); return; }
     if (hasStarted(req)) { showToast("This rental has already started, so cancellations are no longer refundable. Message the owner if there's a problem.", 'error'); return; }
-    if (purchaseWindowClosed(req)) { showToast("The 24-hour cancellation window has passed. Contact support if there's a problem with your order.", 'error'); return; }
+    if (purchaseWindowClosed(req)) { showToast("The 24-hour cancellation window has passed. If something's wrong, use Report a problem.", 'error'); return; }
     // Mirror the server's gentle refund policy so the renter sees the real
     // numbers before confirming: once a booking has been charged, a renter/buyer
     // cancel refunds everything except the 8% service fee. (Cancellations before
@@ -5404,6 +5462,81 @@ export default function Lendie() {
       showToast(e.message || 'Refund failed', 'error');
     }
   };
+
+  // ── Escrow (buyer protection) ──────────────────────────────────────────────
+  const callEscrow = async (payload) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Please sign in again');
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/booking-escrow`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.error) throw new Error(json.error || 'Something went wrong');
+    return json;
+  };
+  const fmtCents = c => `$${((c || 0) / 100).toFixed(2)}`;
+
+  const handleConfirmReceipt = async (req) => {
+    if (!window.confirm(`Confirm you received ${req.item?.title || 'this'} and it's as described? This releases payment to the seller — you won't be able to cancel or report a problem afterwards.`)) return;
+    try {
+      await callEscrow({ action: 'confirm_receipt', bookingId: req.dbId });
+      const now = new Date().toISOString();
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, buyer_confirmed_at: now, payout_release_at: now } : r));
+      showToast('Thanks! Payment released to the seller.');
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  const handleSubmitDispute = async (req, reason, note) => {
+    try {
+      await callEscrow({ action: 'report_problem', bookingId: req.dbId, reason, note });
+      setBookingRequests(prev => prev.map(r => r.id === req.id ? { ...r, payout_status: 'disputed', dispute_status: 'open', disputed_by: user?.id } : r));
+      setDisputeReq(null);
+      showToast('Report sent — the payment is on hold while we review it.');
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  const loadAdminDisputes = async () => {
+    try { const j = await callEscrow({ action: 'list_disputes' }); setAdminDisputes(j.disputes || []); }
+    catch (e) { showToast(e.message, 'error'); setAdminDisputes([]); }
+  };
+
+  const resolveDispute = async (d, resolution, refundCents) => {
+    const msg = resolution === 'release'
+      ? `Release ${fmtCents(d.payout_amount_cents)} to the owner and close this dispute?`
+      : `Refund ${fmtCents(refundCents ?? d.stripe_amount_cents)} to the buyer${refundCents != null && refundCents < d.stripe_amount_cents ? ' (the rest of the owner payout is released)' : ' in full'}?`;
+    if (!window.confirm(msg)) return;
+    try {
+      await callEscrow({ action: 'resolve', bookingId: d.id, resolution, ...(refundCents != null ? { refundCents } : {}) });
+      showToast('Dispute resolved');
+      loadAdminDisputes();
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  // Escrow buttons/status for a booking card. asOwner = viewing as owner/seller.
+  const escrowActions = (req, asOwner) => {
+    if (!inEscrow(req) || !req.dbId) return null;
+    if (req.dispute_status === 'open') {
+      return <span key="esc-hold" style={{ fontSize:11, fontWeight:700, color:"#E87722", background:"#E8772218", borderRadius:6, padding:"3px 8px", alignSelf:"center" }}>🛡️ Payment on hold — under review</span>;
+    }
+    const btn = (key, label, onClick, color) => (
+      <button key={key} onClick={onClick} style={{ padding:"5px 12px", borderRadius:8, border:`1px solid ${color}`, background:C.bg, color, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
+    );
+    const out = [];
+    if (!asOwner && !req.start && !req.buyer_confirmed_at) out.push(btn('esc-ok', 'Received — all good', () => handleConfirmReceipt(req), '#00B894'));
+    // Renters report once a dated rental has started (before that they can cancel).
+    if (asOwner || !req.start || hasStarted(req)) out.push(btn('esc-report', 'Report a problem', () => setDisputeReq(req), '#E87722'));
+    if (req.payout_release_at) {
+      const when = new Date(req.payout_release_at).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+      out.push(<span key="esc-info" style={{ fontSize:11, color:C.faint, alignSelf:"center" }}>{asOwner ? `Payout releases ${when}` : `Payment held until ${when}`}</span>);
+    }
+    return out;
+  };
+
+  useEffect(() => {
+    if (profileSubTab === 'admin' && isAdmin) loadAdminDisputes();
+  }, [profileSubTab, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setupStripeConnect = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -6182,11 +6315,13 @@ export default function Lendie() {
             const TODAY = new Date().toISOString().slice(0,10);
             const endOf = r => r.end || r.start || '';
             const myAccepted    = bookingRequests.filter(r=>r.renterId===user.id&&(r.status==="accepted"||r.status==="confirmed"));
-            const activeRentals = myAccepted.filter(r=>endOf(r)>=TODAY);
-            const pastRentals   = myAccepted.filter(r=>endOf(r)<TODAY);
+            // Escrow-held bookings stay "current" until the payout releases, so the
+            // buyer/renter can still confirm receipt or report a problem.
+            const activeRentals = myAccepted.filter(r=>endOf(r)>=TODAY || inEscrow(r));
+            const pastRentals   = myAccepted.filter(r=>endOf(r)<TODAY && !inEscrow(r));
             const pendingMine   = bookingRequests.filter(r=>r.renterId===user.id&&r.status==="pending");
             // Bookings other people have on MY listings — owner side
-            const upcomingBookings = bookingRequests.filter(r=>r.ownerId===user.id&&(r.status==="accepted"||r.status==="confirmed")&&endOf(r)>=TODAY);
+            const upcomingBookings = bookingRequests.filter(r=>r.ownerId===user.id&&(r.status==="accepted"||r.status==="confirmed")&&(endOf(r)>=TODAY||inEscrow(r)));
             const savedItems    = allItems.filter(i=>favorites.includes(i.id));
             const toggleSec = id => setOpenSections(prev=>({...prev,[id]:!prev[id]}));
             const isOpen = id => openSections[id] === undefined ? id==="mylistings" : !!openSections[id];
@@ -6279,6 +6414,7 @@ export default function Lendie() {
                                 <button onClick={async()=>{ const svc=req.item?.listingType==="service"; if(!window.confirm(`Mark ${req.renterName}'s ${svc?"service as complete":"rental as returned"}?`)) return; if(req.dbId) await supabase.from('booking_requests').update({status:'completed'}).eq('id',req.dbId); setBookingRequests(prev=>prev.map(r=>r.id===req.id?{...r,status:'completed'}:r)); showToast(svc?"Marked as complete!":"Marked as returned!"); }} style={{ padding:"5px 12px", borderRadius:8, border:"1.5px solid #00B894", background:C.bg, color:"#00B894", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.item?.listingType==="service"?"✓ Complete":"✓ Returned"}</button>
                               )}
                               <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction${reqWhen(req.dateStr, ' for ')}?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:C.bg, color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}</button>
+                              {escrowActions(req, true)}
                             </div>
                           </div>
                         </div>
@@ -6306,11 +6442,12 @@ export default function Lendie() {
                             <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{req.item?.owner} · {req.dateStr}</div>
                             <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
                               <button onClick={()=>{ const c=messages.find(m=>m.item===req.item?.title); if(c){setActiveConvo(c);markConvoRead(c);} setTab("messages"); }} style={{ padding:"5px 12px", borderRadius:8, border:"none", background:"#00B894", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message Owner</button>
-                              {canCancel
+                              {canCancel && !purchaseWindowClosed(req) && req.dispute_status!=='open'
                                 ? <button onClick={()=>req.payment_status==='paid' ? handleRefundRequest(req) : handleCancelRequest(req)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #FA3E3E", background:C.bg, color:"#FA3E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Get Refund' : 'Cancel'}</button>
                                 : req.start
                                   ? <span style={{ fontSize:11, color:C.faint, alignSelf:"center" }}>Can't cancel within 3 days of start</span>
                                   : null}
+                              {escrowActions(req, false)}
                             </div>
                           </div>
                         </div>
@@ -6464,6 +6601,7 @@ export default function Lendie() {
                                   {req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}
                                 </button>
                               )}
+                              {escrowActions(req, true)}
                               <button onClick={async ()=>{
                                 let convo = messages.find(m => m.otherUserId === req.renterId && m.item === req.item?.title);
                                 if (!convo) {
@@ -6854,7 +6992,7 @@ export default function Lendie() {
                       const earned = myPaid.filter(r => r.payout_status === 'released' && new Date(payoutDate(r)).getTime() >= rangeStart);
                       const totalCents = earned.reduce((s, r) => s + payoutOf(r), 0);
                       // Funds still held in the platform balance, not yet transferred.
-                      const pendingRows = myPaid.filter(r => r.payout_status === 'pending');
+                      const pendingRows = myPaid.filter(r => r.payout_status === 'pending' || r.payout_status === 'disputed');
                       const pendingCents = pendingRows.reduce((s, r) => s + payoutOf(r), 0);
                       const nextRelease = pendingRows.map(r => r.payout_release_at).filter(Boolean).sort()[0];
                       // Per-transaction pending breakdown; hpad matches the surrounding container's padding.
@@ -6862,7 +7000,7 @@ export default function Lendie() {
                         <div key={r.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:`10px ${hpad}px`, borderBottom:`1px solid ${C.borderFaint}` }}>
                           <div style={{ minWidth:0, marginRight:10 }}>
                             <div style={{ fontSize:13, fontWeight:600, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.item?.title || "Rental"}</div>
-                            <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{r.payout_release_at ? `Releases ${new Date(r.payout_release_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : (r.dateStr && r.dateStr!=="Purchase" && !r.dateStr?.startsWith("Offer") ? r.dateStr : "Awaiting release")}</div>
+                            <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{r.payout_status === 'disputed' ? 'On hold — problem reported' : r.payout_release_at ? `Releases ${new Date(r.payout_release_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}` : (r.dateStr && r.dateStr!=="Purchase" && !r.dateStr?.startsWith("Offer") ? r.dateStr : "Awaiting release")}</div>
                           </div>
                           <div style={{ fontSize:14, fontWeight:700, color:"#E87722", flexShrink:0 }}>${(payoutOf(r) / 100).toFixed(2)}</div>
                         </div>
@@ -7017,6 +7155,33 @@ export default function Lendie() {
             );
             return (
               <div style={{ display:"flex", flexDirection:"column" }}>
+                <AdminSection id="disputes" label="Disputes" badge={adminDisputes?.length || 0}>
+                  {adminDisputes === null
+                    ? <div style={{ padding:16, fontSize:13, color:C.muted }}>Loading…</div>
+                    : adminDisputes.length === 0
+                      ? <div style={{ padding:16, fontSize:13, color:C.muted }}>No open disputes 🎉</div>
+                      : adminDisputes.map(d => {
+                        const byRenter = d.disputed_by === d.renter_id;
+                        const inputId = `partial-${d.id}`;
+                        const abtn = (label, onClick, bg) => <button onClick={onClick} style={{ padding:"7px 12px", borderRadius:8, border:"none", background:bg, color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>;
+                        return (
+                          <div key={d.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
+                            <div style={{ fontWeight:700, fontSize:14, color:C.text }}>{d.item_title} <span style={{ color:C.muted, fontWeight:500 }}>#{d.id}</span></div>
+                            <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>
+                              {byRenter ? `Reported by renter/buyer (${d.renter_name || 'renter'})` : 'Reported by owner/seller'} · {({not_as_described:'Not as described', not_received:'Not received / no-show', damaged:'Damaged', other:'Other'})[d.dispute_reason] || d.dispute_reason} · {d.disputed_at ? new Date(d.disputed_at).toLocaleString() : ''}
+                            </div>
+                            <div style={{ fontSize:13, color:C.text, background:darkMode?"#2C2C2E":"#F4F4F5", borderRadius:8, padding:"8px 10px", marginTop:8, whiteSpace:"pre-wrap" }}>{d.dispute_note}</div>
+                            <div style={{ fontSize:12, color:C.muted, marginTop:8 }}>Buyer paid {fmtCents(d.stripe_amount_cents)} (incl. {fmtCents(d.renter_fee_cents)} fee) · Owner payout held {fmtCents(d.payout_amount_cents)}{d.date_str ? ` · ${d.date_str}` : ''}</div>
+                            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:10, alignItems:"center" }}>
+                              {abtn('Release to owner', ()=>resolveDispute(d, 'release'), '#00B894')}
+                              {abtn('Full refund', ()=>resolveDispute(d, 'refund'), '#FA3E3E')}
+                              <input id={inputId} type="number" min="0.01" step="0.01" placeholder="$ partial" style={{ width:90, padding:"6px 8px", borderRadius:8, border:`1px solid ${C.border}`, background:C.inputBg, color:C.text, fontFamily:"inherit", fontSize:12 }}/>
+                              {abtn('Partial refund', ()=>{ const v = parseFloat(document.getElementById(inputId)?.value); if (!(v > 0)) { showToast('Enter a refund amount', 'error'); return; } resolveDispute(d, 'refund', Math.round(v * 100)); }, '#E87722')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                </AdminSection>
                 <AdminSection id="stats" label="Stats">
                   <div style={{ display:"flex", overflowX:"auto" }}>
                     {[
@@ -7192,6 +7357,7 @@ export default function Lendie() {
                           {!isPending && !isPastTransaction(req) && (
                             <button onClick={()=>{ const isPaid=req.payment_status==='paid'; if(!window.confirm(`Cancel ${req.renterName}'s transaction?${isPaid?' A full refund will be issued to them.':' They will be notified.'}`)) return; handleOwnerCancelBooking(req); setManagingListing(null); }} style={{ padding:"7px 14px", borderRadius:8, border:"1px solid #FA3E3E", background:C2.card, color:"#FA3E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{req.payment_status==='paid' ? 'Cancel & Refund' : 'Cancel'}</button>
                           )}
+                          {escrowActions(req, true)}
                           <button onClick={()=>{ let convo=messages.find(m=>m.otherUserId===req.renterId&&m.item===req.item?.title); if(!convo){convo={id:Date.now(),conversation_id:`conv_req_${req.dbId||req.id}`,from:req.renterName,fromId:req.renterId,otherUserId:req.renterId,avatar:'👽',item:req.item?.title||'',sub:req.dateStr,time:"Just now",unread:false,thread:[]};setMessages(prev=>[...prev,convo]);}else{markConvoRead(convo);} setActiveConvo(convo); setManagingListing(null); }} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${C2.border}`, background:C2.card, color:C2.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Message</button>
                         </div>
                       </div>
@@ -7406,6 +7572,15 @@ export default function Lendie() {
         </div>
         );
       })()}
+      {disputeReq && (
+        <DisputeModal
+          booking={disputeReq}
+          asOwner={disputeReq.ownerId === user?.id}
+          onClose={()=>setDisputeReq(null)}
+          onSubmit={handleSubmitDispute}
+          darkMode={darkMode}
+        />
+      )}
       {reviewingBooking && (
         <ReviewModal
           booking={reviewingBooking}

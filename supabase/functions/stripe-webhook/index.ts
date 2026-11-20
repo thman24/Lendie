@@ -99,13 +99,16 @@ Deno.serve(async (req) => {
           startDate = booking.start_date ?? startDate;
           endDate = booking.end_date ?? endDate;
         }
-        // Hold the owner's payout in the platform balance until 24h after the
-        // rental begins (start_date 00:00 UTC + 24h), or 24h after payment for
-        // sales / open-ended bookings. The release-payouts job transfers it then.
-        const RELEASE_DELAY_MS = 24 * 60 * 60 * 1000;
-        const releaseAt = startDate
-          ? new Date(new Date(`${startDate}T00:00:00Z`).getTime() + RELEASE_DELAY_MS)
-          : new Date(Date.now() + RELEASE_DELAY_MS);
+        // Escrow: hold the owner's payout in the platform balance until the
+        // buyer/renter has had a chance to report a problem. Dated bookings:
+        // 24h after the last day (end_date + 1 day 00:00 UTC + 24h). Purchases /
+        // undated: 72h after payment, or sooner if the buyer confirms receipt.
+        // The release-payouts job transfers it then (never while 'disputed').
+        const HOUR = 60 * 60 * 1000;
+        const lastDay = endDate || startDate;
+        const releaseAt = lastDay
+          ? new Date(new Date(`${String(lastDay).slice(0, 10)}T00:00:00Z`).getTime() + 48 * HOUR)
+          : new Date(Date.now() + 72 * HOUR);
         // latest_charge is the charge we transfer from (source_transaction) and
         // reverse against on refund.
         const chargeId = typeof pi.latest_charge === 'string'
@@ -118,6 +121,7 @@ Deno.serve(async (req) => {
             payment_status: 'paid',
             payment_intent_id: pi.id,
             stripe_charge_id: chargeId,
+            paid_at: new Date().toISOString(),
             payout_release_at: releaseAt.toISOString(),
           })
           .eq('id', bookingId);
