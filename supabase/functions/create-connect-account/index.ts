@@ -44,6 +44,18 @@ Deno.serve(async (req) => {
 
     let accountId = profile?.stripe_account_id;
 
+    // A stored account from the OTHER Stripe mode (live id while running on test
+    // keys, or vice versa) or a deleted account can't be used — start a fresh one.
+    if (accountId) {
+      try { await stripe.accounts.retrieve(accountId); }
+      catch (e: any) {
+        if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
+          console.warn(`[create-connect-account] stored account ${accountId} not usable with this key (${e?.code}) — creating a new one`);
+          accountId = null;
+        } else { throw e; }
+      }
+    }
+
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',

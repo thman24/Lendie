@@ -46,7 +46,19 @@ Deno.serve(async (req) => {
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
-    const account = await stripe.accounts.retrieve(profile.stripe_account_id);
+    let account;
+    try {
+      account = await stripe.accounts.retrieve(profile.stripe_account_id);
+    } catch (e: any) {
+      // Account from the other Stripe mode (test vs live) or deleted: report
+      // "not connected" so the app offers setup, which creates a usable one.
+      if (e?.code === 'resource_missing' || e?.code === 'account_invalid' || /No such account|does not have access to account/i.test(e?.message ?? '')) {
+        return new Response(JSON.stringify({ connected: false, chargesEnabled: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw e;
+    }
 
     // Update cached status in DB
     await supabaseAdmin.from('profiles').update({

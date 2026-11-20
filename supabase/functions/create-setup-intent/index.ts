@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     // dates, delivery), and it must be in a payable state. Otherwise a renter could
     // send a cheaper listing or shorter dates, or re-open a booking that is already
     // paid / mid-charge / paid out and get charged (or the owner paid) twice.
-    const PAYABLE = ['pending', 'delivery_confirmed', 'failed', 'payment_failed', 'cancelled'];
+    const PAYABLE = ['unpaid', 'pending', 'delivery_confirmed', 'failed', 'payment_failed', 'cancelled'];
     const payableFilter = `payment_status.is.null,payment_status.in.(${PAYABLE.join(',')})`;
     let existingRow: any = null;
     if (existingBookingId) {
